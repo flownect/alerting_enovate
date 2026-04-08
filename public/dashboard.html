@@ -67,8 +67,8 @@
                         <div class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full font-semibold" title="Campagnes actuellement live">
                             🟢 <span id="stat-live">0</span> Live
                         </div>
-                        <div class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full font-semibold" title="Lancements programmés ce mois">
-                            🚀 <span id="stat-launches">0</span> Lancements
+                        <div class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full font-semibold" title="Lancements programmés dans les 7 prochains jours">
+                            🚀 <span id="stat-launches">0</span> Lancements (7j)
                         </div>
                     </div>
                     <!-- Compteur alertes critiques (cliquable) -->
@@ -152,25 +152,64 @@
 
         <!-- Contenu Alertes -->
         <section id="section-alerts">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex gap-2">
-                    <button onclick="filterAlerts('all')" id="filter-all" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium transition">
-                        Toutes <span id="count-all" class="ml-1 bg-white/20 px-2 py-0.5 rounded-full">0</span>
-                    </button>
-                    <button onclick="filterAlerts('commerce')" id="filter-commerce" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
-                        💼 Commerce <span id="count-commerce" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
-                    </button>
-                    <button onclick="filterAlerts('traders')" id="filter-traders" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
-                        👤 Traders <span id="count-traders" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
-                    </button>
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Colonne Commerce -->
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">💼 Alertes Commerce</h3>
+                        <span id="commerce-total" class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded-full text-sm font-medium">0</span>
+                    </div>
+                    <div class="flex gap-2 mb-3">
+                        <button onclick="filterCommerceAlerts('all')" id="commerce-filter-all" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-medium transition">
+                            Toutes
+                        </button>
+                        <button onclick="filterCommerceAlerts('attention')" id="commerce-filter-attention" class="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                            🟢 Attention <span id="commerce-count-attention">0</span>
+                        </button>
+                        <button onclick="filterCommerceAlerts('urgent')" id="commerce-filter-urgent" class="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                            🟠 Urgent <span id="commerce-count-urgent">0</span>
+                        </button>
+                        <button onclick="filterCommerceAlerts('critical')" id="commerce-filter-critical" class="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                            � Critique <span id="commerce-count-critical">0</span>
+                        </button>
+                    </div>
+                    <div id="commerce-alerts-container" class="space-y-2 max-h-[600px] overflow-y-auto">
+                        <!-- Commerce alerts will be inserted here -->
+                    </div>
+                    <div id="no-commerce-alerts" class="hidden bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
+                        <span class="text-2xl">✅</span>
+                        <p class="mt-1 text-green-700 dark:text-green-400 text-sm">Aucune alerte commerce</p>
+                    </div>
                 </div>
-            </div>
-            <div id="alerts-container" class="space-y-3">
-                <!-- Alerts will be inserted here -->
-            </div>
-            <div id="no-alerts" class="hidden bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-                <span class="text-4xl">✅</span>
-                <p class="mt-2 text-green-700 dark:text-green-400 font-medium">Aucune alerte à traiter</p>
+                
+                <!-- Colonne Traders -->
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">👤 Alertes Traders</h3>
+                        <span id="traders-total" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full text-sm font-medium">0</span>
+                    </div>
+                    <div class="flex gap-2 mb-3">
+                        <button onclick="filterTradersAlerts('all')" id="traders-filter-all" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-medium transition">
+                            Toutes
+                        </button>
+                        <button onclick="filterTradersAlerts('attention')" id="traders-filter-attention" class="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                            � Attention <span id="traders-count-attention">0</span>
+                        </button>
+                        <button onclick="filterTradersAlerts('urgent')" id="traders-filter-urgent" class="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                            🟠 Urgent <span id="traders-count-urgent">0</span>
+                        </button>
+                        <button onclick="filterTradersAlerts('critical')" id="traders-filter-critical" class="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                            🔴 Critique <span id="traders-count-critical">0</span>
+                        </button>
+                    </div>
+                    <div id="traders-alerts-container" class="space-y-2 max-h-[600px] overflow-y-auto">
+                        <!-- Traders alerts will be inserted here -->
+                    </div>
+                    <div id="no-traders-alerts" class="hidden bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
+                        <span class="text-2xl">✅</span>
+                        <p class="mt-1 text-green-700 dark:text-green-400 text-sm">Aucune alerte traders</p>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -214,7 +253,7 @@
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Pôle</th>
                             <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Live</th>
                             <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Checkées</th>
-                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Lancement prog.</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Lancements (7j)</th>
                             <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Bilans</th>
                         </tr>
                     </thead>
@@ -291,7 +330,8 @@
         // ==================== STATE ====================
         let trelloData = null;
         let campaignStatsData = null;
-        let currentFilter = 'all';
+        let currentCommerceFilter = 'all';
+        let currentTradersFilter = 'all';
         let currentPerfFilter = 'all';
         let allAlerts = [];
         let allPerformanceAlerts = [];
@@ -397,13 +437,13 @@
             // Checked campaigns (among live)
             const checked = live.filter(c => c.areSubdivisionsChecked === true);
             
-            // Programmable launches (next 14 days)
+            // Programmable launches (next 7 days)
             const programmableLaunches = traderCards.filter(c => {
                 if (!c.isProgrammable || c.areSubdivisionsLive) return false;
                 const startDate = parseDate(c.dates?.startingDateFormatted);
                 if (!startDate) return false;
                 const diff = getDaysDiff(now, startDate);
-                return diff >= 0 && diff <= 14;
+                return diff >= 0 && diff <= 7;
             });
 
             // Bilans à saisir
@@ -442,7 +482,8 @@
             for (const card of cards) {
                 const startDate = parseDate(card.dates?.startingDateFormatted);
                 const endDate = parseDate(card.dates?.endingDateFormatted);
-                const trader = card.trader || 'Aucun';
+                // Utiliser getEffectiveTrader pour l'attribution unique
+                const trader = getEffectiveTrader(card.trader);
                 const daysToStart = startDate ? getDaysDiff(now, startDate) : null;
                 const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
 
@@ -674,7 +715,7 @@
                         </div>
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <div class="text-2xl font-bold ${stats.programmableLaunches > 0 ? 'text-blue-600' : 'text-gray-400'}">${stats.programmableLaunches}</div>
-                            <div class="text-xs text-gray-500 dark:text-gray-400">Lancements prog.</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Lancements (7j)</div>
                         </div>
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <div class="text-2xl font-bold ${stats.bilans > 0 ? 'text-red-600' : 'text-gray-400'}">${stats.bilans}</div>
@@ -724,33 +765,34 @@
         }
 
         function renderAlerts() {
-            const container = document.getElementById('alerts-container');
-            const noAlerts = document.getElementById('no-alerts');
-            container.innerHTML = '';
-
-            // Commerce = non programmable, Traders = le reste (programmable mais autres problèmes)
+            // Séparer les alertes Commerce (non programmable) et Traders (programmable)
             const commerceAlerts = allAlerts.filter(a => !a.card.isProgrammable);
             const tradersAlerts = allAlerts.filter(a => a.card.isProgrammable);
             
-            const criticalAlerts = allAlerts.filter(a => a.criticality === 'critical');
-            
-            let filteredAlerts;
-            if (currentFilter === 'all') {
-                filteredAlerts = allAlerts;
-            } else if (currentFilter === 'commerce') {
-                filteredAlerts = commerceAlerts;
-            } else if (currentFilter === 'traders') {
-                filteredAlerts = tradersAlerts;
-            } else if (currentFilter === 'critical') {
-                filteredAlerts = criticalAlerts;
-            } else {
-                filteredAlerts = allAlerts;
+            // Filtrer selon les filtres actifs
+            let filteredCommerce = commerceAlerts;
+            if (currentCommerceFilter !== 'all') {
+                filteredCommerce = commerceAlerts.filter(a => a.criticality === currentCommerceFilter);
             }
-
-            // Update counters
-            document.getElementById('count-all').textContent = allAlerts.length;
-            document.getElementById('count-commerce').textContent = commerceAlerts.length;
-            document.getElementById('count-traders').textContent = tradersAlerts.length;
+            
+            let filteredTraders = tradersAlerts;
+            if (currentTradersFilter !== 'all') {
+                filteredTraders = tradersAlerts.filter(a => a.criticality === currentTradersFilter);
+            }
+            
+            // Update counters Commerce
+            document.getElementById('commerce-total').textContent = commerceAlerts.length;
+            document.getElementById('commerce-count-attention').textContent = commerceAlerts.filter(a => a.criticality === 'attention').length;
+            document.getElementById('commerce-count-urgent').textContent = commerceAlerts.filter(a => a.criticality === 'urgent').length;
+            document.getElementById('commerce-count-critical').textContent = commerceAlerts.filter(a => a.criticality === 'critical').length;
+            
+            // Update counters Traders
+            document.getElementById('traders-total').textContent = tradersAlerts.length;
+            document.getElementById('traders-count-attention').textContent = tradersAlerts.filter(a => a.criticality === 'attention').length;
+            document.getElementById('traders-count-urgent').textContent = tradersAlerts.filter(a => a.criticality === 'urgent').length;
+            document.getElementById('traders-count-critical').textContent = tradersAlerts.filter(a => a.criticality === 'critical').length;
+            
+            // Update main tab counter
             document.getElementById('main-count-alerts').textContent = allAlerts.length;
 
             // Update critical counter in header
@@ -763,15 +805,27 @@
                 criticalCounter.classList.add('hidden');
             }
 
-            if (filteredAlerts.length === 0) {
+            // Render Commerce alerts
+            renderAlertColumn('commerce-alerts-container', 'no-commerce-alerts', filteredCommerce);
+            
+            // Render Traders alerts
+            renderAlertColumn('traders-alerts-container', 'no-traders-alerts', filteredTraders);
+        }
+        
+        function renderAlertColumn(containerId, noAlertsId, alerts) {
+            const container = document.getElementById(containerId);
+            const noAlerts = document.getElementById(noAlertsId);
+            container.innerHTML = '';
+
+            if (alerts.length === 0) {
                 noAlerts.classList.remove('hidden');
                 return;
             }
             noAlerts.classList.add('hidden');
 
-            for (const alert of filteredAlerts) {
+            for (const alert of alerts) {
                 const card = alert.card;
-                const trader = card.trader || 'Aucun';
+                const trader = getEffectiveTrader(card.trader);
                 const traderDisplay = trader === 'Aucun' 
                     ? '<span class="text-red-600 font-bold">NON ASSIGNÉ</span>' 
                     : trader;
@@ -781,81 +835,36 @@
                     : 'alert-attention';
 
                 const criticalityBadge = alert.criticality === 'critical' 
-                    ? '<span class="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">CRITIQUE</span>'
+                    ? '<span class="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">🔴</span>'
                     : alert.criticality === 'urgent'
-                    ? '<span class="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">URGENT</span>'
-                    : '<span class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">ATTENTION</span>';
+                    ? '<span class="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">🟠</span>'
+                    : '<span class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">🟢</span>';
 
                 const alertId = `alert-${Math.random().toString(36).substr(2, 9)}`;
 
                 const div = document.createElement('div');
-                div.className = `bg-white dark:bg-gray-800 rounded-lg shadow ${alertClass} overflow-hidden`;
+                div.className = `bg-white dark:bg-gray-800 rounded-lg shadow ${alertClass} overflow-hidden text-sm`;
                 div.innerHTML = `
-                    <div class="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onclick="toggleAlert('${alertId}')">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                ${criticalityBadge}
-                                <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-2 py-1 rounded">${alert.timing}</span>
-                                <span class="font-medium text-gray-900 dark:text-white">${alert.message}</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                <span>[${card.trackerId || 'N/A'}]</span>
-                                <svg class="w-5 h-5 transform transition-transform" id="chevron-${alertId}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </div>
+                    <div class="p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onclick="toggleAlert('${alertId}')">
+                        <div class="flex items-center gap-2">
+                            ${criticalityBadge}
+                            <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-1.5 py-0.5 rounded">${alert.timing}</span>
+                            <span class="font-medium text-gray-900 dark:text-white text-xs">${alert.message}</span>
                         </div>
-                        <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div class="mt-1 text-xs text-gray-600 dark:text-gray-400 truncate">
                             ${card.title || 'Sans nom'}
                         </div>
-                        <div class="mt-2 flex flex-wrap gap-3 text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">👤 <strong>${trader === 'Aucun' ? '<span class="text-red-500">NON ASSIGNÉ</span>' : trader}</strong></span>
-                            <span class="text-gray-500 dark:text-gray-400">📋 ${card.accountManager || 'N/A'}</span>
-                            <span class="text-gray-500 dark:text-gray-400">💼 ${card.commercial || 'N/A'}</span>
+                        <div class="mt-1 flex flex-wrap gap-2 text-xs">
+                            <span class="text-gray-500 dark:text-gray-400">👤 ${trader === 'Aucun' ? '<span class="text-red-500">N/A</span>' : trader}</span>
+                            <span class="text-gray-500 dark:text-gray-400"> ${card.commercial || 'N/A'}</span>
                         </div>
                     </div>
                     <div id="${alertId}" class="expand-content">
-                        <div class="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                            <div class="grid md:grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Trader:</span> ${traderDisplay}</p>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Commercial:</span> ${card.commercial || 'N/A'}</p>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Account Manager:</span> ${card.accountManager || 'N/A'}</p>
-                                </div>
-                                <div>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Lancement:</span> ${card.dates?.startingDateFormatted || 'N/A'}</p>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Subdivisions:</span> ${card.subdivisions?.length || 0}</p>
-                                </div>
-                            </div>
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <span class="text-xs px-2 py-1 rounded ${card.areSubdivisionsLive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300'}">
-                                    ${card.areSubdivisionsLive ? '✓ Live' : '○ Non live'}
-                                </span>
-                                <span class="text-xs px-2 py-1 rounded ${card.areSubdivisionsChecked ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300'}">
-                                    ${card.areSubdivisionsChecked ? '✓ Checkée' : '○ Non checkée'}
-                                </span>
-                                <span class="text-xs px-2 py-1 rounded ${card.isProgrammable ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">
-                                    ${card.isProgrammable ? '✓ Programmable' : '✗ Non programmable'}
-                                </span>
-                            </div>
-                            ${card.subdivisions && card.subdivisions.length > 0 ? `
-                            <div class="mt-3 border-t border-gray-200 dark:border-gray-600 pt-3">
-                                <p class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Détail des subdivisions :</p>
-                                <div class="space-y-1">
-                                    ${card.subdivisions.map(sub => {
-                                        const subLive = sub.isLive ? '🟢' : '🔴';
-                                        const subChecked = sub.isChecked ? '✓' : '○';
-                                        const subName = sub.name || 'Sans nom';
-                                        return `<div class="text-xs flex items-center gap-2">
-                                            <span>${subLive}</span>
-                                            <span class="font-mono">${subChecked}</span>
-                                            <span class="text-gray-700 dark:text-gray-300">${subName}</span>
-                                        </div>`;
-                                    }).join('')}
-                                </div>
-                            </div>
-                            ` : ''}
+                        <div class="px-3 pb-3 pt-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 text-xs">
+                            <p><span class="text-gray-500">Trader:</span> ${traderDisplay}</p>
+                            <p><span class="text-gray-500">Commercial:</span> ${card.commercial || 'N/A'}</p>
+                            <p><span class="text-gray-500">Lancement:</span> ${card.dates?.startingDateFormatted || 'N/A'}</p>
+                            <p><span class="text-gray-500">Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
                         </div>
                     </div>
                 `;
@@ -870,18 +879,37 @@
             chevron.classList.toggle('rotate-180');
         }
 
-        function filterAlerts(filter) {
-            currentFilter = filter;
+        function filterCommerceAlerts(filter) {
+            currentCommerceFilter = filter;
             
             // Update button styles
-            const filters = ['all', 'commerce', 'traders', 'critical'];
+            const filters = ['all', 'attention', 'urgent', 'critical'];
             for (const f of filters) {
-                const btn = document.getElementById(`filter-${f}`);
+                const btn = document.getElementById(`commerce-filter-${f}`);
                 if (btn) {
                     if (f === filter) {
-                        btn.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium transition';
+                        btn.className = 'px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-medium transition';
                     } else {
-                        btn.className = 'px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600';
+                        btn.className = 'px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600';
+                    }
+                }
+            }
+            
+            renderAlerts();
+        }
+        
+        function filterTradersAlerts(filter) {
+            currentTradersFilter = filter;
+            
+            // Update button styles
+            const filters = ['all', 'attention', 'urgent', 'critical'];
+            for (const f of filters) {
+                const btn = document.getElementById(`traders-filter-${f}`);
+                if (btn) {
+                    if (f === filter) {
+                        btn.className = 'px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-medium transition';
+                    } else {
+                        btn.className = 'px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600';
                     }
                 }
             }
@@ -893,8 +921,9 @@
         function showCriticalAlerts() {
             // Basculer vers l'onglet Alertes
             switchMainTab('alerts');
-            // Filtrer sur les critiques
-            currentFilter = 'critical';
+            // Filtrer sur les critiques dans les deux colonnes
+            currentCommerceFilter = 'critical';
+            currentTradersFilter = 'critical';
             renderAlerts();
             // Scroll vers la section alertes
             document.getElementById('section-alerts').scrollIntoView({ behavior: 'smooth' });
@@ -1167,16 +1196,17 @@
                 return c.subdivisions.every(sub => sub.isLive === true);
             }).length;
             
-            // Lancements programmés ce mois calendaire
-            const launchesThisMonth = cards.filter(c => {
-                if (!c.isProgrammable) return false;
+            // Lancements programmés dans les 7 prochains jours
+            const launchesNext7Days = cards.filter(c => {
+                if (!c.isProgrammable || c.areSubdivisionsLive) return false;
                 const startDate = parseDate(c.dates?.startingDateFormatted);
                 if (!startDate) return false;
-                return startDate.getMonth() === currentMonth && startDate.getFullYear() === currentYear;
+                const diff = getDaysDiff(now, startDate);
+                return diff >= 0 && diff <= 7;
             }).length;
             
             document.getElementById('stat-live').textContent = liveCount;
-            document.getElementById('stat-launches').textContent = launchesThisMonth;
+            document.getElementById('stat-launches').textContent = launchesNext7Days;
         }
 
         // ==================== INIT ====================
