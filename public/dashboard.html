@@ -504,6 +504,11 @@
                         <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                             ${card.title || 'Sans nom'}
                         </div>
+                        <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                            <span class="text-gray-500 dark:text-gray-400">👤 <strong>${trader === 'Aucun' ? '<span class="text-red-500">NON ASSIGNÉ</span>' : trader}</strong></span>
+                            <span class="text-gray-500 dark:text-gray-400">📋 ${card.accountManager || 'N/A'}</span>
+                            <span class="text-gray-500 dark:text-gray-400">💼 ${card.commercial || 'N/A'}</span>
+                        </div>
                     </div>
                     <div id="${alertId}" class="expand-content">
                         <div class="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
