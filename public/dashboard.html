@@ -311,9 +311,10 @@
             }
             
             const traderCards = cards.filter(c => {
-                // Utiliser le trader effectif (exclure responsables si autre personne)
-                const effectiveTrader = getEffectiveTrader(c.trader);
-                return apiNames.some(name => effectiveTrader.toLowerCase().includes(name.toLowerCase()));
+                // Utiliser le champ trader directement pour le matching
+                const trader = c.trader || 'Aucun';
+                // Vérifier si le trader matche avec un des noms recherchés
+                return apiNames.some(name => trader.toLowerCase().includes(name.toLowerCase()));
             });
 
             const now = today();
