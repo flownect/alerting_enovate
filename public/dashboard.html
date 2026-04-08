@@ -516,6 +516,18 @@
         function generatePerformanceAlerts() {
             if (!campaignStatsData?.data) return [];
             
+            // Debug: afficher la structure des données
+            console.log('Campaign Stats Data:', campaignStatsData.data.length, 'campagnes');
+            if (campaignStatsData.data.length > 0) {
+                const sample = campaignStatsData.data[0];
+                console.log('Sample campaign:', sample.campaignName);
+                console.log('  - data:', sample.data ? Object.keys(sample.data) : 'ABSENT');
+                console.log('  - objectives:', sample.objectives ? Object.keys(sample.objectives) : 'ABSENT');
+                console.log('  - impressions data:', sample.data?.impressions);
+                console.log('  - impressions objective:', sample.objectives?.impressions);
+                console.log('  - marginRate:', sample.data?.marginRate);
+            }
+            
             const alerts = [];
             const now = today();
             
