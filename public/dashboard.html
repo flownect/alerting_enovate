@@ -456,7 +456,10 @@
             const container = document.getElementById('poles-container');
             container.innerHTML = '';
 
-            for (const [teamName, color] of Object.entries(TEAM_COLORS)) {
+            // Seulement les 3 teams principales (pas Responsables)
+            for (const teamName of Object.keys(TEAMS)) {
+                const color = TEAM_COLORS[teamName] || 'team1';
+                const members = TEAMS[teamName] || [];
                 const stats = getTeamStats(teamName);
                 const checkRatio = stats.live > 0 ? (stats.checked / stats.live * 100).toFixed(0) : 100;
                 const checkColor = stats.checked < stats.live ? 'text-red-600' : 'text-green-600';
@@ -466,7 +469,7 @@
                 card.innerHTML = `
                     <div class="flex items-center gap-2 mb-4">
                         <span class="badge-${color} text-white text-xs font-bold px-2 py-1 rounded">${teamName}</span>
-                        <span class="text-sm text-gray-500 dark:text-gray-400">${TEAMS[teamName].join(', ')}</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">${members.join(', ')}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
