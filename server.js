@@ -4,6 +4,20 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const path = require('path');
 
+// Timeout pour les requêtes API (120 secondes)
+const FETCH_TIMEOUT = 120000;
+
+// Logger avec timestamp
+function log(tag, message, data = null) {
+    const timestamp = new Date().toISOString();
+    const prefix = `[${timestamp}] [${tag}]`;
+    if (data) {
+        console.log(`${prefix} ${message}`, data);
+    } else {
+        console.log(`${prefix} ${message}`);
+    }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -45,10 +59,24 @@ app.get('/api/trello', async (req, res) => {
         const baseUrl = getBaseUrl(env);
         
         const url = `${baseUrl}/api/trello?api_key=${NOVA_API_KEY}&cache=${cache}`;
-        console.log(`[Trello] Fetching: ${baseUrl}/api/trello (env: ${env})`);
+        log('Trello', `→ Requête démarrée (env: ${env})`);
+        log('Trello', `  URL: ${baseUrl}/api/trello`);
         
-        const response = await fetch(url);
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            log('Trello', `⚠️ Timeout après ${FETCH_TIMEOUT/1000}s`);
+            controller.abort();
+        }, FETCH_TIMEOUT);
+        
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        const duration = Date.now() - startTime;
+        log('Trello', `← Réponse reçue (status: ${response.status}, durée: ${duration}ms)`);
+        
         const data = await response.json();
+        const cardsCount = data?.lanes?.reduce((acc, lane) => acc + (lane.cards?.length || 0), 0) || 0;
+        log('Trello', `✅ Succès - ${cardsCount} cartes récupérées`);
         
         res.json({
             success: true,
@@ -57,7 +85,7 @@ app.get('/api/trello', async (req, res) => {
             data: data
         });
     } catch (error) {
-        console.error('[Trello] Error:', error.message);
+        log('Trello', `❌ Erreur: ${error.message}`);
         res.status(500).json({
             success: false,
             error: error.message,
@@ -73,10 +101,24 @@ app.get('/api/campaign-stats/analysis', async (req, res) => {
         const baseUrl = getBaseUrl(env);
         
         const url = `${baseUrl}/api/campaign-stats/analysis?api_key=${NOVA_API_KEY}`;
-        console.log(`[Campaign Stats] Fetching: ${baseUrl}/api/campaign-stats/analysis (env: ${env})`);
+        log('Campaign Stats', `→ Requête démarrée (env: ${env})`);
+        log('Campaign Stats', `  URL: ${baseUrl}/api/campaign-stats/analysis`);
         
-        const response = await fetch(url);
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            log('Campaign Stats', `⚠️ Timeout après ${FETCH_TIMEOUT/1000}s`);
+            controller.abort();
+        }, FETCH_TIMEOUT);
+        
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        const duration = Date.now() - startTime;
+        log('Campaign Stats', `← Réponse reçue (status: ${response.status}, durée: ${duration}ms)`);
+        
         const data = await response.json();
+        const itemsCount = Array.isArray(data) ? data.length : (data?.length || 'N/A');
+        log('Campaign Stats', `✅ Succès - ${itemsCount} éléments récupérés`);
         
         res.json({
             success: true,
@@ -85,7 +127,7 @@ app.get('/api/campaign-stats/analysis', async (req, res) => {
             data: data
         });
     } catch (error) {
-        console.error('[Campaign Stats] Error:', error.message);
+        log('Campaign Stats', `❌ Erreur: ${error.message}`);
         res.status(500).json({
             success: false,
             error: error.message,
@@ -107,9 +149,21 @@ app.get('/api/proxy/*', async (req, res) => {
         queryParams.set('api_key', NOVA_API_KEY);
         
         const url = `${baseUrl}/api/${endpoint}?${queryParams.toString()}`;
-        console.log(`[Proxy] Fetching: ${url}`);
+        log('Proxy', `→ Requête démarrée (env: ${env})`);
+        log('Proxy', `  Endpoint: /api/${endpoint}`);
         
-        const response = await fetch(url);
+        const startTime = Date.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            log('Proxy', `⚠️ Timeout après ${FETCH_TIMEOUT/1000}s`);
+            controller.abort();
+        }, FETCH_TIMEOUT);
+        
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        const duration = Date.now() - startTime;
+        log('Proxy', `← Réponse reçue (status: ${response.status}, durée: ${duration}ms)`);
+        
         const contentType = response.headers.get('content-type');
         
         let data;
@@ -118,6 +172,7 @@ app.get('/api/proxy/*', async (req, res) => {
         } else {
             data = await response.text();
         }
+        log('Proxy', `✅ Succès`);
         
         res.json({
             success: true,
@@ -127,7 +182,7 @@ app.get('/api/proxy/*', async (req, res) => {
             data: data
         });
     } catch (error) {
-        console.error('[Proxy] Error:', error.message);
+        log('Proxy', `❌ Erreur: ${error.message}`);
         res.status(500).json({
             success: false,
             error: error.message,
