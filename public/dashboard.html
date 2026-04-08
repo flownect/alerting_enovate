@@ -500,8 +500,8 @@
 
                 // Alerte Bilan non saisi (J+1 et plus)
                 if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1) {
-                    // Plus c'est ancien, plus c'est critique
-                    let criticality = daysFromEnd >= 7 ? 'critical' : daysFromEnd >= 3 ? 'urgent' : 'attention';
+                    // Plus c'est ancien, plus c'est urgent (mais jamais critical)
+                    let criticality = daysFromEnd >= 3 ? 'urgent' : 'attention';
                     let timing = `J+${daysFromEnd}`;
                     
                     alerts.push({
