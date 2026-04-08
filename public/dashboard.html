@@ -62,6 +62,15 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
+                    <!-- Stats globales -->
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full font-semibold" title="Campagnes actuellement live">
+                            🟢 <span id="stat-live">0</span> Live
+                        </div>
+                        <div class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full font-semibold" title="Lancements programmés ce mois">
+                            🚀 <span id="stat-launches">0</span> Lancements
+                        </div>
+                    </div>
                     <!-- Compteur alertes critiques (cliquable) -->
                     <div id="critical-counter" onclick="showCriticalAlerts()" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse cursor-pointer hover:bg-red-700 transition">
                         0 CRITIQUE
@@ -489,9 +498,10 @@
                     });
                 }
 
-                // Alerte Bilan non saisi (J+1 à J+14)
-                if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1 && daysFromEnd <= 14) {
-                    let criticality = daysFromEnd === 1 ? 'urgent' : 'attention';
+                // Alerte Bilan non saisi (J+1 et plus)
+                if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1) {
+                    // Plus c'est ancien, plus c'est critique
+                    let criticality = daysFromEnd >= 7 ? 'critical' : daysFromEnd >= 3 ? 'urgent' : 'attention';
                     let timing = `J+${daysFromEnd}`;
                     
                     alerts.push({
@@ -500,14 +510,23 @@
                         criticality,
                         timing,
                         card,
-                        message: 'Bilan non saisi'
+                        message: 'Bilan non saisi',
+                        daysFromEnd // Pour le tri secondaire
                     });
                 }
             }
 
-            // Sort by criticality
+            // Sort by criticality, puis par ancienneté pour les bilans (plus ancien = plus haut)
             const order = { critical: 0, urgent: 1, attention: 2 };
-            alerts.sort((a, b) => order[a.criticality] - order[b.criticality]);
+            alerts.sort((a, b) => {
+                const critDiff = order[a.criticality] - order[b.criticality];
+                if (critDiff !== 0) return critDiff;
+                // Pour les bilans, trier par ancienneté décroissante (plus ancien en premier)
+                if (a.daysFromEnd && b.daysFromEnd) {
+                    return b.daysFromEnd - a.daysFromEnd;
+                }
+                return 0;
+            });
 
             return alerts;
         }
@@ -1112,6 +1131,7 @@
                 renderPoles();
                 renderTraders();
                 renderAlerts();
+                updateGlobalStats();
             }
             
             // Rafraîchir aussi les données de performance si déjà chargées
@@ -1132,6 +1152,32 @@
         function toggleConfig() {
             document.getElementById('config-panel').classList.toggle('hidden');
         }
+        
+        function updateGlobalStats() {
+            const cards = getAllCards();
+            const now = today();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            // Campagnes live (toutes subdivisions live)
+            const liveCount = cards.filter(c => {
+                if (!c.subdivisions || c.subdivisions.length === 0) {
+                    return c.areSubdivisionsLive === true;
+                }
+                return c.subdivisions.every(sub => sub.isLive === true);
+            }).length;
+            
+            // Lancements programmés ce mois calendaire
+            const launchesThisMonth = cards.filter(c => {
+                if (!c.isProgrammable) return false;
+                const startDate = parseDate(c.dates?.startingDateFormatted);
+                if (!startDate) return false;
+                return startDate.getMonth() === currentMonth && startDate.getFullYear() === currentYear;
+            }).length;
+            
+            document.getElementById('stat-live').textContent = liveCount;
+            document.getElementById('stat-launches').textContent = launchesThisMonth;
+        }
 
         // ==================== INIT ====================
         async function init() {
@@ -1145,7 +1191,7 @@
                 renderPoles();
                 renderTraders();
                 renderAlerts();
-                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                updateGlobalStats();
             }
 
             // Auto-refresh every hour (between 7h and 20h)
