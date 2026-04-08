@@ -174,9 +174,15 @@
     <script>
         // ==================== CONFIGURATION ====================
         const TEAMS = {
-            'Team 1': ['Nikola', 'Alexis', 'Gautier', 'Mustapha'],
-            'Team 2': ['Al-Amin', 'Joey', 'Alexis Delmas'],
+            'Team 1': ['Nikola', 'Alexis G', 'Mustapha'],
+            'Team 2': ['Al-Amin', 'Joey', 'Alexis D'],
             'Team 3': ['Antoine', 'Arno']
+        };
+        
+        // Mapping des noms API vers noms affichés
+        const TRADER_ALIASES = {
+            'Gautier': 'Alexis G',
+            'Alexis Delmas': 'Alexis D'
         };
 
         const TEAM_COLORS = {
@@ -191,10 +197,22 @@
         let allAlerts = [];
 
         // ==================== HELPERS ====================
+        function normalizeTraderName(name) {
+            if (!name) return name;
+            // Appliquer les alias
+            for (const [apiName, displayName] of Object.entries(TRADER_ALIASES)) {
+                if (name.toLowerCase().includes(apiName.toLowerCase())) {
+                    return displayName;
+                }
+            }
+            return name;
+        }
+        
         function getTraderTeam(traderName) {
             if (!traderName || traderName === 'Aucun') return null;
+            const normalized = normalizeTraderName(traderName);
             for (const [team, members] of Object.entries(TEAMS)) {
-                if (members.some(m => traderName.toLowerCase().includes(m.toLowerCase()))) {
+                if (members.some(m => normalized.toLowerCase().includes(m.toLowerCase()) || traderName.toLowerCase().includes(m.toLowerCase()))) {
                     return team;
                 }
             }
@@ -243,9 +261,17 @@
 
         function getTraderStats(traderName) {
             const cards = getAllCards();
+            // Trouver le nom API correspondant au nom affiché
+            const apiNames = [traderName];
+            for (const [apiName, displayName] of Object.entries(TRADER_ALIASES)) {
+                if (displayName === traderName) {
+                    apiNames.push(apiName);
+                }
+            }
+            
             const traderCards = cards.filter(c => {
                 const trader = c.trader || 'Aucun';
-                return trader.toLowerCase().includes(traderName.toLowerCase());
+                return apiNames.some(name => trader.toLowerCase().includes(name.toLowerCase()));
             });
 
             const now = today();
