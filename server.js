@@ -36,8 +36,13 @@ function getBaseUrl(env = 'preprod') {
     return env === 'prod' ? NOVA_URL_PROD : NOVA_URL_PREPROD;
 }
 
-// Route principale - Interface web
+// Route principale - Dashboard Opérations
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Route API Debug - Ancienne interface
+app.get('/api-debug', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

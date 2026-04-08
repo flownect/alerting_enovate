@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Opérations - E-Novate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        team1: { light: '#8B5CF6', dark: '#7C3AED' },
+                        team2: { light: '#10B981', dark: '#059669' },
+                        team3: { light: '#3B82F6', dark: '#2563EB' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .alert-critical { border-left: 4px solid #EF4444; }
+        .alert-urgent { border-left: 4px solid #F97316; }
+        .alert-attention { border-left: 4px solid #22C55E; }
+        .badge-team1 { background-color: #8B5CF6; }
+        .badge-team2 { background-color: #10B981; }
+        .badge-team3 { background-color: #3B82F6; }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .expand-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .expand-content.open {
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900 dark:text-white">📊 Dashboard Opérations</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Pilotage E-Novate</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Compteur alertes critiques -->
+                    <div id="critical-counter" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse">
+                        0 CRITIQUE
+                    </div>
+                    <!-- Dernière MAJ -->
+                    <div class="text-sm text-gray-500 dark:text-gray-400">
+                        <span>MAJ:</span>
+                        <span id="last-update">--:--</span>
+                    </div>
+                    <!-- Boutons -->
+                    <button onclick="toggleConfig()" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition" title="Configuration">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="refreshData()" id="refresh-btn" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Rafraîchir</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Config Panel (hidden by default) -->
+    <div id="config-panel" class="hidden bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center gap-4">
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Environnement:</label>
+                <select id="env-select" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+                    <option value="preprod">Preprod</option>
+                    <option value="prod">Production</option>
+                </select>
+                <span class="text-sm text-gray-500 dark:text-gray-400">
+                    Les données sont récupérées depuis l'API Trello interne.
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="max-w-7xl mx-auto px-4 py-12 text-center">
+        <div class="loader mx-auto mb-4"></div>
+        <p class="text-gray-500 dark:text-gray-400">Chargement des données...</p>
+    </div>
+
+    <!-- Main Content (hidden until data loaded) -->
+    <main id="main-content" class="hidden max-w-7xl mx-auto px-4 py-6 space-y-6">
+        
+        <!-- Vue Pôles -->
+        <section>
+            <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Vue Pôles</h2>
+            <div class="grid md:grid-cols-3 gap-4" id="poles-container">
+                <!-- Team cards will be inserted here -->
+            </div>
+        </section>
+
+        <!-- Vue Traders -->
+        <section>
+            <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Vue Traders</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Trader</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Pôle</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Live</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Checkées</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Lancement prog.</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">Bilans</th>
+                        </tr>
+                    </thead>
+                    <tbody id="traders-table" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <!-- Trader rows will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Alertes -->
+        <section>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Alertes</h2>
+                <div class="flex gap-2">
+                    <button onclick="filterAlerts('all')" id="filter-all" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium transition">
+                        Toutes <span id="count-all" class="ml-1 bg-white/20 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="filterAlerts('launch')" id="filter-launch" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                        Lancement <span id="count-launch" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="filterAlerts('bilan')" id="filter-bilan" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                        Bilans <span id="count-bilan" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                </div>
+            </div>
+            <div id="alerts-container" class="space-y-3">
+                <!-- Alerts will be inserted here -->
+            </div>
+            <div id="no-alerts" class="hidden bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
+                <span class="text-4xl">✅</span>
+                <p class="mt-2 text-green-700 dark:text-green-400 font-medium">Aucune alerte à traiter</p>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // ==================== CONFIGURATION ====================
+        const TEAMS = {
+            'Team 1': ['Nikola', 'Alexis', 'Gautier', 'Mustapha'],
+            'Team 2': ['Al-Amin', 'Joey', 'Alexis Delmas'],
+            'Team 3': ['Antoine', 'Arno']
+        };
+
+        const TEAM_COLORS = {
+            'Team 1': 'team1',
+            'Team 2': 'team2',
+            'Team 3': 'team3'
+        };
+
+        // ==================== STATE ====================
+        let trelloData = null;
+        let currentFilter = 'all';
+        let allAlerts = [];
+
+        // ==================== HELPERS ====================
+        function getTraderTeam(traderName) {
+            if (!traderName || traderName === 'Aucun') return null;
+            for (const [team, members] of Object.entries(TEAMS)) {
+                if (members.some(m => traderName.toLowerCase().includes(m.toLowerCase()))) {
+                    return team;
+                }
+            }
+            return null;
+        }
+
+        function getAllTraders() {
+            const traders = [];
+            for (const [team, members] of Object.entries(TEAMS)) {
+                for (const member of members) {
+                    traders.push({ name: member, team });
+                }
+            }
+            return traders;
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            // Handle DD/MM/YYYY format
+            if (dateStr.includes('/')) {
+                const [day, month, year] = dateStr.split('/');
+                return new Date(year, month - 1, day);
+            }
+            return new Date(dateStr);
+        }
+
+        function getDaysDiff(date1, date2) {
+            const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+            const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+            return Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+        }
+
+        function today() {
+            return new Date();
+        }
+
+        function hasTag(card, tagTitle) {
+            return card.tags?.some(t => t.title?.toLowerCase().includes(tagTitle.toLowerCase()));
+        }
+
+        // ==================== DATA PROCESSING ====================
+        function getAllCards() {
+            if (!trelloData?.data?.lanes) return [];
+            return trelloData.data.lanes.flatMap(lane => lane.cards || []);
+        }
+
+        function getTraderStats(traderName) {
+            const cards = getAllCards();
+            const traderCards = cards.filter(c => {
+                const trader = c.trader || 'Aucun';
+                return trader.toLowerCase().includes(traderName.toLowerCase());
+            });
+
+            const now = today();
+            
+            // Live campaigns
+            const live = traderCards.filter(c => c.areSubdivisionsLive === true);
+            
+            // Checked campaigns (among live)
+            const checked = live.filter(c => c.areSubdivisionsChecked === true);
+            
+            // Programmable launches (next 14 days)
+            const programmableLaunches = traderCards.filter(c => {
+                if (!c.isProgrammable || c.areSubdivisionsLive) return false;
+                const startDate = parseDate(c.dates?.startingDateFormatted);
+                if (!startDate) return false;
+                const diff = getDaysDiff(now, startDate);
+                return diff >= 0 && diff <= 14;
+            });
+
+            // Bilans à saisir
+            const bilans = traderCards.filter(c => 
+                hasTag(c, 'Terminé') && hasTag(c, 'Bilan non saisi')
+            );
+
+            return {
+                live: live.length,
+                checked: checked.length,
+                programmableLaunches: programmableLaunches.length,
+                bilans: bilans.length
+            };
+        }
+
+        function getTeamStats(teamName) {
+            const members = TEAMS[teamName] || [];
+            let stats = { live: 0, checked: 0, programmableLaunches: 0, bilans: 0 };
+            
+            for (const member of members) {
+                const memberStats = getTraderStats(member);
+                stats.live += memberStats.live;
+                stats.checked += memberStats.checked;
+                stats.programmableLaunches += memberStats.programmableLaunches;
+                stats.bilans += memberStats.bilans;
+            }
+            
+            return stats;
+        }
+
+        function generateAlerts() {
+            const cards = getAllCards();
+            const now = today();
+            const alerts = [];
+
+            for (const card of cards) {
+                const startDate = parseDate(card.dates?.startingDateFormatted);
+                const endDate = parseDate(card.dates?.endingDateFormatted);
+                const trader = card.trader || 'Aucun';
+                const daysToStart = startDate ? getDaysDiff(now, startDate) : null;
+                const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
+
+                // Alerte Lancement - Non programmable (J-3 à J0)
+                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null && daysToStart >= 0 && daysToStart <= 3) {
+                    let criticality = 'attention';
+                    let timing = `J-${daysToStart}`;
+                    if (daysToStart === 0) { criticality = 'critical'; timing = 'J0'; }
+                    else if (daysToStart === 1) { criticality = 'urgent'; timing = 'J-1'; }
+                    
+                    alerts.push({
+                        type: 'launch',
+                        subtype: 'non-programmable',
+                        criticality,
+                        timing,
+                        card,
+                        message: 'Campagne non programmable'
+                    });
+                }
+
+                // Alerte Lancement - Sans trader (J-3 à J0)
+                if (trader === 'Aucun' && card.isProgrammable && daysToStart !== null && daysToStart >= 0 && daysToStart <= 3) {
+                    let criticality = daysToStart === 0 ? 'critical' : 'urgent';
+                    let timing = daysToStart === 0 ? 'J0' : `J-${daysToStart}`;
+                    
+                    alerts.push({
+                        type: 'launch',
+                        subtype: 'no-trader',
+                        criticality,
+                        timing,
+                        card,
+                        message: 'Campagne sans trader assigné'
+                    });
+                }
+
+                // Alerte Bilan non saisi (J+1 à J+14)
+                if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1 && daysFromEnd <= 14) {
+                    let criticality = daysFromEnd === 1 ? 'urgent' : 'attention';
+                    let timing = `J+${daysFromEnd}`;
+                    
+                    alerts.push({
+                        type: 'bilan',
+                        subtype: 'bilan-non-saisi',
+                        criticality,
+                        timing,
+                        card,
+                        message: 'Bilan non saisi'
+                    });
+                }
+            }
+
+            // Sort by criticality
+            const order = { critical: 0, urgent: 1, attention: 2 };
+            alerts.sort((a, b) => order[a.criticality] - order[b.criticality]);
+
+            return alerts;
+        }
+
+        // ==================== RENDERING ====================
+        function renderPoles() {
+            const container = document.getElementById('poles-container');
+            container.innerHTML = '';
+
+            for (const [teamName, color] of Object.entries(TEAM_COLORS)) {
+                const stats = getTeamStats(teamName);
+                const checkRatio = stats.live > 0 ? (stats.checked / stats.live * 100).toFixed(0) : 100;
+                const checkColor = stats.checked < stats.live ? 'text-red-600' : 'text-green-600';
+
+                const card = document.createElement('div');
+                card.className = `bg-white dark:bg-gray-800 rounded-xl shadow p-4 border-t-4 border-${color}-light`;
+                card.innerHTML = `
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="badge-${color} text-white text-xs font-bold px-2 py-1 rounded">${teamName}</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">${TEAMS[teamName].join(', ')}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold ${stats.live > 0 ? 'text-green-600' : 'text-gray-400'}">${stats.live}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Live</div>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold ${checkColor}">${stats.checked}/${stats.live}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Checkées</div>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold ${stats.programmableLaunches > 0 ? 'text-blue-600' : 'text-gray-400'}">${stats.programmableLaunches}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Lancements prog.</div>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold ${stats.bilans > 0 ? 'text-red-600' : 'text-gray-400'}">${stats.bilans}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Bilans</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function renderTraders() {
+            const tbody = document.getElementById('traders-table');
+            tbody.innerHTML = '';
+
+            const traders = getAllTraders();
+            
+            for (const { name, team } of traders) {
+                const stats = getTraderStats(name);
+                const checkColor = stats.live > 0 && stats.checked < stats.live ? 'text-red-600' : 'text-green-600';
+                const teamColor = TEAM_COLORS[team];
+
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
+                row.innerHTML = `
+                    <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">${name}</td>
+                    <td class="px-4 py-3">
+                        <span class="badge-${teamColor} text-white text-xs font-medium px-2 py-1 rounded">${team}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="${stats.live > 0 ? 'text-green-600 font-semibold' : 'text-gray-400'}">${stats.live}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="${checkColor} font-semibold">${stats.checked}/${stats.live}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="${stats.programmableLaunches > 0 ? 'text-blue-600 font-semibold' : 'text-gray-400'}">${stats.programmableLaunches}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="${stats.bilans > 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}">${stats.bilans}</span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alerts-container');
+            const noAlerts = document.getElementById('no-alerts');
+            container.innerHTML = '';
+
+            const filteredAlerts = currentFilter === 'all' 
+                ? allAlerts 
+                : allAlerts.filter(a => a.type === currentFilter);
+
+            // Update counters
+            document.getElementById('count-all').textContent = allAlerts.length;
+            document.getElementById('count-launch').textContent = allAlerts.filter(a => a.type === 'launch').length;
+            document.getElementById('count-bilan').textContent = allAlerts.filter(a => a.type === 'bilan').length;
+
+            // Update critical counter in header
+            const criticalCount = allAlerts.filter(a => a.criticality === 'critical').length;
+            const criticalCounter = document.getElementById('critical-counter');
+            if (criticalCount > 0) {
+                criticalCounter.textContent = `${criticalCount} CRITIQUE${criticalCount > 1 ? 'S' : ''}`;
+                criticalCounter.classList.remove('hidden');
+            } else {
+                criticalCounter.classList.add('hidden');
+            }
+
+            if (filteredAlerts.length === 0) {
+                noAlerts.classList.remove('hidden');
+                return;
+            }
+            noAlerts.classList.add('hidden');
+
+            for (const alert of filteredAlerts) {
+                const card = alert.card;
+                const trader = card.trader || 'Aucun';
+                const traderDisplay = trader === 'Aucun' 
+                    ? '<span class="text-red-600 font-bold">NON ASSIGNÉ</span>' 
+                    : trader;
+
+                const alertClass = alert.criticality === 'critical' ? 'alert-critical' 
+                    : alert.criticality === 'urgent' ? 'alert-urgent' 
+                    : 'alert-attention';
+
+                const criticalityBadge = alert.criticality === 'critical' 
+                    ? '<span class="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">CRITIQUE</span>'
+                    : alert.criticality === 'urgent'
+                    ? '<span class="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">URGENT</span>'
+                    : '<span class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">ATTENTION</span>';
+
+                const alertId = `alert-${Math.random().toString(36).substr(2, 9)}`;
+
+                const div = document.createElement('div');
+                div.className = `bg-white dark:bg-gray-800 rounded-lg shadow ${alertClass} overflow-hidden`;
+                div.innerHTML = `
+                    <div class="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onclick="toggleAlert('${alertId}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                ${criticalityBadge}
+                                <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-2 py-1 rounded">${alert.timing}</span>
+                                <span class="font-medium text-gray-900 dark:text-white">${alert.message}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span>[${card.trackerId || 'N/A'}]</span>
+                                <svg class="w-5 h-5 transform transition-transform" id="chevron-${alertId}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            ${card.campaignName || 'Sans nom'}
+                        </div>
+                    </div>
+                    <div id="${alertId}" class="expand-content">
+                        <div class="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                            <div class="grid md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Trader:</span> ${traderDisplay}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Commercial:</span> ${card.commercial || 'N/A'}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Account Manager:</span> ${card.accountManager || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Lancement:</span> ${card.dates?.startingDateFormatted || 'N/A'}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Subdivisions:</span> ${card.subdivisions?.length || 0}</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <span class="text-xs px-2 py-1 rounded ${card.areSubdivisionsLive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300'}">
+                                    ${card.areSubdivisionsLive ? '✓ Live' : '○ Non live'}
+                                </span>
+                                <span class="text-xs px-2 py-1 rounded ${card.areSubdivisionsChecked ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300'}">
+                                    ${card.areSubdivisionsChecked ? '✓ Checkée' : '○ Non checkée'}
+                                </span>
+                                <span class="text-xs px-2 py-1 rounded ${card.isProgrammable ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">
+                                    ${card.isProgrammable ? '✓ Programmable' : '✗ Non programmable'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function toggleAlert(id) {
+            const content = document.getElementById(id);
+            const chevron = document.getElementById(`chevron-${id}`);
+            content.classList.toggle('open');
+            chevron.classList.toggle('rotate-180');
+        }
+
+        function filterAlerts(filter) {
+            currentFilter = filter;
+            
+            // Update button styles
+            const filters = ['all', 'launch', 'bilan'];
+            for (const f of filters) {
+                const btn = document.getElementById(`filter-${f}`);
+                if (f === filter) {
+                    btn.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium transition';
+                } else {
+                    btn.className = 'px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600';
+                }
+            }
+            
+            renderAlerts();
+        }
+
+        // ==================== DATA FETCHING ====================
+        async function fetchData() {
+            const env = document.getElementById('env-select').value;
+            try {
+                const response = await fetch(`/api/trello?env=${env}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    trelloData = data;
+                    return true;
+                } else {
+                    console.error('API Error:', data.error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                return false;
+            }
+        }
+
+        async function refreshData() {
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
+
+            const success = await fetchData();
+            
+            if (success) {
+                allAlerts = generateAlerts();
+                renderPoles();
+                renderTraders();
+                renderAlerts();
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span>Rafraîchir</span>
+            `;
+        }
+
+        // ==================== UI HELPERS ====================
+        function toggleConfig() {
+            document.getElementById('config-panel').classList.toggle('hidden');
+        }
+
+        // ==================== INIT ====================
+        async function init() {
+            const success = await fetchData();
+            
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+            
+            if (success) {
+                allAlerts = generateAlerts();
+                renderPoles();
+                renderTraders();
+                renderAlerts();
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            }
+
+            // Auto-refresh every hour (between 7h and 20h)
+            setInterval(() => {
+                const hour = new Date().getHours();
+                if (hour >= 7 && hour < 20) {
+                    refreshData();
+                }
+            }, 60 * 60 * 1000);
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
