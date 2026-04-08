@@ -215,14 +215,20 @@
     <script>
         // ==================== CONFIGURATION ====================
         const TEAMS = {
-            'Team 1': ['Nikola', 'Alexis G'],
-            'Team 2': ['Al-Amin', 'Joey', 'Alexis D'],
-            'Team 3': ['Antoine', 'Arno', 'Mustapha'],
-            'Responsables': ['Maxime', 'Jérome', 'Alexandre']
+            'Team 1': ['Nikola', 'Al-Amin', 'Antoine'],
+            'Team 2': ['Alexis G', 'Joey'],
+            'Team 3': ['Mustapha', 'Alexis D', 'Arno']
+        };
+        
+        // Responsables par équipe (pour affichage en gras)
+        const TEAM_RESPONSABLES = {
+            'Team 1': 'Nikola',
+            'Team 2': 'Alexis G',
+            'Team 3': 'Mustapha'
         };
         
         // Liste des responsables pour la logique d'attribution
-        const RESPONSABLES = ['Maxime', 'Jérome', 'Jerome', 'Alexandre', 'MC'];
+        const RESPONSABLES = ['Nikola', 'Alexis G', 'Alexis Gautier', 'Gautier', 'Mustapha'];
         
         // Mapping des noms API vers noms affichés
         const TRADER_ALIASES = {
@@ -348,10 +354,16 @@
             }
             
             const traderCards = cards.filter(c => {
-                // Utiliser le champ trader directement pour le matching
-                const trader = c.trader || 'Aucun';
-                // Vérifier si le trader matche avec un des noms recherchés
-                return apiNames.some(name => trader.toLowerCase().includes(name.toLowerCase()));
+                // Utiliser getEffectiveTrader pour l'attribution
+                // Si responsable + trader -> attribuer au trader
+                // Si plusieurs traders -> attribuer au premier
+                const effectiveTrader = getEffectiveTrader(c.trader);
+                const normalizedEffective = normalizeTraderName(effectiveTrader);
+                // Vérifier si le trader effectif matche avec un des noms recherchés
+                return apiNames.some(name => 
+                    normalizedEffective.toLowerCase().includes(name.toLowerCase()) ||
+                    name.toLowerCase().includes(normalizedEffective.toLowerCase())
+                );
             });
 
             const now = today();
@@ -602,16 +614,22 @@
             for (const teamName of Object.keys(TEAMS)) {
                 const color = TEAM_COLORS[teamName] || 'team1';
                 const members = TEAMS[teamName] || [];
+                const responsable = TEAM_RESPONSABLES[teamName];
                 const stats = getTeamStats(teamName);
                 const checkRatio = stats.live > 0 ? (stats.checked / stats.live * 100).toFixed(0) : 100;
                 const checkColor = stats.checked < stats.live ? 'text-red-600' : 'text-green-600';
+                
+                // Formater les membres avec le responsable en gras
+                const membersDisplay = members.map(m => 
+                    m === responsable ? `<strong>${m}</strong>` : m
+                ).join(', ');
 
                 const card = document.createElement('div');
                 card.className = `bg-white dark:bg-gray-800 rounded-xl shadow p-4 border-t-4 border-${color}-light`;
                 card.innerHTML = `
                     <div class="flex items-center gap-2 mb-4">
                         <span class="badge-${color} text-white text-xs font-bold px-2 py-1 rounded">${teamName}</span>
-                        <span class="text-sm text-gray-500 dark:text-gray-400">${members.join(', ')}</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">${membersDisplay}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -646,11 +664,13 @@
                 const stats = getTraderStats(name);
                 const checkColor = stats.live > 0 && stats.checked < stats.live ? 'text-red-600' : 'text-green-600';
                 const teamColor = TEAM_COLORS[team];
+                const isResponsable = TEAM_RESPONSABLES[team] === name;
+                const nameDisplay = isResponsable ? `<strong>${name}</strong> 👑` : name;
 
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700/50';
                 row.innerHTML = `
-                    <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">${name}</td>
+                    <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white">${nameDisplay}</td>
                     <td class="px-4 py-3">
                         <span class="badge-${teamColor} text-white text-xs font-medium px-2 py-1 rounded">${team}</span>
                     </td>
