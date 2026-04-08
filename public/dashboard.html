@@ -62,8 +62,8 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
-                    <!-- Compteur alertes critiques -->
-                    <div id="critical-counter" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse">
+                    <!-- Compteur alertes critiques (cliquable) -->
+                    <div id="critical-counter" onclick="showCriticalAlerts()" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse cursor-pointer hover:bg-red-700 transition">
                         0 CRITIQUE
                     </div>
                     <!-- Dernière MAJ -->
@@ -117,7 +117,7 @@
         <!-- Vue Pôles (toujours visible) -->
         <section>
             <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Vue Pôles</h2>
-            <div class="grid md:grid-cols-3 gap-4" id="poles-container">
+            <div class="grid md:grid-cols-4 gap-4" id="poles-container">
                 <!-- Team cards will be inserted here -->
             </div>
         </section>
@@ -544,6 +544,8 @@
             const commerceAlerts = allAlerts.filter(a => !a.card.isProgrammable);
             const tradersAlerts = allAlerts.filter(a => a.card.isProgrammable);
             
+            const criticalAlerts = allAlerts.filter(a => a.criticality === 'critical');
+            
             let filteredAlerts;
             if (currentFilter === 'all') {
                 filteredAlerts = allAlerts;
@@ -551,6 +553,8 @@
                 filteredAlerts = commerceAlerts;
             } else if (currentFilter === 'traders') {
                 filteredAlerts = tradersAlerts;
+            } else if (currentFilter === 'critical') {
+                filteredAlerts = criticalAlerts;
             } else {
                 filteredAlerts = allAlerts;
             }
@@ -682,7 +686,7 @@
             currentFilter = filter;
             
             // Update button styles
-            const filters = ['all', 'commerce', 'traders'];
+            const filters = ['all', 'commerce', 'traders', 'critical'];
             for (const f of filters) {
                 const btn = document.getElementById(`filter-${f}`);
                 if (btn) {
@@ -695,6 +699,17 @@
             }
             
             renderAlerts();
+        }
+        
+        // Fonction pour afficher les alertes critiques (appelée depuis le header)
+        function showCriticalAlerts() {
+            // Basculer vers l'onglet Alertes
+            switchMainTab('alerts');
+            // Filtrer sur les critiques
+            currentFilter = 'critical';
+            renderAlerts();
+            // Scroll vers la section alertes
+            document.getElementById('section-alerts').scrollIntoView({ behavior: 'smooth' });
         }
         
         // Switch between main tabs (Alerts / Traders)
