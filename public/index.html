@@ -293,11 +293,60 @@
                 : 'px-4 py-2 rounded-lg bg-gray-700 text-gray-300 font-medium transition hover:bg-gray-600';
         }
 
-        // Format JSON with syntax highlighting
-        function formatJson(data, elementId) {
+        // Format JSON with syntax highlighting (optimized for large data)
+        function formatJson(data, elementId, showSummary = false) {
             const json = JSON.stringify(data, null, 2);
-            document.getElementById(elementId).innerHTML = `<pre><code class="language-json text-sm">${escapeHtml(json)}</code></pre>`;
-            hljs.highlightAll();
+            const sizeKB = (json.length / 1024).toFixed(1);
+            
+            // Si le JSON est trop gros (>500KB), afficher un résumé
+            if (json.length > 500000 || showSummary) {
+                const summary = createSummary(data);
+                document.getElementById(elementId).innerHTML = `
+                    <div class="p-4 text-sm">
+                        <div class="mb-2 text-yellow-400">⚠️ JSON volumineux (${sizeKB} KB) - Affichage résumé</div>
+                        <div class="text-gray-300">${summary}</div>
+                        <div class="mt-3 text-gray-500">Utilisez "Exporter" pour télécharger le fichier complet</div>
+                    </div>`;
+            } else if (json.length > 100000) {
+                // JSON moyen - pas de syntax highlighting
+                document.getElementById(elementId).innerHTML = `<pre class="text-sm text-gray-300 p-4 overflow-auto" style="max-height:500px">${escapeHtml(json)}</pre>`;
+            } else {
+                // Petit JSON - avec syntax highlighting
+                document.getElementById(elementId).innerHTML = `<pre><code class="language-json text-sm">${escapeHtml(json)}</code></pre>`;
+                hljs.highlightAll();
+            }
+        }
+        
+        // Créer un résumé des données
+        function createSummary(data) {
+            if (!data) return 'Aucune donnée';
+            
+            let summary = '';
+            
+            // Pour les données Trello
+            if (data.data?.lanes) {
+                const lanes = data.data.lanes;
+                const totalCards = lanes.reduce((acc, lane) => acc + (lane.cards?.length || 0), 0);
+                summary = `<strong>Trello:</strong> ${lanes.length} colonnes, ${totalCards} cartes au total`;
+            }
+            // Pour les données Campaign Stats (array)
+            else if (Array.isArray(data.data)) {
+                summary = `<strong>Campaign Stats:</strong> ${data.data.length} campagnes`;
+                if (data.data[0]) {
+                    const keys = Object.keys(data.data[0]).slice(0, 10).join(', ');
+                    summary += `<br><span class="text-gray-500">Champs: ${keys}...</span>`;
+                }
+            }
+            // Générique
+            else if (typeof data.data === 'object') {
+                const keys = Object.keys(data.data).slice(0, 10).join(', ');
+                summary = `<strong>Objet:</strong> ${Object.keys(data.data).length} clés<br><span class="text-gray-500">${keys}</span>`;
+            }
+            
+            summary += `<br><br><strong>Environnement:</strong> ${data.environment || 'N/A'}`;
+            summary += `<br><strong>Timestamp:</strong> ${data.timestamp || 'N/A'}`;
+            
+            return summary;
         }
 
         function escapeHtml(text) {
