@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerting E-Novate - API Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        .json-viewer {
+            max-height: 600px;
+            overflow: auto;
+        }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre code.hljs {
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🚨</span>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">Alerting E-Novate</h1>
+                        <p class="text-sm text-gray-400">API Dashboard & Monitoring</p>
+                    </div>
+                </div>
+                <div id="status-indicator" class="flex items-center gap-2">
+                    <span class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></span>
+                    <span class="text-sm text-gray-400">Checking...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Environment Selector -->
+        <div class="mb-6 flex items-center gap-4">
+            <label class="text-sm font-medium text-gray-300">Environnement:</label>
+            <div class="flex gap-2">
+                <button id="btn-preprod" onclick="setEnvironment('preprod')" 
+                    class="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium transition hover:bg-blue-700">
+                    Preprod
+                </button>
+                <button id="btn-prod" onclick="setEnvironment('prod')" 
+                    class="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 font-medium transition hover:bg-gray-600">
+                    Production
+                </button>
+            </div>
+        </div>
+
+        <!-- API Cards -->
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+            <!-- Trello API Card -->
+            <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">📋</span>
+                        <div>
+                            <h2 class="font-semibold text-white">Trello API</h2>
+                            <p class="text-xs text-gray-400">/api/trello</p>
+                        </div>
+                    </div>
+                    <button onclick="fetchTrello()" 
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                        <span id="trello-loader" class="hidden loader"></span>
+                        <span>Charger</span>
+                    </button>
+                </div>
+                <div class="p-4">
+                    <div id="trello-status" class="mb-3 text-sm text-gray-400">
+                        Cliquez sur "Charger" pour récupérer les données
+                    </div>
+                    <div id="trello-result" class="json-viewer bg-gray-900 rounded-lg">
+                        <pre><code class="language-json text-sm">// Résultat JSON apparaîtra ici</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign Stats API Card -->
+            <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">📊</span>
+                        <div>
+                            <h2 class="font-semibold text-white">Campaign Stats Analysis</h2>
+                            <p class="text-xs text-gray-400">/api/campaign-stats/analysis</p>
+                        </div>
+                    </div>
+                    <button onclick="fetchCampaignStats()" 
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                        <span id="campaign-loader" class="hidden loader"></span>
+                        <span>Charger</span>
+                    </button>
+                </div>
+                <div class="p-4">
+                    <div id="campaign-status" class="mb-3 text-sm text-gray-400">
+                        Cliquez sur "Charger" pour récupérer les données
+                    </div>
+                    <div id="campaign-result" class="json-viewer bg-gray-900 rounded-lg">
+                        <pre><code class="language-json text-sm">// Résultat JSON apparaîtra ici</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Endpoint -->
+        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-2xl">🔧</span>
+                    <div>
+                        <h2 class="font-semibold text-white">Endpoint Personnalisé</h2>
+                        <p class="text-xs text-gray-400">Testez n'importe quel endpoint Nova</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-400 mb-1">Endpoint (sans /api/)</label>
+                        <input type="text" id="custom-endpoint" 
+                            placeholder="ex: trello, campaign-stats/analysis, ..."
+                            class="w-full px-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="fetchCustom()" 
+                            class="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                            <span id="custom-loader" class="hidden loader"></span>
+                            <span>Tester</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4">
+                <div id="custom-status" class="mb-3 text-sm text-gray-400">
+                    Entrez un endpoint et cliquez sur "Tester"
+                </div>
+                <div id="custom-result" class="json-viewer bg-gray-900 rounded-lg">
+                    <pre><code class="language-json text-sm">// Résultat JSON apparaîtra ici</code></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-800 mt-8 py-4">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-500">
+            Alerting E-Novate v1.0.0 | <span id="current-time"></span>
+        </div>
+    </footer>
+
+    <script>
+        let currentEnv = 'preprod';
+
+        // Update time
+        function updateTime() {
+            document.getElementById('current-time').textContent = new Date().toLocaleString('fr-FR');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Check API status
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const indicator = document.getElementById('status-indicator');
+                
+                if (data.status === 'ok' && data.apiKeyConfigured) {
+                    indicator.innerHTML = `
+                        <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                        <span class="text-sm text-green-400">API Ready</span>
+                    `;
+                } else if (data.status === 'ok') {
+                    indicator.innerHTML = `
+                        <span class="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                        <span class="text-sm text-yellow-400">API Key Missing</span>
+                    `;
+                }
+            } catch (e) {
+                document.getElementById('status-indicator').innerHTML = `
+                    <span class="w-3 h-3 bg-red-500 rounded-full"></span>
+                    <span class="text-sm text-red-400">Server Error</span>
+                `;
+            }
+        }
+        checkStatus();
+
+        // Set environment
+        function setEnvironment(env) {
+            currentEnv = env;
+            document.getElementById('btn-preprod').className = env === 'preprod' 
+                ? 'px-4 py-2 rounded-lg bg-blue-600 text-white font-medium transition hover:bg-blue-700'
+                : 'px-4 py-2 rounded-lg bg-gray-700 text-gray-300 font-medium transition hover:bg-gray-600';
+            document.getElementById('btn-prod').className = env === 'prod'
+                ? 'px-4 py-2 rounded-lg bg-blue-600 text-white font-medium transition hover:bg-blue-700'
+                : 'px-4 py-2 rounded-lg bg-gray-700 text-gray-300 font-medium transition hover:bg-gray-600';
+        }
+
+        // Format JSON with syntax highlighting
+        function formatJson(data, elementId) {
+            const json = JSON.stringify(data, null, 2);
+            document.getElementById(elementId).innerHTML = `<pre><code class="language-json text-sm">${escapeHtml(json)}</code></pre>`;
+            hljs.highlightAll();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Show loader
+        function showLoader(id, show) {
+            document.getElementById(id).classList.toggle('hidden', !show);
+        }
+
+        // Fetch Trello API
+        async function fetchTrello() {
+            showLoader('trello-loader', true);
+            document.getElementById('trello-status').innerHTML = '<span class="text-blue-400">Chargement...</span>';
+            
+            try {
+                const res = await fetch(`/api/trello?env=${currentEnv}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('trello-status').innerHTML = `
+                        <span class="text-green-400">✅ Succès</span> 
+                        <span class="text-gray-500">| ${data.timestamp} | Env: ${data.environment}</span>
+                    `;
+                } else {
+                    document.getElementById('trello-status').innerHTML = `
+                        <span class="text-red-400">❌ Erreur: ${data.error}</span>
+                    `;
+                }
+                formatJson(data, 'trello-result');
+            } catch (e) {
+                document.getElementById('trello-status').innerHTML = `<span class="text-red-400">❌ Erreur: ${e.message}</span>`;
+            }
+            
+            showLoader('trello-loader', false);
+        }
+
+        // Fetch Campaign Stats API
+        async function fetchCampaignStats() {
+            showLoader('campaign-loader', true);
+            document.getElementById('campaign-status').innerHTML = '<span class="text-blue-400">Chargement...</span>';
+            
+            try {
+                const res = await fetch(`/api/campaign-stats/analysis?env=${currentEnv}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('campaign-status').innerHTML = `
+                        <span class="text-green-400">✅ Succès</span> 
+                        <span class="text-gray-500">| ${data.timestamp} | Env: ${data.environment}</span>
+                    `;
+                } else {
+                    document.getElementById('campaign-status').innerHTML = `
+                        <span class="text-red-400">❌ Erreur: ${data.error}</span>
+                    `;
+                }
+                formatJson(data, 'campaign-result');
+            } catch (e) {
+                document.getElementById('campaign-status').innerHTML = `<span class="text-red-400">❌ Erreur: ${e.message}</span>`;
+            }
+            
+            showLoader('campaign-loader', false);
+        }
+
+        // Fetch Custom Endpoint
+        async function fetchCustom() {
+            const endpoint = document.getElementById('custom-endpoint').value.trim();
+            if (!endpoint) {
+                alert('Veuillez entrer un endpoint');
+                return;
+            }
+            
+            showLoader('custom-loader', true);
+            document.getElementById('custom-status').innerHTML = '<span class="text-blue-400">Chargement...</span>';
+            
+            try {
+                const res = await fetch(`/api/proxy/${endpoint}?env=${currentEnv}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('custom-status').innerHTML = `
+                        <span class="text-green-400">✅ Succès</span> 
+                        <span class="text-gray-500">| ${data.endpoint} | Env: ${data.environment}</span>
+                    `;
+                } else {
+                    document.getElementById('custom-status').innerHTML = `
+                        <span class="text-red-400">❌ Erreur: ${data.error}</span>
+                    `;
+                }
+                formatJson(data, 'custom-result');
+            } catch (e) {
+                document.getElementById('custom-status').innerHTML = `<span class="text-red-400">❌ Erreur: ${e.message}</span>`;
+            }
+            
+            showLoader('custom-loader', false);
+        }
+
+        // Enter key for custom endpoint
+        document.getElementById('custom-endpoint').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchCustom();
+        });
+    </script>
+</body>
+</html>
