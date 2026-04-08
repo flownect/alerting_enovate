@@ -127,6 +127,9 @@
             <button onclick="switchMainTab('alerts')" id="main-tab-alerts" class="px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition">
                 🚨 Alertes <span id="main-count-alerts" class="ml-1 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full text-sm">0</span>
             </button>
+            <button onclick="switchMainTab('performance')" id="main-tab-performance" class="px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition">
+                📈 Performance <span id="main-count-performance" class="ml-1 bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-0.5 rounded-full text-sm">0</span>
+            </button>
             <button onclick="switchMainTab('traders')" id="main-tab-traders" class="px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition">
                 👥 Vue Traders
             </button>
@@ -153,6 +156,36 @@
             <div id="no-alerts" class="hidden bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
                 <span class="text-4xl">✅</span>
                 <p class="mt-2 text-green-700 dark:text-green-400 font-medium">Aucune alerte à traiter</p>
+            </div>
+        </section>
+
+        <!-- Contenu Performance (caché par défaut) -->
+        <section id="section-performance" class="hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex gap-2">
+                    <button onclick="filterPerformance('all')" id="perf-filter-all" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium transition">
+                        Toutes <span id="perf-count-all" class="ml-1 bg-white/20 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="filterPerformance('faible')" id="perf-filter-faible" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                        🟡 Faible <span id="perf-count-faible" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="filterPerformance('alerte')" id="perf-filter-alerte" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                        🟠 Alerte <span id="perf-count-alerte" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                    <button onclick="filterPerformance('critique')" id="perf-filter-critique" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600">
+                        🔴 Critique <span id="perf-count-critique" class="ml-1 bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full">0</span>
+                    </button>
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    <span id="perf-loading" class="hidden">Chargement...</span>
+                </div>
+            </div>
+            <div id="performance-container" class="space-y-3">
+                <!-- Performance alerts will be inserted here -->
+            </div>
+            <div id="no-performance" class="hidden bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
+                <span class="text-4xl">✅</span>
+                <p class="mt-2 text-green-700 dark:text-green-400 font-medium">Aucune alerte de performance</p>
             </div>
         </section>
 
@@ -235,8 +268,11 @@
 
         // ==================== STATE ====================
         let trelloData = null;
+        let campaignStatsData = null;
         let currentFilter = 'all';
+        let currentPerfFilter = 'all';
         let allAlerts = [];
+        let allPerformanceAlerts = [];
 
         // ==================== HELPERS ====================
         function normalizeTraderName(name) {
@@ -454,6 +490,106 @@
             const order = { critical: 0, urgent: 1, attention: 2 };
             alerts.sort((a, b) => order[a.criticality] - order[b.criticality]);
 
+            return alerts;
+        }
+
+        // ==================== PERFORMANCE ALERTS ====================
+        function generatePerformanceAlerts() {
+            if (!campaignStatsData?.data) return [];
+            
+            const alerts = [];
+            const now = today();
+            
+            for (const campaign of campaignStatsData.data) {
+                // Ignorer les campagnes non live
+                if (!campaign.isLive) continue;
+                
+                // Calculer la durée de campagne
+                const startDate = parseDate(campaign.vStartDate);
+                const endDate = parseDate(campaign.vEndDate);
+                if (!startDate || !endDate) continue;
+                
+                const totalDays = getDaysDiff(startDate, endDate);
+                const elapsedDays = getDaysDiff(startDate, now);
+                if (totalDays <= 0 || elapsedDays < 0) continue;
+                
+                const durationProgress = Math.min((elapsedDays / totalDays) * 100, 100);
+                
+                // Calculer la progression de livraison (impressions)
+                const impressionsDelivered = campaign.data?.impressions?.value2 || 0;
+                const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
+                const deliveryProgress = impressionsObjective > 0 ? (impressionsDelivered / impressionsObjective) * 100 : 0;
+                
+                // Récupérer la marge
+                const marginRate = campaign.data?.marginRate?.value2 || 0;
+                
+                // Récupérer les objectifs KPI (ex: taux de session)
+                const sessionsRate = campaign.data?.sessionsRate?.value2 || 0;
+                const sessionsRateObjective = 20; // Objectif par défaut 20%
+                const kpiProgress = sessionsRateObjective > 0 ? (sessionsRate / sessionsRateObjective) * 100 : 100;
+                
+                // Déterminer le niveau d'alerte
+                let level = null;
+                let reasons = [];
+                
+                // CRITIQUE (>70%)
+                if (durationProgress > 70) {
+                    if (deliveryProgress < 50) {
+                        reasons.push(`Livraison ${deliveryProgress.toFixed(0)}% (< 50%)`);
+                    }
+                    if (marginRate < 40) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
+                    }
+                    if (kpiProgress < 70) {
+                        reasons.push(`Objectif KPI ${kpiProgress.toFixed(0)}% (< 70%)`);
+                    }
+                    if (reasons.length > 0) level = 'critique';
+                }
+                // ALERTE (55-70%)
+                else if (durationProgress > 55) {
+                    if (deliveryProgress < 35) {
+                        reasons.push(`Livraison ${deliveryProgress.toFixed(0)}% (< 35%)`);
+                    }
+                    if (marginRate < 40) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
+                    }
+                    if (kpiProgress < 70) {
+                        reasons.push(`Objectif KPI ${kpiProgress.toFixed(0)}% (< 70%)`);
+                    }
+                    if (reasons.length > 0) level = 'alerte';
+                }
+                // FAIBLE (40-55%)
+                else if (durationProgress > 40) {
+                    if (deliveryProgress < 20) {
+                        reasons.push(`Livraison ${deliveryProgress.toFixed(0)}% (< 20%)`);
+                    }
+                    if (marginRate < 40) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
+                    }
+                    if (kpiProgress < 60) {
+                        reasons.push(`Objectif KPI ${kpiProgress.toFixed(0)}% (< 60%)`);
+                    }
+                    if (reasons.length > 0) level = 'faible';
+                }
+                
+                if (level && reasons.length > 0) {
+                    alerts.push({
+                        level,
+                        campaign,
+                        durationProgress,
+                        deliveryProgress,
+                        marginRate,
+                        reasons,
+                        trader: campaign.traderName || 'N/A',
+                        commercial: campaign.commercialName || 'N/A'
+                    });
+                }
+            }
+            
+            // Trier par niveau de criticité
+            const order = { critique: 0, alerte: 1, faible: 2 };
+            alerts.sort((a, b) => order[a.level] - order[b.level]);
+            
             return alerts;
         }
 
@@ -712,27 +848,152 @@
             document.getElementById('section-alerts').scrollIntoView({ behavior: 'smooth' });
         }
         
-        // Switch between main tabs (Alerts / Traders)
+        // Switch between main tabs (Alerts / Performance / Traders)
         let currentMainTab = 'alerts';
         function switchMainTab(tab) {
             currentMainTab = tab;
             
-            // Update tab styles
-            const alertsTab = document.getElementById('main-tab-alerts');
-            const tradersTab = document.getElementById('main-tab-traders');
-            const alertsSection = document.getElementById('section-alerts');
-            const tradersSection = document.getElementById('section-traders');
+            const tabs = ['alerts', 'performance', 'traders'];
+            const activeClass = 'px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition';
+            const inactiveClass = 'px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition';
             
-            if (tab === 'alerts') {
-                alertsTab.className = 'px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition';
-                tradersTab.className = 'px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition';
-                alertsSection.classList.remove('hidden');
-                tradersSection.classList.add('hidden');
+            for (const t of tabs) {
+                const tabBtn = document.getElementById(`main-tab-${t}`);
+                const section = document.getElementById(`section-${t}`);
+                if (tabBtn && section) {
+                    if (t === tab) {
+                        tabBtn.className = activeClass;
+                        section.classList.remove('hidden');
+                    } else {
+                        tabBtn.className = inactiveClass;
+                        section.classList.add('hidden');
+                    }
+                }
+            }
+            
+            // Charger les données de performance si nécessaire
+            if (tab === 'performance' && !campaignStatsData) {
+                fetchCampaignStats();
+            }
+        }
+        
+        // Filtrer les alertes de performance
+        function filterPerformance(filter) {
+            currentPerfFilter = filter;
+            
+            const filters = ['all', 'faible', 'alerte', 'critique'];
+            for (const f of filters) {
+                const btn = document.getElementById(`perf-filter-${f}`);
+                if (btn) {
+                    if (f === filter) {
+                        btn.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium transition';
+                    } else {
+                        btn.className = 'px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition hover:bg-gray-300 dark:hover:bg-gray-600';
+                    }
+                }
+            }
+            
+            renderPerformance();
+        }
+        
+        // Rendu des alertes de performance
+        function renderPerformance() {
+            const container = document.getElementById('performance-container');
+            const noPerf = document.getElementById('no-performance');
+            container.innerHTML = '';
+            
+            const faibleAlerts = allPerformanceAlerts.filter(a => a.level === 'faible');
+            const alerteAlerts = allPerformanceAlerts.filter(a => a.level === 'alerte');
+            const critiqueAlerts = allPerformanceAlerts.filter(a => a.level === 'critique');
+            
+            let filteredAlerts;
+            if (currentPerfFilter === 'all') {
+                filteredAlerts = allPerformanceAlerts;
+            } else if (currentPerfFilter === 'faible') {
+                filteredAlerts = faibleAlerts;
+            } else if (currentPerfFilter === 'alerte') {
+                filteredAlerts = alerteAlerts;
+            } else if (currentPerfFilter === 'critique') {
+                filteredAlerts = critiqueAlerts;
             } else {
-                tradersTab.className = 'px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition';
-                alertsTab.className = 'px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition';
-                tradersSection.classList.remove('hidden');
-                alertsSection.classList.add('hidden');
+                filteredAlerts = allPerformanceAlerts;
+            }
+            
+            // Update counters
+            document.getElementById('perf-count-all').textContent = allPerformanceAlerts.length;
+            document.getElementById('perf-count-faible').textContent = faibleAlerts.length;
+            document.getElementById('perf-count-alerte').textContent = alerteAlerts.length;
+            document.getElementById('perf-count-critique').textContent = critiqueAlerts.length;
+            document.getElementById('main-count-performance').textContent = allPerformanceAlerts.length;
+            
+            if (filteredAlerts.length === 0) {
+                noPerf.classList.remove('hidden');
+                return;
+            }
+            noPerf.classList.add('hidden');
+            
+            for (const alert of filteredAlerts) {
+                const campaign = alert.campaign;
+                const levelClass = alert.level === 'critique' ? 'alert-critical' 
+                    : alert.level === 'alerte' ? 'alert-urgent' 
+                    : 'border-l-4 border-yellow-500';
+                
+                const levelBadge = alert.level === 'critique' 
+                    ? '<span class="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">🔴 CRITIQUE</span>'
+                    : alert.level === 'alerte'
+                    ? '<span class="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded">🟠 ALERTE</span>'
+                    : '<span class="bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded">🟡 FAIBLE</span>';
+                
+                const alertId = `perf-${Math.random().toString(36).substr(2, 9)}`;
+                
+                const div = document.createElement('div');
+                div.className = `bg-white dark:bg-gray-800 rounded-lg shadow ${levelClass} overflow-hidden`;
+                div.innerHTML = `
+                    <div class="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onclick="toggleAlert('${alertId}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                ${levelBadge}
+                                <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-2 py-1 rounded">${alert.durationProgress.toFixed(0)}% durée</span>
+                                <span class="font-medium text-gray-900 dark:text-white">${campaign.campaignName || 'Sans nom'}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                <span>ADX: ${campaign.adxDisplayId || 'N/A'}</span>
+                                <svg class="w-5 h-5 transform transition-transform" id="chevron-${alertId}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                            <span class="text-gray-500 dark:text-gray-400">👤 <strong>${alert.trader}</strong></span>
+                            <span class="text-gray-500 dark:text-gray-400">💼 ${alert.commercial}</span>
+                            <span class="text-gray-500 dark:text-gray-400">📊 Livraison: <strong class="${alert.deliveryProgress < 50 ? 'text-red-500' : 'text-green-500'}">${alert.deliveryProgress.toFixed(0)}%</strong></span>
+                            <span class="text-gray-500 dark:text-gray-400">💰 Marge: <strong class="${alert.marginRate < 40 ? 'text-red-500' : 'text-green-500'}">${alert.marginRate.toFixed(0)}%</strong></span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            ${alert.reasons.map(r => `<span class="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded">${r}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div id="${alertId}" class="expand-content">
+                        <div class="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
+                            <div class="grid md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Trader:</span> ${alert.trader}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Commercial:</span> ${alert.commercial}</p>
+                                </div>
+                                <div>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Début:</span> ${campaign.vStartDate || 'N/A'}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Fin:</span> ${campaign.vEndDate || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Durée écoulée:</span> ${alert.durationProgress.toFixed(0)}%</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Livraison:</span> ${alert.deliveryProgress.toFixed(0)}%</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Marge:</span> ${alert.marginRate.toFixed(0)}%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
             }
         }
 
@@ -755,6 +1016,32 @@
                 return false;
             }
         }
+        
+        async function fetchCampaignStats() {
+            const env = document.getElementById('env-select').value;
+            const loadingEl = document.getElementById('perf-loading');
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            
+            try {
+                const response = await fetch(`/api/campaign-stats/analysis?env=${env}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    campaignStatsData = data;
+                    allPerformanceAlerts = generatePerformanceAlerts();
+                    renderPerformance();
+                    return true;
+                } else {
+                    console.error('Campaign Stats API Error:', data.error);
+                    return false;
+                }
+            } catch (error) {
+                console.error('Campaign Stats Fetch Error:', error);
+                return false;
+            } finally {
+                if (loadingEl) loadingEl.classList.add('hidden');
+            }
+        }
 
         async function refreshData() {
             const btn = document.getElementById('refresh-btn');
@@ -769,6 +1056,11 @@
                 renderTraders();
                 renderAlerts();
                 document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            }
+            
+            // Rafraîchir aussi les données de performance si déjà chargées
+            if (campaignStatsData) {
+                await fetchCampaignStats();
             }
 
             btn.disabled = false;
