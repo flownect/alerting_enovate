@@ -276,8 +276,15 @@
 
             const now = today();
             
-            // Live campaigns
-            const live = traderCards.filter(c => c.areSubdivisionsLive === true);
+            // Live campaigns (toutes les subdivisions sont live, pas partiellement)
+            const live = traderCards.filter(c => {
+                // Si pas de subdivisions, on vérifie juste areSubdivisionsLive
+                if (!c.subdivisions || c.subdivisions.length === 0) {
+                    return c.areSubdivisionsLive === true;
+                }
+                // Toutes les subdivisions doivent être live
+                return c.subdivisions.every(sub => sub.isLive === true);
+            });
             
             // Checked campaigns (among live)
             const checked = live.filter(c => c.areSubdivisionsChecked === true);
