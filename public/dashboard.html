@@ -537,56 +537,50 @@
                 // Calculer la progression de livraison (impressions)
                 const impressionsDelivered = campaign.data?.impressions?.value2 || 0;
                 const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
-                const deliveryProgress = impressionsObjective > 0 ? (impressionsDelivered / impressionsObjective) * 100 : 0;
+                const deliveryProgress = impressionsObjective > 0 ? (impressionsDelivered / impressionsObjective) * 100 : null;
                 
                 // Récupérer la marge
-                const marginRate = campaign.data?.marginRate?.value2 || 0;
+                const marginRate = campaign.data?.marginRate?.value2 || null;
                 
-                // Récupérer les objectifs KPI (ex: taux de session)
-                const sessionsRate = campaign.data?.sessionsRate?.value2 || 0;
-                const sessionsRateObjective = 20; // Objectif par défaut 20%
-                const kpiProgress = sessionsRateObjective > 0 ? (sessionsRate / sessionsRateObjective) * 100 : 100;
+                // Calculer le retard de livraison par rapport à la durée
+                // Si on est à 70% de la durée, on devrait avoir ~70% de livraison
+                const deliveryGap = deliveryProgress !== null ? durationProgress - deliveryProgress : null;
                 
                 // Déterminer le niveau d'alerte
                 let level = null;
                 let reasons = [];
                 
-                // CRITIQUE (>70%)
+                // CRITIQUE (>70% durée)
                 if (durationProgress > 70) {
-                    if (deliveryProgress < 50) {
-                        reasons.push(`Livraison ${deliveryProgress.toFixed(0)}% (< 50%)`);
+                    // Livraison en retard de plus de 20 points (ex: 70% durée mais <50% livré)
+                    if (deliveryGap !== null && deliveryGap > 20) {
+                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
-                    if (marginRate < 40) {
+                    // Marge trop basse (seulement si on a la donnée)
+                    if (marginRate !== null && marginRate < 40) {
                         reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
-                    }
-                    if (kpiProgress < 70) {
-                        reasons.push(`Objectif KPI ${kpiProgress.toFixed(0)}% (< 70%)`);
                     }
                     if (reasons.length > 0) level = 'critique';
                 }
-                // ALERTE (55-70%)
+                // ALERTE (55-70% durée)
                 else if (durationProgress > 55) {
-                    if (deliveryProgress < 35) {
-                        reasons.push(`Livraison ${deliveryProgress.toFixed(0)}% (< 35%)`);
+                    // Livraison en retard de plus de 20 points
+                    if (deliveryGap !== null && deliveryGap > 20) {
+                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
-                    if (marginRate < 40) {
+                    if (marginRate !== null && marginRate < 40) {
                         reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
-                    }
-                    if (kpiProgress < 70) {
-                        reasons.push(`Objectif KPI ${kpiProgress.toFixed(0)}% (< 70%)`);
                     }
                     if (reasons.length > 0) level = 'alerte';
                 }
-                // FAIBLE (40-55%)
+                // FAIBLE (40-55% durée)
                 else if (durationProgress > 40) {
-                    if (deliveryProgress < 20) {
-                        reasons.push(`Livraison ${deliveryProgress.toFixed(0)}% (< 20%)`);
+                    // Livraison en retard de plus de 20 points
+                    if (deliveryGap !== null && deliveryGap > 20) {
+                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
-                    if (marginRate < 40) {
+                    if (marginRate !== null && marginRate < 40) {
                         reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
-                    }
-                    if (kpiProgress < 60) {
-                        reasons.push(`Objectif KPI ${kpiProgress.toFixed(0)}% (< 60%)`);
                     }
                     if (reasons.length > 0) level = 'faible';
                 }
@@ -993,8 +987,8 @@
                         <div class="mt-2 flex flex-wrap gap-3 text-xs">
                             <span class="text-gray-500 dark:text-gray-400">👤 <strong>${alert.trader}</strong></span>
                             <span class="text-gray-500 dark:text-gray-400">💼 ${alert.commercial}</span>
-                            <span class="text-gray-500 dark:text-gray-400">📊 Livraison: <strong class="${alert.deliveryProgress < 50 ? 'text-red-500' : 'text-green-500'}">${alert.deliveryProgress.toFixed(0)}%</strong></span>
-                            <span class="text-gray-500 dark:text-gray-400">💰 Marge: <strong class="${alert.marginRate < 40 ? 'text-red-500' : 'text-green-500'}">${alert.marginRate.toFixed(0)}%</strong></span>
+                            ${alert.deliveryProgress !== null ? `<span class="text-gray-500 dark:text-gray-400">📊 Livraison: <strong class="${alert.deliveryProgress < alert.durationProgress ? 'text-red-500' : 'text-green-500'}">${alert.deliveryProgress.toFixed(0)}%</strong></span>` : ''}
+                            ${alert.marginRate !== null ? `<span class="text-gray-500 dark:text-gray-400">💰 Marge: <strong class="${alert.marginRate < 40 ? 'text-red-500' : 'text-green-500'}">${alert.marginRate.toFixed(0)}%</strong></span>` : ''}
                         </div>
                         <div class="mt-2 flex flex-wrap gap-2">
                             ${alert.reasons.map(r => `<span class="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded">${r}</span>`).join('')}
@@ -1013,8 +1007,8 @@
                                 </div>
                                 <div>
                                     <p><span class="text-gray-500 dark:text-gray-400">Durée écoulée:</span> ${alert.durationProgress.toFixed(0)}%</p>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Livraison:</span> ${alert.deliveryProgress.toFixed(0)}%</p>
-                                    <p><span class="text-gray-500 dark:text-gray-400">Marge:</span> ${alert.marginRate.toFixed(0)}%</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Livraison:</span> ${alert.deliveryProgress !== null ? alert.deliveryProgress.toFixed(0) + '%' : 'N/A'}</p>
+                                    <p><span class="text-gray-500 dark:text-gray-400">Marge:</span> ${alert.marginRate !== null ? alert.marginRate.toFixed(0) + '%' : 'N/A'}</p>
                                 </div>
                             </div>
                         </div>
