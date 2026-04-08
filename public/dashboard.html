@@ -415,7 +415,12 @@
                 }
 
                 // Alerte CRITIQUE - Campagne non live alors que date J0 ou passée (responsabilité Traders)
-                if (card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null && daysToStart <= 0) {
+                // Exclure si la campagne est dans la colonne "Campagne Live" (lane3) ou si au moins une subdivision est live
+                const isInLiveLane = card.laneId === 'lane3';
+                const hasAnyLiveSubdivision = card.subdivisions?.some(sub => sub.isLive === true);
+                const isActuallyLive = card.areSubdivisionsLive || isInLiveLane || hasAnyLiveSubdivision;
+                
+                if (card.isProgrammable && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
                     const daysLate = Math.abs(daysToStart);
                     let timing = daysToStart === 0 ? 'J0' : `J+${daysLate}`;
                     
