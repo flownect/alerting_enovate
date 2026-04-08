@@ -182,22 +182,55 @@
     <script>
         // ==================== CONFIGURATION ====================
         const TEAMS = {
-            'Team 1': ['Nikola', 'Alexis G', 'Mustapha'],
+            'Team 1': ['Nikola', 'Alexis G'],
             'Team 2': ['Al-Amin', 'Joey', 'Alexis D'],
-            'Team 3': ['Antoine', 'Arno']
+            'Team 3': ['Antoine', 'Arno', 'Mustapha']
         };
+        
+        // Responsables (à suivre mais pas dans les stats par pôle si autre personne assignée)
+        const RESPONSABLES = ['Maxime', 'Jérome', 'Jerome', 'Alexandre', 'MC'];
         
         // Mapping des noms API vers noms affichés
         const TRADER_ALIASES = {
             'Gautier': 'Alexis G',
-            'Alexis Delmas': 'Alexis D'
+            'Alexis Delmas': 'Alexis D',
+            'MC': 'Maxime'
         };
 
         const TEAM_COLORS = {
             'Team 1': 'team1',
             'Team 2': 'team2',
-            'Team 3': 'team3'
+            'Team 3': 'team3',
+            'Responsables': 'team1'
         };
+        
+        // Fonction pour déterminer si un nom est un responsable
+        function isResponsable(name) {
+            if (!name) return false;
+            return RESPONSABLES.some(r => name.toLowerCase().includes(r.toLowerCase()));
+        }
+        
+        // Fonction pour extraire le trader effectif (exclure responsables si autre personne)
+        function getEffectiveTrader(traderField) {
+            if (!traderField) return 'Aucun';
+            
+            // Séparer les noms (par / ou ,)
+            const names = traderField.split(/[\/,]/).map(n => n.trim()).filter(n => n);
+            
+            if (names.length === 0) return 'Aucun';
+            if (names.length === 1) return names[0];
+            
+            // Si plusieurs personnes, exclure les responsables
+            const nonResponsables = names.filter(n => !isResponsable(n));
+            
+            // S'il reste des non-responsables, prendre le premier
+            if (nonResponsables.length > 0) {
+                return nonResponsables[0];
+            }
+            
+            // Sinon, retourner le premier nom
+            return names[0];
+        }
 
         // ==================== STATE ====================
         let trelloData = null;
@@ -278,8 +311,9 @@
             }
             
             const traderCards = cards.filter(c => {
-                const trader = c.trader || 'Aucun';
-                return apiNames.some(name => trader.toLowerCase().includes(name.toLowerCase()));
+                // Utiliser le trader effectif (exclure responsables si autre personne)
+                const effectiveTrader = getEffectiveTrader(c.trader);
+                return apiNames.some(name => effectiveTrader.toLowerCase().includes(name.toLowerCase()));
             });
 
             const now = today();
@@ -375,6 +409,21 @@
                         timing,
                         card,
                         message: 'Campagne sans trader assigné'
+                    });
+                }
+
+                // Alerte CRITIQUE - Campagne non live alors que date J0 ou passée (responsabilité Traders)
+                if (card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null && daysToStart <= 0) {
+                    const daysLate = Math.abs(daysToStart);
+                    let timing = daysToStart === 0 ? 'J0' : `J+${daysLate}`;
+                    
+                    alerts.push({
+                        type: 'launch',
+                        subtype: 'not-live',
+                        criticality: 'critical',
+                        timing,
+                        card,
+                        message: 'Campagne non live - devrait être en cours'
                     });
                 }
 
