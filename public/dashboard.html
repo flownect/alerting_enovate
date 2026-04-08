@@ -66,10 +66,16 @@
                     <div id="critical-counter" onclick="showCriticalAlerts()" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse cursor-pointer hover:bg-red-700 transition">
                         0 CRITIQUE
                     </div>
-                    <!-- Dernière MAJ -->
-                    <div class="text-sm text-gray-500 dark:text-gray-400">
-                        <span>MAJ:</span>
-                        <span id="last-update">--:--</span>
+                    <!-- Status APIs -->
+                    <div class="flex items-center gap-3 text-xs">
+                        <div class="flex items-center gap-1" title="API Trello (Alertes)">
+                            <span id="trello-loading" class="hidden"><span class="loader" style="width:12px;height:12px;border-width:2px;"></span></span>
+                            <span id="trello-status" class="text-gray-400">📋 Trello: --:--</span>
+                        </div>
+                        <div class="flex items-center gap-1" title="API Campaign Stats (Performance)">
+                            <span id="stats-loading" class="hidden"><span class="loader" style="width:12px;height:12px;border-width:2px;"></span></span>
+                            <span id="stats-status" class="text-gray-400">📈 Stats: --:--</span>
+                        </div>
                     </div>
                     <!-- Boutons -->
                     <button onclick="toggleConfig()" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition" title="Configuration">
@@ -1019,29 +1025,49 @@
         }
 
         // ==================== DATA FETCHING ====================
+        function formatTime() {
+            return new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        
         async function fetchData() {
             const env = document.getElementById('env-select').value;
+            const loadingEl = document.getElementById('trello-loading');
+            const statusEl = document.getElementById('trello-status');
+            
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            if (statusEl) statusEl.textContent = '📋 Trello: chargement...';
+            
             try {
                 const response = await fetch(`/api/trello?env=${env}`);
                 const data = await response.json();
                 
                 if (data.success) {
                     trelloData = data;
+                    if (statusEl) statusEl.innerHTML = `📋 Trello: <span class="text-green-500">${formatTime()}</span>`;
                     return true;
                 } else {
                     console.error('API Error:', data.error);
+                    if (statusEl) statusEl.innerHTML = `📋 Trello: <span class="text-red-500">Erreur</span>`;
                     return false;
                 }
             } catch (error) {
                 console.error('Fetch Error:', error);
+                if (statusEl) statusEl.innerHTML = `📋 Trello: <span class="text-red-500">Erreur</span>`;
                 return false;
+            } finally {
+                if (loadingEl) loadingEl.classList.add('hidden');
             }
         }
         
         async function fetchCampaignStats() {
             const env = document.getElementById('env-select').value;
-            const loadingEl = document.getElementById('perf-loading');
+            const loadingEl = document.getElementById('stats-loading');
+            const statusEl = document.getElementById('stats-status');
+            const perfLoadingEl = document.getElementById('perf-loading');
+            
             if (loadingEl) loadingEl.classList.remove('hidden');
+            if (perfLoadingEl) perfLoadingEl.classList.remove('hidden');
+            if (statusEl) statusEl.textContent = '📈 Stats: chargement...';
             
             try {
                 const response = await fetch(`/api/campaign-stats/analysis?env=${env}`);
@@ -1051,16 +1077,20 @@
                     campaignStatsData = data;
                     allPerformanceAlerts = generatePerformanceAlerts();
                     renderPerformance();
+                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
                     return true;
                 } else {
                     console.error('Campaign Stats API Error:', data.error);
+                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
                     return false;
                 }
             } catch (error) {
                 console.error('Campaign Stats Fetch Error:', error);
+                if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
                 return false;
             } finally {
                 if (loadingEl) loadingEl.classList.add('hidden');
+                if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
             }
         }
 
@@ -1076,7 +1106,6 @@
                 renderPoles();
                 renderTraders();
                 renderAlerts();
-                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
             }
             
             // Rafraîchir aussi les données de performance si déjà chargées
