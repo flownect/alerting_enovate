@@ -454,20 +454,12 @@
             const checkedCampaignIds = new Set();
             
             for (const c of traderCards) {
-                if (c.isLive === true && c.campaignId) {
+                if (c.areSubdivisionsLive === true && c.campaignId) {
                     liveCampaignIds.add(c.campaignId);
                     if (c.areSubdivisionsChecked === true) {
                         checkedCampaignIds.add(c.campaignId);
                     }
                 }
-            }
-            
-            // Debug pour MC
-            if (traderName === 'MC' && liveCampaignIds.size > 0) {
-                console.log('=== DEBUG MC ===');
-                console.log('MC live campaigns:', [...liveCampaignIds]);
-                const mcLiveCards = traderCards.filter(c => c.isLive === true);
-                console.log('MC live cards:', mcLiveCards.map(c => ({ trader: c.trader, isLive: c.isLive, campaignId: c.campaignId, title: c.title })));
             }
             
             // Programmable launches (next 7 days)
@@ -1361,13 +1353,10 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
             
-            // Campagnes live - compter les campaignId uniques avec isLive=true
-            // Ne compter que les cartes qui ne sont PAS des subdivisions (subdivisionName === null)
+            // Campagnes live - compter les campaignId uniques avec areSubdivisionsLive=true
             const liveCampaigns = new Set();
             for (const c of cards) {
-                // Ignorer les subdivisions (ne compter que les campagnes parentes)
-                if (c.subdivisionName) continue;
-                if (c.isLive === true && c.campaignId) {
+                if (c.areSubdivisionsLive === true && c.campaignId) {
                     liveCampaigns.add(c.campaignId);
                 }
             }
