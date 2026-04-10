@@ -67,7 +67,7 @@
                         <div class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full font-semibold" title="Campagnes actuellement live">
                             🟢 <span id="stat-live">0</span> Live
                         </div>
-                        <div class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full font-semibold" title="Lancements programmés dans les 7 prochains jours">
+                        <div onclick="showLaunches()" class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full font-semibold cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition" title="Lancements programmés dans les 7 prochains jours - Cliquez pour voir">
                             🚀 <span id="stat-launches">0</span> Lancements (7j)
                         </div>
                     </div>
@@ -147,6 +147,9 @@
             </button>
             <button onclick="switchMainTab('traders')" id="main-tab-traders" class="px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition">
                 👥 Vue Traders
+            </button>
+            <button onclick="switchMainTab('launches')" id="main-tab-launches" class="px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition">
+                🚀 Lancements (7j) <span id="main-count-launches" class="ml-1 bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full text-sm">0</span>
             </button>
         </div>
 
@@ -261,6 +264,23 @@
                         <!-- Trader rows will be inserted here -->
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- Contenu Lancements (7j) (caché par défaut) -->
+        <section id="section-launches" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">🚀 Campagnes à lancer dans les 7 prochains jours</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Campagnes programmables non encore live</p>
+                </div>
+                <div id="launches-container" class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <!-- Launch cards will be inserted here -->
+                </div>
+                <div id="no-launches" class="hidden p-6 text-center">
+                    <span class="text-4xl">✅</span>
+                    <p class="mt-2 text-green-700 dark:text-green-400 font-medium">Aucun lancement prévu dans les 7 prochains jours</p>
+                </div>
             </div>
         </section>
 
@@ -541,8 +561,11 @@
 
                 // Alerte Bilan non saisi (J+1 et plus)
                 if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1) {
-                    // Plus c'est ancien, plus c'est urgent (mais jamais critical)
-                    let criticality = daysFromEnd >= 3 ? 'urgent' : 'attention';
+                    // Pour les campagnes "Visites en magasin", urgent après J+15 (délai attribution Google)
+                    // Sinon, urgent après J+3
+                    const isVisitesEnMagasin = hasTag(card, 'Visites en magasin');
+                    const urgentThreshold = isVisitesEnMagasin ? 15 : 3;
+                    let criticality = daysFromEnd >= urgentThreshold ? 'urgent' : 'attention';
                     let timing = `J+${daysFromEnd}`;
                     
                     alerts.push({
@@ -551,7 +574,7 @@
                         criticality,
                         timing,
                         card,
-                        message: 'Bilan non saisi',
+                        message: isVisitesEnMagasin ? 'Bilan non saisi (Visites magasin)' : 'Bilan non saisi',
                         daysFromEnd // Pour le tri secondaire
                     });
                 }
@@ -619,40 +642,49 @@
                 const deliveryGap = deliveryProgress !== null ? durationProgress - deliveryProgress : null;
                 
                 // Déterminer le niveau d'alerte
+                // Objectif marge: 72% à atteindre à 70% de la durée
+                // Progression accélérée: objectif atteint à 70% durée, pas 100%
+                const TARGET_MARGIN = 72;
+                // À 70% durée = 100% objectif marge, donc facteur = durée / 70
+                const expectedMargin = Math.min((durationProgress / 70) * TARGET_MARGIN, TARGET_MARGIN);
+                const marginGap = marginRate !== null ? expectedMargin - marginRate : null;
+                
                 let level = null;
                 let reasons = [];
                 
-                // CRITIQUE (>70% durée)
+                // CRITIQUE (>70% durée) - devrait être à 72%
                 if (durationProgress > 70) {
-                    // Livraison en retard de plus de 20 points (ex: 70% durée mais <50% livré)
+                    // Livraison en retard de plus de 20 points
                     if (deliveryGap !== null && deliveryGap > 20) {
                         reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
-                    // Marge trop basse (seulement si on a la donnée)
-                    if (marginRate !== null && marginRate < 40) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
+                    // Marge < 72% (objectif atteint)
+                    if (marginRate !== null && marginRate < 72) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
                     }
                     if (reasons.length > 0) level = 'critique';
                 }
-                // ALERTE (55-70% durée)
-                else if (durationProgress > 55) {
+                // ALERTE (50-70% durée)
+                else if (durationProgress > 50) {
                     // Livraison en retard de plus de 20 points
                     if (deliveryGap !== null && deliveryGap > 20) {
                         reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
-                    if (marginRate !== null && marginRate < 40) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
+                    // Marge en retard de plus de 10 points par rapport à l'attendu
+                    if (marginGap !== null && marginGap > 10) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (attendu ~${expectedMargin.toFixed(0)}%)`);
                     }
                     if (reasons.length > 0) level = 'alerte';
                 }
-                // FAIBLE (40-55% durée)
-                else if (durationProgress > 40) {
+                // FAIBLE (30-50% durée)
+                else if (durationProgress > 30) {
                     // Livraison en retard de plus de 20 points
                     if (deliveryGap !== null && deliveryGap > 20) {
                         reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
-                    if (marginRate !== null && marginRate < 40) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (< 40%)`);
+                    // Marge en retard de plus de 10 points
+                    if (marginGap !== null && marginGap > 10) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (attendu ~${expectedMargin.toFixed(0)}%)`);
                     }
                     if (reasons.length > 0) level = 'faible';
                 }
@@ -879,6 +911,90 @@
             chevron.classList.toggle('rotate-180');
         }
 
+        function renderLaunches() {
+            const cards = getAllCards();
+            const now = today();
+            
+            // Filtrer les campagnes programmables à lancer dans les 7 prochains jours
+            const launches = cards.filter(c => {
+                if (!c.isProgrammable || c.areSubdivisionsLive) return false;
+                const startDate = parseDate(c.dates?.startingDateFormatted);
+                if (!startDate) return false;
+                const diff = getDaysDiff(now, startDate);
+                return diff >= 0 && diff <= 7;
+            }).sort((a, b) => {
+                // Trier par date de lancement (plus proche en premier)
+                const dateA = parseDate(a.dates?.startingDateFormatted);
+                const dateB = parseDate(b.dates?.startingDateFormatted);
+                return dateA - dateB;
+            });
+            
+            const container = document.getElementById('launches-container');
+            const noLaunches = document.getElementById('no-launches');
+            container.innerHTML = '';
+            
+            // Update counter in tab
+            document.getElementById('main-count-launches').textContent = launches.length;
+            
+            if (launches.length === 0) {
+                noLaunches.classList.remove('hidden');
+                return;
+            }
+            noLaunches.classList.add('hidden');
+            
+            for (const card of launches) {
+                const trader = getEffectiveTrader(card.trader);
+                const startDate = parseDate(card.dates?.startingDateFormatted);
+                const daysToStart = startDate ? getDaysDiff(now, startDate) : null;
+                const timing = daysToStart === 0 ? 'Aujourd\'hui' : daysToStart === 1 ? 'Demain' : `J-${daysToStart}`;
+                
+                // Couleur selon urgence
+                const urgencyClass = daysToStart <= 1 ? 'border-l-4 border-l-red-500' : daysToStart <= 3 ? 'border-l-4 border-l-orange-500' : 'border-l-4 border-l-blue-500';
+                
+                // Tags de la campagne
+                const tags = card.tags || [];
+                const tagsHtml = tags.map(t => `<span class="bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded">${t}</span>`).join('');
+                
+                const div = document.createElement('div');
+                div.className = `p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${urgencyClass}`;
+                div.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-mono text-xs px-2 py-1 rounded ${daysToStart <= 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : daysToStart <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${timing}</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">[${card.trackerId || 'N/A'}]</span>
+                            </div>
+                            <h4 class="font-semibold text-gray-900 dark:text-white">${card.title || 'Sans nom'}</h4>
+                            <div class="mt-2 grid md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                                <p><span class="text-gray-500 dark:text-gray-400">👤 Trader:</span> <strong>${trader === 'Aucun' ? '<span class="text-red-500">NON ASSIGNÉ</span>' : trader}</strong></p>
+                                <p><span class="text-gray-500 dark:text-gray-400">💼 Commercial:</span> ${card.commercial || 'N/A'}</p>
+                                <p><span class="text-gray-500 dark:text-gray-400">📋 Account Manager:</span> ${card.accountManager || 'N/A'}</p>
+                                <p><span class="text-gray-500 dark:text-gray-400">📅 Lancement:</span> <strong>${card.dates?.startingDateFormatted || 'N/A'}</strong></p>
+                                <p><span class="text-gray-500 dark:text-gray-400">📅 Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
+                                <p><span class="text-gray-500 dark:text-gray-400">📊 Subdivisions:</span> ${card.subdivisions?.length || 0}</p>
+                            </div>
+                            ${tags.length > 0 ? `<div class="mt-2 flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
+                        </div>
+                        <div class="ml-4 flex flex-col items-end gap-2">
+                            <span class="text-xs px-2 py-1 rounded ${card.isProgrammable ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">
+                                ${card.isProgrammable ? '✓ Programmable' : '✗ Non programmable'}
+                            </span>
+                            <span class="text-xs px-2 py-1 rounded ${card.areSubdivisionsChecked ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-600 dark:text-gray-300'}">
+                                ${card.areSubdivisionsChecked ? '✓ Checkée' : '○ Non checkée'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+        
+        // Fonction pour naviguer vers les lancements (appelée depuis le header)
+        function showLaunches() {
+            switchMainTab('launches');
+            document.getElementById('section-launches').scrollIntoView({ behavior: 'smooth' });
+        }
+
         function filterCommerceAlerts(filter) {
             currentCommerceFilter = filter;
             
@@ -929,12 +1045,12 @@
             document.getElementById('section-alerts').scrollIntoView({ behavior: 'smooth' });
         }
         
-        // Switch between main tabs (Alerts / Performance / Traders)
+        // Switch between main tabs (Alerts / Performance / Traders / Launches)
         let currentMainTab = 'alerts';
         function switchMainTab(tab) {
             currentMainTab = tab;
             
-            const tabs = ['alerts', 'performance', 'traders'];
+            const tabs = ['alerts', 'performance', 'traders', 'launches'];
             const activeClass = 'px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600 transition';
             const inactiveClass = 'px-6 py-3 font-semibold text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition';
             
@@ -1160,6 +1276,7 @@
                 renderPoles();
                 renderTraders();
                 renderAlerts();
+                renderLaunches();
                 updateGlobalStats();
             }
             
@@ -1221,6 +1338,7 @@
                 renderPoles();
                 renderTraders();
                 renderAlerts();
+                renderLaunches();
                 updateGlobalStats();
             }
 
