@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="googlebot" content="noindex, nofollow">
     <title>Dashboard Opérations - E-Novate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -435,11 +437,8 @@
                 // Si plusieurs traders -> attribuer au premier
                 const effectiveTrader = getEffectiveTrader(c.trader);
                 const normalizedEffective = normalizeTraderName(effectiveTrader);
-                // Vérifier si le trader effectif matche avec un des noms recherchés
-                return apiNames.some(name => 
-                    normalizedEffective.toLowerCase().includes(name.toLowerCase()) ||
-                    name.toLowerCase().includes(normalizedEffective.toLowerCase())
-                );
+                // Matching exact (insensible à la casse)
+                return normalizedEffective.toLowerCase() === traderName.toLowerCase();
             });
 
             const now = today();
@@ -892,6 +891,7 @@
                     <div class="p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onclick="toggleAlert('${alertId}')">
                         <div class="flex items-center gap-2">
                             ${criticalityBadge}
+                            ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
                             <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-1.5 py-0.5 rounded">${alert.timing}</span>
                             <span class="font-medium text-gray-900 dark:text-white text-xs">${alert.message}</span>
                         </div>
@@ -900,7 +900,8 @@
                         </div>
                         <div class="mt-1 flex flex-wrap gap-2 text-xs">
                             <span class="text-gray-500 dark:text-gray-400">👤 ${trader === 'Aucun' ? '<span class="text-red-500">N/A</span>' : trader}</span>
-                            <span class="text-gray-500 dark:text-gray-400"> ${card.commercial || 'N/A'}</span>
+                            <span class="text-gray-500 dark:text-gray-400">💼 ${card.commercial || 'N/A'}</span>
+                            ${card.trackerId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗</a>` : ''}
                         </div>
                     </div>
                     <div id="${alertId}" class="expand-content">
@@ -909,6 +910,7 @@
                             <p><span class="text-gray-500">Commercial:</span> ${card.commercial || 'N/A'}</p>
                             <p><span class="text-gray-500">Lancement:</span> ${card.dates?.startingDateFormatted || 'N/A'}</p>
                             <p><span class="text-gray-500">Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
+                            ${card.trackerId ? `<p class="mt-2"><a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗 Ouvrir la campagne</a></p>` : ''}
                         </div>
                     </div>
                 `;
@@ -974,7 +976,9 @@
                         <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="font-mono text-xs px-2 py-1 rounded ${daysToStart <= 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : daysToStart <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${timing}</span>
+                                ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
                                 <span class="text-xs text-gray-500 dark:text-gray-400">[${card.trackerId || 'N/A'}]</span>
+                                ${card.trackerId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs">🔗 Ouvrir</a>` : ''}
                             </div>
                             <h4 class="font-semibold text-gray-900 dark:text-white">${card.title || 'Sans nom'}</h4>
                             <div class="mt-2 grid md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
@@ -1162,11 +1166,13 @@
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 ${levelBadge}
+                                ${campaign.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
                                 <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-2 py-1 rounded">${alert.durationProgress.toFixed(0)}% durée</span>
                                 <span class="font-medium text-gray-900 dark:text-white">${campaign.campaignName || 'Sans nom'}</span>
                             </div>
                             <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                                 <span>ADX: ${campaign.adxDisplayId || 'N/A'}</span>
+                                ${campaign.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗</a>` : ''}
                                 <svg class="w-5 h-5 transform transition-transform" id="chevron-${alertId}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -1176,7 +1182,7 @@
                             <span class="text-gray-500 dark:text-gray-400">👤 <strong>${alert.trader}</strong></span>
                             <span class="text-gray-500 dark:text-gray-400">💼 ${alert.commercial}</span>
                             ${alert.deliveryProgress !== null ? `<span class="text-gray-500 dark:text-gray-400">📊 Livraison: <strong class="${alert.deliveryProgress < alert.durationProgress ? 'text-red-500' : 'text-green-500'}">${alert.deliveryProgress.toFixed(0)}%</strong></span>` : ''}
-                            ${alert.marginRate !== null ? `<span class="text-gray-500 dark:text-gray-400">💰 Marge: <strong class="${alert.marginRate < 40 ? 'text-red-500' : 'text-green-500'}">${alert.marginRate.toFixed(0)}%</strong></span>` : ''}
+                            ${alert.marginRate !== null ? `<span class="text-gray-500 dark:text-gray-400">💰 Marge: <strong class="${alert.marginRate < 72 ? 'text-red-500' : 'text-green-500'}">${alert.marginRate.toFixed(0)}%</strong></span>` : ''}
                         </div>
                         <div class="mt-2 flex flex-wrap gap-2">
                             ${alert.reasons.map(r => `<span class="text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded">${r}</span>`).join('')}

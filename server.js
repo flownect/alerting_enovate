@@ -7,6 +7,10 @@ const path = require('path');
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
 
+// Authentification basique
+const DASHBOARD_USER = process.env.DASHBOARD_USER || 'enovate';
+const DASHBOARD_PASS = process.env.DASHBOARD_PASS || '@operations2026';
+
 // Logger avec timestamp
 function log(tag, message, data = null) {
     const timestamp = new Date().toISOString();
@@ -21,9 +25,40 @@ function log(tag, message, data = null) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware d'authentification basique
+function basicAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Dashboard Operations E-Novate"');
+        return res.status(401).send('Authentification requise');
+    }
+    
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
+    const [username, password] = credentials.split(':');
+    
+    if (username === DASHBOARD_USER && password === DASHBOARD_PASS) {
+        next();
+    } else {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Dashboard Operations E-Novate"');
+        return res.status(401).send('Identifiants incorrects');
+    }
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Appliquer l'auth sur les pages HTML (pas sur les API pour éviter les problèmes CORS)
+app.use('/', (req, res, next) => {
+    // Ne pas protéger les routes API
+    if (req.path.startsWith('/api/')) {
+        return next();
+    }
+    basicAuth(req, res, next);
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration API
