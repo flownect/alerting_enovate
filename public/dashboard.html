@@ -1357,24 +1357,14 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
             
-            // Campagnes live - utiliser l'API Campaign Stats si disponible (plus fiable)
-            let liveCount = 0;
-            if (campaignStatsData?.data) {
-                // Compter les campagnes live depuis l'API Campaign Stats
-                liveCount = campaignStatsData.data.filter(c => c.isLive === true).length;
-            } else {
-                // Fallback: compter les trackerId uniques avec areSubdivisionsLive=true
-                const liveCampaigns = new Set();
-                for (const c of cards) {
-                    if (c.areSubdivisionsLive === true && c.trackerId) {
-                        liveCampaigns.add(c.trackerId);
-                    }
+            // Campagnes live - compter les trackerId uniques avec areSubdivisionsLive=true
+            const liveCampaigns = new Set();
+            for (const c of cards) {
+                if (c.areSubdivisionsLive === true && c.trackerId) {
+                    liveCampaigns.add(c.trackerId);
                 }
-                liveCount = liveCampaigns.size;
             }
-            
-            console.log('=== GLOBAL STATS DEBUG ===');
-            console.log('Live campaigns:', liveCount, campaignStatsData?.data ? '(from Campaign Stats API)' : '(from Trello)');
+            const liveCount = liveCampaigns.size;
             
             // Lancements programmés dans les 7 prochains jours
             const launchesNext7Days = cards.filter(c => {
