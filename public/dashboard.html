@@ -466,6 +466,14 @@
                 }
             }
             
+            // Debug pour Arno
+            if (traderName === 'Arno') {
+                console.log('=== DEBUG Arno ===');
+                console.log('Total cards for Arno:', traderCards.length);
+                console.log('Live trackerId uniques:', [...liveCampaignIds]);
+                console.log('Live count:', liveCampaignIds.size);
+            }
+            
             // Programmable launches (next 7 days)
             const programmableLaunches = traderCards.filter(c => {
                 if (!c.isProgrammable || c.areSubdivisionsLive) return false;
