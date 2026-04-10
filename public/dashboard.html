@@ -439,48 +439,28 @@
         function getTraderStats(traderName) {
             const cards = getAllCards();
             
-            // Debug: afficher les attributions
-            if (!window._debugDone) {
-                window._debugDone = true;
-                console.log('=== DEBUG: Total cards:', cards.length);
-                const traderCounts = {};
-                for (const c of cards) {
-                    const effective = getEffectiveTrader(c.trader);
-                    traderCounts[effective] = (traderCounts[effective] || 0) + 1;
-                }
-                console.log('=== DEBUG: Attribution par trader:', traderCounts);
-                // Exemples
-                const samples = cards.slice(0, 5);
-                for (const c of samples) {
-                    console.log(`"${c.trader}" -> "${getEffectiveTrader(c.trader)}"`);
-                }
-            }
-            
+            // Filtrer les cartes attribuées à ce trader
             const traderCards = cards.filter(c => {
-                // Utiliser getEffectiveTrader pour l'attribution
-                // Si responsable + trader -> attribuer au trader
-                // Si plusieurs traders -> attribuer au premier
                 const effectiveTrader = getEffectiveTrader(c.trader);
                 const normalizedEffective = normalizeTraderName(effectiveTrader);
-                // Matching exact après normalisation
                 const normalizedTraderName = normalizeTraderName(traderName);
                 return normalizedEffective.toLowerCase() === normalizedTraderName.toLowerCase();
             });
 
             const now = today();
             
-            // Live campaigns (toutes les subdivisions sont live, pas partiellement)
-            const live = traderCards.filter(c => {
-                // Si pas de subdivisions, on vérifie juste areSubdivisionsLive
-                if (!c.subdivisions || c.subdivisions.length === 0) {
-                    return c.areSubdivisionsLive === true;
-                }
-                // Toutes les subdivisions doivent être live
-                return c.subdivisions.every(sub => sub.isLive === true);
-            });
+            // Compter les campaignId uniques pour les campagnes live
+            const liveCampaignIds = new Set();
+            const checkedCampaignIds = new Set();
             
-            // Checked campaigns (among live)
-            const checked = live.filter(c => c.areSubdivisionsChecked === true);
+            for (const c of traderCards) {
+                if (c.areSubdivisionsLive === true && c.campaignId) {
+                    liveCampaignIds.add(c.campaignId);
+                    if (c.areSubdivisionsChecked === true) {
+                        checkedCampaignIds.add(c.campaignId);
+                    }
+                }
+            }
             
             // Programmable launches (next 7 days)
             const programmableLaunches = traderCards.filter(c => {
@@ -497,8 +477,8 @@
             );
 
             return {
-                live: live.length,
-                checked: checked.length,
+                live: liveCampaignIds.size,
+                checked: checkedCampaignIds.size,
                 programmableLaunches: programmableLaunches.length,
                 bilans: bilans.length,
                 // Listes pour les boutons "ouvrir tout"
