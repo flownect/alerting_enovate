@@ -3,13 +3,20 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const path = require('path');
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
 
-// Authentification basique
+// Authentification
 const DASHBOARD_USER = process.env.DASHBOARD_USER || 'enovate';
 const DASHBOARD_PASS = process.env.DASHBOARD_PASS || '@operations2026';
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
+
+// Stockage des sessions en mémoire (simple pour ce cas d'usage)
+const sessions = new Map();
 
 // Logger avec timestamp
 function log(tag, message, data = null) {
@@ -22,42 +29,129 @@ function log(tag, message, data = null) {
     }
 }
 
+// Générer un token de session
+function generateSessionToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Vérifier si une session est valide
+function isSessionValid(token) {
+    const session = sessions.get(token);
+    if (!session) return false;
+    if (Date.now() > session.expiresAt) {
+        sessions.delete(token);
+        return false;
+    }
+    return true;
+}
+
+// Créer une nouvelle session
+function createSession() {
+    const token = generateSessionToken();
+    sessions.set(token, {
+        createdAt: Date.now(),
+        expiresAt: Date.now() + SESSION_DURATION
+    });
+    return token;
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Middleware d'authentification basique
-function basicAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-        res.setHeader('WWW-Authenticate', 'Basic realm="Dashboard Operations E-Novate"');
-        return res.status(401).send('Authentification requise');
-    }
-    
-    const base64Credentials = authHeader.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf8');
-    const [username, password] = credentials.split(':');
-    
-    if (username === DASHBOARD_USER && password === DASHBOARD_PASS) {
-        next();
-    } else {
-        res.setHeader('WWW-Authenticate', 'Basic realm="Dashboard Operations E-Novate"');
-        return res.status(401).send('Identifiants incorrects');
-    }
-}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
-// Appliquer l'auth sur les pages HTML (pas sur les API pour éviter les problèmes CORS)
-app.use('/', (req, res, next) => {
-    // Ne pas protéger les routes API
-    if (req.path.startsWith('/api/')) {
+// Page de login
+app.get('/login', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="robots" content="noindex, nofollow">
+            <title>Connexion - Dashboard E-Novate</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+            <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+                <div class="text-center mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900">📊 Dashboard Opérations</h1>
+                    <p class="text-gray-500">E-Novate</p>
+                </div>
+                <form method="POST" action="/login" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Identifiant</label>
+                        <input type="text" name="username" required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                        <input type="password" name="password" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    ${req.query.error ? '<p class="text-red-500 text-sm">Identifiants incorrects</p>' : ''}
+                    <button type="submit" 
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition font-medium">
+                        Se connecter
+                    </button>
+                </form>
+                <p class="text-center text-xs text-gray-400 mt-6">Session valide 7 jours</p>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+// Traitement du login
+app.use(express.urlencoded({ extended: true }));
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    if (username === DASHBOARD_USER && password === DASHBOARD_PASS) {
+        const token = createSession();
+        res.cookie('session', token, {
+            httpOnly: true,
+            maxAge: SESSION_DURATION,
+            sameSite: 'lax'
+        });
+        log('AUTH', `Connexion réussie pour ${username}`);
+        return res.redirect('/');
+    }
+    
+    log('AUTH', `Échec de connexion pour ${username}`);
+    res.redirect('/login?error=1');
+});
+
+// Déconnexion
+app.get('/logout', (req, res) => {
+    const token = req.cookies.session;
+    if (token) {
+        sessions.delete(token);
+    }
+    res.clearCookie('session');
+    res.redirect('/login');
+});
+
+// Middleware d'authentification par session
+function sessionAuth(req, res, next) {
+    // Ne pas protéger les routes API, login, logout
+    if (req.path.startsWith('/api/') || req.path === '/login' || req.path === '/logout') {
         return next();
     }
-    basicAuth(req, res, next);
-});
+    
+    const token = req.cookies.session;
+    if (token && isSessionValid(token)) {
+        return next();
+    }
+    
+    res.redirect('/login');
+}
+
+// Appliquer l'auth par session
+app.use(sessionAuth);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
