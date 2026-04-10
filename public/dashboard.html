@@ -345,8 +345,9 @@
         function getEffectiveTrader(traderField) {
             if (!traderField) return 'Aucun';
             
-            // Séparer les noms (par - ou / ou ,)
-            const names = traderField.split(/[\-\/,]/).map(n => n.trim()).filter(n => n);
+            // Séparer les noms (par " - " avec espaces, ou / ou ,)
+            // Important: utiliser " - " avec espaces pour ne pas couper "Al-Amin"
+            const names = traderField.split(/\s+-\s+|[\/,]/).map(n => n.trim()).filter(n => n);
             
             if (names.length === 0) return 'Aucun';
             if (names.length === 1) return normalizeTraderName(names[0]);

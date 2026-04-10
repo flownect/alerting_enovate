@@ -118,7 +118,9 @@ app.post('/login', (req, res) => {
             sameSite: 'lax'
         });
         log('AUTH', `Connexion réussie pour ${username}`);
-        return res.redirect('/');
+        // Redirection relative pour fonctionner sur n'importe quel domaine
+        const redirectUrl = req.query.redirect || '/dashboard.html';
+        return res.redirect(redirectUrl);
     }
     
     log('AUTH', `Échec de connexion pour ${username}`);
