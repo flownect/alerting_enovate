@@ -440,11 +440,15 @@
             const cards = getAllCards();
             
             // Filtrer les cartes attribuées à ce trader
-            // Le champ trader contient déjà le trader assigné par l'API
+            // Le champ trader peut contenir plusieurs noms séparés par " - "
+            // Règle: toujours prendre le premier de la liste
             const traderCards = cards.filter(c => {
-                const cardTrader = normalizeTraderName(c.trader);
+                if (!c.trader) return false;
+                // Extraire le premier trader de la liste
+                const firstTrader = c.trader.split(/\s+-\s+/)[0].trim();
+                const normalizedFirst = normalizeTraderName(firstTrader);
                 const searchTrader = normalizeTraderName(traderName);
-                return cardTrader.toLowerCase() === searchTrader.toLowerCase();
+                return normalizedFirst.toLowerCase() === searchTrader.toLowerCase();
             });
 
             const now = today();
@@ -1353,19 +1357,24 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
             
-            // Campagnes live - compter les trackerId uniques avec areSubdivisionsLive=true
-            // trackerId = campagne parente (les subdivisions partagent le même trackerId)
-            const liveCampaigns = new Set();
-            for (const c of cards) {
-                if (c.areSubdivisionsLive === true && c.trackerId) {
-                    liveCampaigns.add(c.trackerId);
+            // Campagnes live - utiliser l'API Campaign Stats si disponible (plus fiable)
+            let liveCount = 0;
+            if (campaignStatsData?.data) {
+                // Compter les campagnes live depuis l'API Campaign Stats
+                liveCount = campaignStatsData.data.filter(c => c.isLive === true).length;
+            } else {
+                // Fallback: compter les trackerId uniques avec areSubdivisionsLive=true
+                const liveCampaigns = new Set();
+                for (const c of cards) {
+                    if (c.areSubdivisionsLive === true && c.trackerId) {
+                        liveCampaigns.add(c.trackerId);
+                    }
                 }
+                liveCount = liveCampaigns.size;
             }
-            const liveCount = liveCampaigns.size;
             
             console.log('=== GLOBAL STATS DEBUG ===');
-            console.log('Total cards:', cards.length);
-            console.log('Live campaigns (unique trackerId):', liveCount);
+            console.log('Live campaigns:', liveCount, campaignStatsData?.data ? '(from Campaign Stats API)' : '(from Trello)');
             
             // Lancements programmés dans les 7 prochains jours
             const launchesNext7Days = cards.filter(c => {
