@@ -1362,6 +1362,11 @@
             }
             const liveCount = liveCampaigns.size;
             
+            console.log('=== GLOBAL STATS DEBUG ===');
+            console.log('Total cards:', cards.length);
+            console.log('Live campaigns (unique campaignId):', liveCount);
+            console.log('Sample card:', cards[0]);
+            
             // Lancements programmés dans les 7 prochains jours
             const launchesNext7Days = cards.filter(c => {
                 if (!c.isProgrammable || c.areSubdivisionsLive) return false;
