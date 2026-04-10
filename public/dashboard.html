@@ -454,24 +454,21 @@
             const now = today();
             
             // Compter les trackerId uniques pour les campagnes live (trackerId = campagne parente)
+            // Filtrer par date: la campagne doit être en cours (date fin >= aujourd'hui)
             const liveCampaignIds = new Set();
             const checkedCampaignIds = new Set();
             
             for (const c of traderCards) {
                 if (c.areSubdivisionsLive === true && c.trackerId) {
-                    liveCampaignIds.add(c.trackerId);
-                    if (c.areSubdivisionsChecked === true) {
-                        checkedCampaignIds.add(c.trackerId);
+                    const endDate = parseDate(c.dates?.endingDateFormatted);
+                    // Ne compter que si la date de fin est >= aujourd'hui
+                    if (endDate && endDate >= now) {
+                        liveCampaignIds.add(c.trackerId);
+                        if (c.areSubdivisionsChecked === true) {
+                            checkedCampaignIds.add(c.trackerId);
+                        }
                     }
                 }
-            }
-            
-            // Debug pour Arno
-            if (traderName === 'Arno') {
-                console.log('=== DEBUG Arno ===');
-                console.log('Total cards for Arno:', traderCards.length);
-                console.log('Live trackerId uniques:', [...liveCampaignIds]);
-                console.log('Live count:', liveCampaignIds.size);
             }
             
             // Programmable launches (next 7 days)
@@ -1366,10 +1363,14 @@
             const currentYear = now.getFullYear();
             
             // Campagnes live - compter les trackerId uniques avec areSubdivisionsLive=true
+            // Filtrer par date: la campagne doit être en cours (date fin >= aujourd'hui)
             const liveCampaigns = new Set();
             for (const c of cards) {
                 if (c.areSubdivisionsLive === true && c.trackerId) {
-                    liveCampaigns.add(c.trackerId);
+                    const endDate = parseDate(c.dates?.endingDateFormatted);
+                    if (endDate && endDate >= now) {
+                        liveCampaigns.add(c.trackerId);
+                    }
                 }
             }
             const liveCount = liveCampaigns.size;
