@@ -439,12 +439,12 @@
         function getTraderStats(traderName) {
             const cards = getAllCards();
             
-            // Filtrer les cartes attribuées à ce trader ET qui sont live
+            // Filtrer les cartes attribuées à ce trader
+            // Le champ trader contient déjà le trader assigné par l'API
             const traderCards = cards.filter(c => {
-                const effectiveTrader = getEffectiveTrader(c.trader);
-                const normalizedEffective = normalizeTraderName(effectiveTrader);
-                const normalizedTraderName = normalizeTraderName(traderName);
-                return normalizedEffective.toLowerCase() === normalizedTraderName.toLowerCase();
+                const cardTrader = normalizeTraderName(c.trader);
+                const searchTrader = normalizeTraderName(traderName);
+                return cardTrader.toLowerCase() === searchTrader.toLowerCase();
             });
 
             const now = today();
