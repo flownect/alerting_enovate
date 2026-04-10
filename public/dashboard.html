@@ -1373,10 +1373,10 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
             
-            // Campagnes live - compter les campaignId uniques avec isLive=true
+            // Campagnes live - compter les campaignId uniques avec areSubdivisionsLive=true
             const liveCampaigns = new Set();
             for (const c of cards) {
-                if (c.isLive === true && c.campaignId) {
+                if (c.areSubdivisionsLive === true && c.campaignId) {
                     liveCampaigns.add(c.campaignId);
                 }
             }
