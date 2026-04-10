@@ -1333,9 +1333,13 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
 
-            const success = await fetchData();
+            // Rafraîchir Trello et Performance en parallèle
+            const [trelloSuccess, perfSuccess] = await Promise.all([
+                fetchData(),
+                fetchCampaignStats()
+            ]);
             
-            if (success) {
+            if (trelloSuccess) {
                 allAlerts = generateAlerts();
                 renderPoles();
                 renderTraders();
@@ -1344,9 +1348,9 @@
                 updateGlobalStats();
             }
             
-            // Rafraîchir aussi les données de performance si déjà chargées
-            if (campaignStatsData) {
-                await fetchCampaignStats();
+            if (perfSuccess) {
+                allPerformanceAlerts = generatePerformanceAlerts();
+                renderPerformance();
             }
 
             btn.disabled = false;
@@ -1392,18 +1396,27 @@
 
         // ==================== INIT ====================
         async function init() {
-            const success = await fetchData();
+            // Charger Trello et Performance en parallèle
+            const [trelloSuccess, perfSuccess] = await Promise.all([
+                fetchData(),
+                fetchCampaignStats()
+            ]);
             
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             
-            if (success) {
+            if (trelloSuccess) {
                 allAlerts = generateAlerts();
                 renderPoles();
                 renderTraders();
                 renderAlerts();
                 renderLaunches();
                 updateGlobalStats();
+            }
+            
+            if (perfSuccess) {
+                allPerformanceAlerts = generatePerformanceAlerts();
+                renderPerformance();
             }
 
             // Auto-refresh every hour (between 7h and 20h)
