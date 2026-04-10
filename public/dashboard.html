@@ -449,15 +449,15 @@
 
             const now = today();
             
-            // Compter les campaignId uniques pour les campagnes live
+            // Compter les trackerId uniques pour les campagnes live (trackerId = campagne parente)
             const liveCampaignIds = new Set();
             const checkedCampaignIds = new Set();
             
             for (const c of traderCards) {
-                if (c.areSubdivisionsLive === true && c.campaignId) {
-                    liveCampaignIds.add(c.campaignId);
+                if (c.areSubdivisionsLive === true && c.trackerId) {
+                    liveCampaignIds.add(c.trackerId);
                     if (c.areSubdivisionsChecked === true) {
-                        checkedCampaignIds.add(c.campaignId);
+                        checkedCampaignIds.add(c.trackerId);
                     }
                 }
             }
@@ -1353,19 +1353,19 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
             
-            // Campagnes live - compter les campaignId uniques avec areSubdivisionsLive=true
+            // Campagnes live - compter les trackerId uniques avec areSubdivisionsLive=true
+            // trackerId = campagne parente (les subdivisions partagent le même trackerId)
             const liveCampaigns = new Set();
             for (const c of cards) {
-                if (c.areSubdivisionsLive === true && c.campaignId) {
-                    liveCampaigns.add(c.campaignId);
+                if (c.areSubdivisionsLive === true && c.trackerId) {
+                    liveCampaigns.add(c.trackerId);
                 }
             }
             const liveCount = liveCampaigns.size;
             
             console.log('=== GLOBAL STATS DEBUG ===');
             console.log('Total cards:', cards.length);
-            console.log('Live campaigns (unique campaignId):', liveCount);
-            console.log('Sample card:', cards[0]);
+            console.log('Live campaigns (unique trackerId):', liveCount);
             
             // Lancements programmés dans les 7 prochains jours
             const launchesNext7Days = cards.filter(c => {
