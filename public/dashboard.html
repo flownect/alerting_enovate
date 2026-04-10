@@ -438,6 +438,23 @@
         function getTraderStats(traderName) {
             const cards = getAllCards();
             
+            // Debug: afficher les attributions
+            if (!window._debugDone) {
+                window._debugDone = true;
+                console.log('=== DEBUG: Total cards:', cards.length);
+                const traderCounts = {};
+                for (const c of cards) {
+                    const effective = getEffectiveTrader(c.trader);
+                    traderCounts[effective] = (traderCounts[effective] || 0) + 1;
+                }
+                console.log('=== DEBUG: Attribution par trader:', traderCounts);
+                // Exemples
+                const samples = cards.slice(0, 5);
+                for (const c of samples) {
+                    console.log(`"${c.trader}" -> "${getEffectiveTrader(c.trader)}"`);
+                }
+            }
+            
             const traderCards = cards.filter(c => {
                 // Utiliser getEffectiveTrader pour l'attribution
                 // Si responsable + trader -> attribuer au trader
