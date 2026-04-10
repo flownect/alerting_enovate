@@ -652,10 +652,10 @@
                 let level = null;
                 let reasons = [];
                 
-                // CRITIQUE (>70% durée) - devrait être à 72%
-                if (durationProgress > 70) {
-                    // Livraison en retard de plus de 20 points
-                    if (deliveryGap !== null && deliveryGap > 20) {
+                // CRITIQUE (>90% durée) - livraison écart > 10pts OU marge < 72%
+                if (durationProgress > 90) {
+                    // Livraison en retard de plus de 10 points
+                    if (deliveryGap !== null && deliveryGap > 10) {
                         reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
                     }
                     // Marge < 72% (objectif atteint)
@@ -663,6 +663,18 @@
                         reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
                     }
                     if (reasons.length > 0) level = 'critique';
+                }
+                // ALERTE (70-90% durée) - livraison écart > 20pts OU marge < 72%
+                else if (durationProgress > 70) {
+                    // Livraison en retard de plus de 20 points
+                    if (deliveryGap !== null && deliveryGap > 20) {
+                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
+                    }
+                    // Marge < 72% (objectif atteint à 70%)
+                    if (marginRate !== null && marginRate < 72) {
+                        reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
+                    }
+                    if (reasons.length > 0) level = 'alerte';
                 }
                 // ALERTE (50-70% durée)
                 else if (durationProgress > 50) {
