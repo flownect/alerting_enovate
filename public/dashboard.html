@@ -932,7 +932,7 @@
                         <div class="mt-1 flex flex-wrap gap-2 text-xs">
                             <span class="text-gray-500 dark:text-gray-400">👤 ${trader === 'Aucun' ? '<span class="text-red-500">N/A</span>' : trader}</span>
                             <span class="text-gray-500 dark:text-gray-400">💼 ${card.commercial || 'N/A'}</span>
-                            ${card.trackerId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗</a>` : ''}
+                            ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗</a>` : ''}
                         </div>
                     </div>
                     <div id="${alertId}" class="expand-content">
@@ -941,7 +941,7 @@
                             <p><span class="text-gray-500">Commercial:</span> ${card.commercial || 'N/A'}</p>
                             <p><span class="text-gray-500">Lancement:</span> ${card.dates?.startingDateFormatted || 'N/A'}</p>
                             <p><span class="text-gray-500">Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
-                            ${card.trackerId ? `<p class="mt-2"><a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗 Ouvrir la campagne</a></p>` : ''}
+                            ${card.campaignId ? `<p class="mt-2"><a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗 Ouvrir la campagne</a></p>` : ''}
                         </div>
                     </div>
                 `;
@@ -1008,8 +1008,8 @@
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="font-mono text-xs px-2 py-1 rounded ${daysToStart <= 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : daysToStart <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${timing}</span>
                                 ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
-                                <span class="text-xs text-gray-500 dark:text-gray-400">[${card.trackerId || 'N/A'}]</span>
-                                ${card.trackerId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs">🔗 Ouvrir</a>` : ''}
+                                <span class="text-xs text-gray-500 dark:text-gray-400">[${card.campaignId || 'N/A'}]</span>
+                                ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs">🔗 Ouvrir</a>` : ''}
                             </div>
                             <h4 class="font-semibold text-gray-900 dark:text-white">${card.title || 'Sans nom'}</h4>
                             <div class="mt-2 grid md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
@@ -1051,8 +1051,8 @@
             
             // Ouvrir chaque campagne dans un nouvel onglet
             for (const card of cards) {
-                if (card.trackerId) {
-                    window.open(`https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.trackerId}`, '_blank');
+                if (card.campaignId) {
+                    window.open(`https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}`, '_blank');
                 }
             }
         }
@@ -1373,13 +1373,14 @@
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
             
-            // Campagnes live (toutes subdivisions live)
-            const liveCount = cards.filter(c => {
-                if (!c.subdivisions || c.subdivisions.length === 0) {
-                    return c.areSubdivisionsLive === true;
+            // Campagnes live - compter les campaignId uniques avec isLive=true
+            const liveCampaigns = new Set();
+            for (const c of cards) {
+                if (c.isLive === true && c.campaignId) {
+                    liveCampaigns.add(c.campaignId);
                 }
-                return c.subdivisions.every(sub => sub.isLive === true);
-            }).length;
+            }
+            const liveCount = liveCampaigns.size;
             
             // Lancements programmés dans les 7 prochains jours
             const launchesNext7Days = cards.filter(c => {
@@ -1396,11 +1397,8 @@
 
         // ==================== INIT ====================
         async function init() {
-            // Charger Trello et Performance en parallèle
-            const [trelloSuccess, perfSuccess] = await Promise.all([
-                fetchData(),
-                fetchCampaignStats()
-            ]);
+            // Charger Trello d'abord, puis afficher le dashboard
+            const trelloSuccess = await fetchData();
             
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
@@ -1414,10 +1412,13 @@
                 updateGlobalStats();
             }
             
-            if (perfSuccess) {
-                allPerformanceAlerts = generatePerformanceAlerts();
-                renderPerformance();
-            }
+            // Charger Performance en parallèle (sans bloquer l'affichage)
+            fetchCampaignStats().then(perfSuccess => {
+                if (perfSuccess) {
+                    allPerformanceAlerts = generatePerformanceAlerts();
+                    renderPerformance();
+                }
+            });
 
             // Auto-refresh every hour (between 7h and 20h)
             setInterval(() => {
