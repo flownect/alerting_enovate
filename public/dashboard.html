@@ -670,18 +670,52 @@
                 let reasons = [];
                 
                 // CRITIQUE - Aucune diffusion pendant une journée complète
-                const impressionsHistory = campaign.data?.impressions?.history || [];
+                const impressionsData = campaign.data?.impressions;
+                const impressionsHistory = impressionsData?.history || [];
+                let zeroDaysCount = 0;
+                let lastZeroDayLabel = '';
+                
+                // 1) Vérifier les jours à 0 dans l'historique
                 if (impressionsHistory.length > 0) {
-                    // Vérifier les jours sans diffusion (0 impressions) pendant la période de campagne
                     const zeroDays = impressionsHistory.filter(h => {
                         const hDate = new Date(h.date);
                         return hDate >= startDate && hDate <= endDate && (h.value === 0 || h.value === null);
                     });
+                    zeroDaysCount += zeroDays.length;
                     if (zeroDays.length > 0) {
-                        const lastZeroDay = zeroDays[zeroDays.length - 1].date;
-                        level = 'critique';
-                        reasons.push(`Aucune diffusion le ${new Date(lastZeroDay).toLocaleDateString('fr-FR')}${zeroDays.length > 1 ? ` (${zeroDays.length} jour${zeroDays.length > 1 ? 's' : ''} sans diffusion)` : ''}`);
+                        lastZeroDayLabel = new Date(zeroDays[zeroDays.length - 1].date).toLocaleDateString('fr-FR');
                     }
+                }
+                
+                // 2) Vérifier yesterday/beforeYesterday (jours récents pas encore dans history)
+                if (impressionsData) {
+                    const yesterdayDate = new Date(now);
+                    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                    const beforeYesterdayDate = new Date(now);
+                    beforeYesterdayDate.setDate(beforeYesterdayDate.getDate() - 2);
+                    
+                    if (impressionsData.beforeYesterday === 0 && beforeYesterdayDate >= startDate && beforeYesterdayDate <= endDate) {
+                        // Vérifier que ce jour n'est pas déjà dans l'historique
+                        const byDateStr = beforeYesterdayDate.toISOString().split('T')[0];
+                        const alreadyInHistory = impressionsHistory.some(h => h.date === byDateStr);
+                        if (!alreadyInHistory) {
+                            zeroDaysCount++;
+                            lastZeroDayLabel = beforeYesterdayDate.toLocaleDateString('fr-FR');
+                        }
+                    }
+                    if (impressionsData.yesterday === 0 && yesterdayDate >= startDate && yesterdayDate <= endDate) {
+                        const yDateStr = yesterdayDate.toISOString().split('T')[0];
+                        const alreadyInHistory = impressionsHistory.some(h => h.date === yDateStr);
+                        if (!alreadyInHistory) {
+                            zeroDaysCount++;
+                            lastZeroDayLabel = yesterdayDate.toLocaleDateString('fr-FR');
+                        }
+                    }
+                }
+                
+                if (zeroDaysCount > 0) {
+                    level = 'critique';
+                    reasons.push(`Aucune diffusion le ${lastZeroDayLabel}${zeroDaysCount > 1 ? ` (${zeroDaysCount} jours sans diffusion)` : ''}`);
                 }
                 
                 // CRITIQUE (>90% durée) - livraison écart > 10pts OU marge < 72%
