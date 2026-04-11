@@ -646,23 +646,52 @@
                 
                 const durationProgress = Math.min((elapsedDays / totalDays) * 100, 100);
                 
-                // Calculer la progression de livraison (impressions)
-                const impressionsDelivered = campaign.data?.impressions?.value2 || 0;
-                const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
-                const deliveryProgress = impressionsObjective > 0 ? (impressionsDelivered / impressionsObjective) * 100 : null;
+                // Mapping objectifs → champs data et labels
+                const OBJECTIVE_MAP = {
+                    impressions:     { dataField: 'impressions',     label: 'Impressions' },
+                    clicks:          { dataField: 'clicks',          label: 'Clics' },
+                    conversions:     { dataField: 'conversions',     label: 'Conversions' },
+                    evVideoComplete: { dataField: 'evVideoComplete', label: 'Complétions vidéo' },
+                    revenue:         { dataField: 'totalRevenue',    label: 'Revenu' },
+                    evUser1:         { dataField: 'evUser4',         label: 'Sessions (evUser1)' },
+                    evUser2:         { dataField: 'evUser5',         label: 'Visites LP (evUser2)' },
+                    evUser3:         { dataField: 'evUser6',         label: 'Event custom 3 (evUser3)' },
+                    evUser4:         { dataField: 'evUser7',         label: 'Event custom 4 (evUser4)' },
+                    evUser5:         { dataField: 'evUser8',         label: 'Event custom 5 (evUser5)' },
+                };
+                
+                // Calculer la progression pour chaque objectif non-nul
+                const objectiveGaps = [];
+                let mainDeliveryProgress = null;
+                
+                for (const [objKey, mapping] of Object.entries(OBJECTIVE_MAP)) {
+                    const overall = parseFloat(campaign.objectives?.[objKey]?.overall) || 0;
+                    if (overall <= 0) continue;
+                    
+                    const actual = campaign.data?.[mapping.dataField]?.value2 || 0;
+                    const progress = (actual / overall) * 100;
+                    const gap = durationProgress - progress; // >0 = en retard
+                    
+                    // Garder la progression impressions comme référence principale
+                    if (objKey === 'impressions') mainDeliveryProgress = progress;
+                    
+                    objectiveGaps.push({
+                        key: objKey,
+                        label: mapping.label,
+                        actual,
+                        overall,
+                        progress,
+                        gap
+                    });
+                }
+                
+                const deliveryProgress = mainDeliveryProgress;
                 
                 // Récupérer la marge
                 const marginRate = campaign.data?.marginRate?.value2 || null;
                 
-                // Calculer le retard de livraison par rapport à la durée
-                // Si on est à 70% de la durée, on devrait avoir ~70% de livraison
-                const deliveryGap = deliveryProgress !== null ? durationProgress - deliveryProgress : null;
-                
-                // Déterminer le niveau d'alerte
                 // Objectif marge: 72% à atteindre à 70% de la durée
-                // Progression accélérée: objectif atteint à 70% durée, pas 100%
                 const TARGET_MARGIN = 72;
-                // À 70% durée = 100% objectif marge, donc facteur = durée / 70
                 const expectedMargin = Math.min((durationProgress / 70) * TARGET_MARGIN, TARGET_MARGIN);
                 const marginGap = marginRate !== null ? expectedMargin - marginRate : null;
                 
@@ -718,53 +747,46 @@
                     reasons.push(`Aucune diffusion le ${lastZeroDayLabel}${zeroDaysCount > 1 ? ` (${zeroDaysCount} jours sans diffusion)` : ''}`);
                 }
                 
-                // CRITIQUE (>90% durée) - livraison écart > 10pts OU marge < 72%
-                if (durationProgress > 90) {
-                    // Livraison en retard de plus de 10 points
-                    if (deliveryGap !== null && deliveryGap > 10) {
-                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
+                // Alertes objectifs (principal + secondaire) à partir de 50% durée
+                if (durationProgress >= 50) {
+                    // Seuils d'écart (gap en points) par tranche de durée
+                    let gapThreshold, durationLevel;
+                    if (durationProgress > 90) {
+                        gapThreshold = 10;   // >90%: écart > 10pts = critique
+                        durationLevel = 'critique';
+                    } else if (durationProgress > 70) {
+                        gapThreshold = 15;   // 70-90%: écart > 15pts = alerte
+                        durationLevel = 'alerte';
+                    } else {
+                        gapThreshold = 20;   // 50-70%: écart > 20pts = alerte
+                        durationLevel = 'alerte';
                     }
-                    // Marge < 72% (objectif atteint)
-                    if (marginRate !== null && marginRate < 72) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
+                    
+                    // Vérifier chaque objectif
+                    for (const obj of objectiveGaps) {
+                        if (obj.gap > gapThreshold) {
+                            reasons.push(`${obj.label}: ${obj.progress.toFixed(0)}% livré vs ${durationProgress.toFixed(0)}% durée (obj: ${Math.round(obj.overall).toLocaleString('fr-FR')})`);
+                            if (level !== 'critique') level = durationLevel;
+                        }
                     }
-                    if (reasons.length > 0 && level !== 'critique') level = 'critique';
-                }
-                // ALERTE (70-90% durée) - livraison écart > 20pts OU marge < 72%
-                else if (durationProgress > 70) {
-                    // Livraison en retard de plus de 20 points
-                    if (deliveryGap !== null && deliveryGap > 20) {
-                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
+                    
+                    // Marge
+                    if (durationProgress > 90) {
+                        if (marginRate !== null && marginRate < 72) {
+                            reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
+                            if (level !== 'critique') level = 'critique';
+                        }
+                    } else if (durationProgress > 70) {
+                        if (marginRate !== null && marginRate < 72) {
+                            reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
+                            if (level !== 'critique') level = 'alerte';
+                        }
+                    } else {
+                        if (marginGap !== null && marginGap > 10) {
+                            reasons.push(`Marge ${marginRate.toFixed(0)}% (attendu ~${expectedMargin.toFixed(0)}%)`);
+                            if (level !== 'critique') level = 'alerte';
+                        }
                     }
-                    // Marge < 72% (objectif atteint à 70%)
-                    if (marginRate !== null && marginRate < 72) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
-                    }
-                    if (reasons.length > 0 && level !== 'critique') level = 'alerte';
-                }
-                // ALERTE (50-70% durée)
-                else if (durationProgress > 50) {
-                    // Livraison en retard de plus de 20 points
-                    if (deliveryGap !== null && deliveryGap > 20) {
-                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
-                    }
-                    // Marge en retard de plus de 10 points par rapport à l'attendu
-                    if (marginGap !== null && marginGap > 10) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (attendu ~${expectedMargin.toFixed(0)}%)`);
-                    }
-                    if (reasons.length > 0 && level !== 'critique') level = 'alerte';
-                }
-                // FAIBLE (30-50% durée)
-                else if (durationProgress > 30) {
-                    // Livraison en retard de plus de 20 points
-                    if (deliveryGap !== null && deliveryGap > 20) {
-                        reasons.push(`Livraison en retard: ${deliveryProgress.toFixed(0)}% livré pour ${durationProgress.toFixed(0)}% durée`);
-                    }
-                    // Marge en retard de plus de 10 points
-                    if (marginGap !== null && marginGap > 10) {
-                        reasons.push(`Marge ${marginRate.toFixed(0)}% (attendu ~${expectedMargin.toFixed(0)}%)`);
-                    }
-                    if (reasons.length > 0 && !level) level = 'faible';
                 }
                 
                 if (level && reasons.length > 0) {
