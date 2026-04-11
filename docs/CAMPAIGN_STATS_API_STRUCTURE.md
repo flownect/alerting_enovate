@@ -219,6 +219,52 @@ Certaines métriques ont une variante `_mr` (ex: `ctr_mr`, `bounceRate_mr`) pour
 
 ---
 
+## Règles CTR par Format (%)
+
+Seuils de CTR minimum et maximum par type de format publicitaire.
+
+| Règle | Format | Device | Type | CTR Min | CTR Max |
+|-------|--------|--------|------|---------|---------|
+| 1 | Habillage Desktop | Desktop | Toutes les fonctionnalités | 0.26 | 0.32 |
+| 2 | Grand Angle | Tous | Toutes les fonctionnalités | 0.26 | 0.33 |
+| 3 | Native | Tous | Toutes les fonctionnalités | 0.71 | 0.82 |
+| 4 | Pavé | Tous | Toutes les fonctionnalités | 0.15 | 0.2 |
+| 5 | Parallaxe Mobile | Mobile | Toutes les fonctionnalités | 0.63 | 0.73 |
+| 6 | Bannière | Tous | Toutes les fonctionnalités | 0.17 | 0.23 |
+| 7 | Interstitiel Mobile | Mobile | Toutes les fonctionnalités | 4.46 | 4.71 |
+| 8 | Habillage Statique Desktop | Desktop | Statique | 0.26 | 0.32 |
+| 9 | Habillage Animé Desktop | Desktop | Animé | 0.25 | 0.32 |
+| 10 | Grand Angle Animé Mobile | Mobile | Animé | 0.32 | 0.39 |
+| 11 | Pavé Animé Mobile | Mobile | Animé | 0.13 | 0.18 |
+| 12 | Interstitiel Animé Mobile | Mobile | Animé | 4.56 | 4.81 |
+| 13 | Bannière Animé Mobile | Mobile | Animé | 0.16 | 0.2 |
+| 14 | Grand Angle Animé Mobile | Mobile | Vidéo | 0.4 | 0.48 |
+| 15 | Grand Angle Statique Mobile | Mobile | Statique | 0.21 | 0.27 |
+| 16 | Pavé Vidéo Mobile | Mobile | Vidéo | 0.14 | 0.19 |
+| 17 | Pavé Statique Mobile | Mobile | Statique | 0.16 | 0.21 |
+| 18 | Parallaxe Statique Mobile | Mobile | Statique | 0.47 | 0.56 |
+| 19 | Bannière Vidéo Mobile | Mobile | Vidéo | 0.29 | 0.36 |
+| 20 | Bannière Statique Mobile | Mobile | Statique | 0.2 | 0.26 |
+| 21 | Interstitiel Vidéo Mobile | Mobile | Vidéo | 4.63 | 4.87 |
+| 22 | Interstitiel Statique Mobile | Mobile | Statique | 4.31 | 4.55 |
+| 23 | Interstitiel Configurateur Mobile | Mobile | Configurateur | 5.5 | 5.75 |
+| 24 | Pavé Gaming Mobile | Mobile | Gaming | 0.02 | 0.04 |
+| 25 | Interstitiel Gaming Mobile | Mobile | Gaming | 2.39 | 2.58 |
+| 26 | Interstitiel Décompte Mobile | Mobile | Décompte | 4.53 | 4.78 |
+| 27 | Interstitiel Carrousel Mobile | Mobile | Carrousel | 4.71 | 4.96 |
+| 28 | Interstitiel Hotspots Mobile | Mobile | Hotspots | 4.64 | 4.89 |
+| 29 | Interstitiel Demi-Fixe Mobile | Mobile | Demi-fixe | 4.25 | 4.5 |
+| 30 | Pavé 3D Mobile | Mobile | 3D | 0.12 | 0.17 |
+| 31 | Interstitiel 3D Mobile | Mobile | 3D | 4.76 | 5.01 |
+| 32 | Pavé Grattable Mobile | Mobile | Grattable | 0.5 | 0.59 |
+| 33 | Interstitiel Flip Mobile | Mobile | Flip | 2.77 | 2.97 |
+| 34 | Interstitiel Grattable Mobile | Mobile | Grattable | 4.1 | 4.83 |
+| 35 | Interstitiel Drag to Reveal Mobile | Mobile | Drag to Reveal | 3.85 | 4.1 |
+| 36 | Interstitiel Cube Mobile | Mobile | Cube | 4.33 | 4.59 |
+| 37 | Interstitiel Spin 360 Mobile | Mobile | Spin 360 | 3.86 | 4.11 |
+
+---
+
 ## Notes
 
 - **Taille des données** : ~2.5 MB par campagne en moyenne (historique complet)
