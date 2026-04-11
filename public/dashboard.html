@@ -669,6 +669,21 @@
                 let level = null;
                 let reasons = [];
                 
+                // CRITIQUE - Aucune diffusion pendant une journée complète
+                const impressionsHistory = campaign.data?.impressions?.history || [];
+                if (impressionsHistory.length > 0) {
+                    // Vérifier les jours sans diffusion (0 impressions) pendant la période de campagne
+                    const zeroDays = impressionsHistory.filter(h => {
+                        const hDate = new Date(h.date);
+                        return hDate >= startDate && hDate <= endDate && (h.value === 0 || h.value === null);
+                    });
+                    if (zeroDays.length > 0) {
+                        const lastZeroDay = zeroDays[zeroDays.length - 1].date;
+                        level = 'critique';
+                        reasons.push(`Aucune diffusion le ${new Date(lastZeroDay).toLocaleDateString('fr-FR')}${zeroDays.length > 1 ? ` (${zeroDays.length} jour${zeroDays.length > 1 ? 's' : ''} sans diffusion)` : ''}`);
+                    }
+                }
+                
                 // CRITIQUE (>90% durée) - livraison écart > 10pts OU marge < 72%
                 if (durationProgress > 90) {
                     // Livraison en retard de plus de 10 points
