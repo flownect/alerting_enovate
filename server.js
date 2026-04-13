@@ -329,7 +329,7 @@ app.get('/api/proxy/*', async (req, res) => {
 });
 
 // Endpoint pour récupérer les stats de programmation
-app.get('/api/programming-stats', requireAuth, async (req, res) => {
+app.get('/api/programming-stats', async (req, res) => {
     if (!process.env.DATABASE_URL) {
         return res.status(503).json({
             success: false,
