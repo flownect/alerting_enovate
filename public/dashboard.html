@@ -621,24 +621,11 @@
                     });
                 }
 
-                // Alerte Bilan non saisi OU Piges non faites
-                const isBilanMissing = hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi');
-                const isPigesMissing = hasTag(card, 'Terminé') && !card.areSubdivisionsPigesDone;
-                
-                if ((isBilanMissing || isPigesMissing) && daysFromEnd !== null && daysFromEnd >= 1) {
+                // Alerte Bilan non saisi
+                if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1) {
                     const isPriority = card.flaggedAsImportant === true;
                     let criticality = 'attention';
                     let timing = `J+${daysFromEnd}`;
-                    let message = '';
-                    
-                    // Déterminer le message
-                    if (isBilanMissing && isPigesMissing) {
-                        message = isPriority ? 'Bilan & Piges manquants (Prioritaire)' : 'Bilan & Piges manquants';
-                    } else if (isBilanMissing) {
-                        message = isPriority ? 'Bilan non saisi (Prioritaire)' : 'Bilan non saisi';
-                    } else {
-                        message = isPriority ? 'Piges non faites (Prioritaire)' : 'Piges non faites';
-                    }
                     
                     // Règles de criticité
                     if (isPriority) {
@@ -664,12 +651,12 @@
                     }
                     
                     alerts.push({
-                        type: 'performance',
-                        subtype: isBilanMissing && isPigesMissing ? 'bilan-piges' : isBilanMissing ? 'bilan-non-saisi' : 'piges-non-faites',
+                        type: 'bilan',
+                        subtype: 'bilan-non-saisi',
                         criticality,
                         timing,
                         card,
-                        message,
+                        message: isPriority ? 'Bilan non saisi (Prioritaire)' : 'Bilan non saisi',
                         daysFromEnd // Pour le tri secondaire
                     });
                 }
