@@ -5,6 +5,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
+const LearningsAnalyzer = require('./services/learnings-analyzer');
 
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
@@ -327,6 +328,79 @@ app.get('/api/proxy/*', async (req, res) => {
     }
 });
 
+// ==================== LEARNINGS ANALYZER ====================
+// Analyse automatique 3x par jour: 8h, 14h, 20h
+let trelloCache = null;
+let statsCache = null;
+
+async function runLearningsAnalysis() {
+    if (!process.env.DATABASE_URL) {
+        log('LEARNINGS', '⚠️  DATABASE_URL non configurée, analyse désactivée');
+        return;
+    }
+
+    try {
+        log('LEARNINGS', '🔍 Début de l\'analyse automatique...');
+        
+        // Récupérer les données fraîches
+        if (!trelloCache) {
+            log('LEARNINGS', 'Récupération des données Trello...');
+            const trelloResponse = await fetch(`${NOVA_URL_PROD}/trello`, {
+                headers: { 'X-API-Key': NOVA_API_KEY },
+                timeout: FETCH_TIMEOUT
+            });
+            trelloCache = await trelloResponse.json();
+        }
+
+        if (!statsCache) {
+            log('LEARNINGS', 'Récupération des stats campagnes...');
+            const statsResponse = await fetch(`${NOVA_URL_PROD}/campaign-stats`, {
+                headers: { 'X-API-Key': NOVA_API_KEY },
+                timeout: FETCH_TIMEOUT
+            });
+            statsCache = await statsResponse.json();
+        }
+
+        // Lancer l'analyse
+        const analyzer = new LearningsAnalyzer(process.env.DATABASE_URL);
+        const results = await analyzer.runAnalysis(trelloCache, statsCache);
+        
+        log('LEARNINGS', `✅ Analyse terminée: ${results.events} événements, ${results.patterns} patterns, ${results.insights} insights`);
+        
+        // Réinitialiser le cache après analyse
+        trelloCache = null;
+        statsCache = null;
+
+    } catch (error) {
+        log('LEARNINGS', '❌ Erreur lors de l\'analyse:', error.message);
+    }
+}
+
+// Planifier les analyses: 8h, 14h, 20h
+function scheduleAnalysis() {
+    const now = new Date();
+    const hours = now.getHours();
+    
+    // Heures cibles: 8, 14, 20
+    const targetHours = [8, 14, 20];
+    let nextHour = targetHours.find(h => h > hours);
+    if (!nextHour) nextHour = targetHours[0]; // Lendemain 8h
+    
+    const nextRun = new Date(now);
+    nextRun.setHours(nextHour, 0, 0, 0);
+    if (nextHour <= hours) {
+        nextRun.setDate(nextRun.getDate() + 1);
+    }
+    
+    const delay = nextRun - now;
+    log('LEARNINGS', `⏰ Prochaine analyse programmée à ${nextRun.toLocaleString('fr-FR')}`);
+    
+    setTimeout(() => {
+        runLearningsAnalysis();
+        scheduleAnalysis(); // Reprogrammer la suivante
+    }, delay);
+}
+
 // Démarrage du serveur
 app.listen(PORT, () => {
     console.log(`
@@ -337,6 +411,13 @@ app.listen(PORT, () => {
 ║  Environment: ${(process.env.NODE_ENV || 'development').padEnd(39)}║
 ║  API Key: ${(NOVA_API_KEY ? '✅ Configured' : '❌ Missing').padEnd(43)}║
 ║  Preprod URL: ${NOVA_URL_PREPROD.substring(0, 38).padEnd(39)}║
+║  Learnings: ${(process.env.DATABASE_URL ? '✅ Enabled (3x/day)' : '❌ Disabled').padEnd(39)}║
 ╚═══════════════════════════════════════════════════════╝
     `);
+    
+    // Lancer l'analyse immédiatement au démarrage (si DATABASE_URL existe)
+    if (process.env.DATABASE_URL) {
+        setTimeout(() => runLearningsAnalysis(), 5000); // 5s après le démarrage
+        scheduleAnalysis(); // Programmer les prochaines
+    }
 });
