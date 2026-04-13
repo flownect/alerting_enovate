@@ -940,16 +940,15 @@
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                             <div class="text-2xl font-bold ${stats.programmableLaunches > 0 ? 'text-blue-600' : 'text-gray-400'}">${stats.programmableLaunches}</div>
                             <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">Lancements (7j)</div>
-                            <div class="flex items-center justify-center gap-2 text-xs">
-                                <div class="flex flex-col items-center">
-                                    <span class="font-semibold text-gray-600 dark:text-gray-300">${stats.programmable || 0}</span>
-                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">Programmables</span>
-                                </div>
+                            <div class="flex items-center justify-center gap-1 text-[10px]">
+                                <span class="text-gray-600 dark:text-gray-300">${stats.programmable || 0}</span>
                                 <span class="text-gray-400 dark:text-gray-500">|</span>
-                                <div class="flex flex-col items-center">
-                                    <span class="font-semibold text-gray-600 dark:text-gray-300">${stats.programmed || 0}</span>
-                                    <span class="text-[10px] text-gray-400 dark:text-gray-500">Programmés</span>
-                                </div>
+                                <span class="text-gray-600 dark:text-gray-300">${stats.programmed || 0}</span>
+                            </div>
+                            <div class="flex items-center justify-center gap-1 text-[9px] text-gray-400 dark:text-gray-500">
+                                <span>Programmables</span>
+                                <span>|</span>
+                                <span>Programmés</span>
                             </div>
                         </div>
                         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
