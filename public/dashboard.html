@@ -124,6 +124,21 @@
                 </p>
             </div>
             
+            <!-- UI Settings -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Interface</h4>
+                <label class="flex items-center justify-between cursor-pointer">
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Nouveau design cartes</span>
+                    <div class="relative">
+                        <input type="checkbox" id="new-card-design-toggle" onchange="toggleCardDesign()" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </div>
+                </label>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Activer le nouveau design des cartes de campagnes avec métriques détaillées.
+                </p>
+            </div>
+            
             <!-- Learnings Section -->
             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
@@ -397,6 +412,7 @@
         let currentTradersFilter = 'all';
         let currentPerfFilter = 'all';
         let allAlerts = [];
+        let useNewCardDesign = false; // Toggle pour nouveau design
         let allPerformanceAlerts = [];
         let teamStatsCache = {}; // Cache des stats par team pour la popup
 
@@ -1648,6 +1664,23 @@
             menu.classList.toggle('hidden');
         }
         
+        function toggleCardDesign() {
+            useNewCardDesign = document.getElementById('new-card-design-toggle').checked;
+            // Sauvegarder la préférence
+            localStorage.setItem('useNewCardDesign', useNewCardDesign);
+            // Re-render les alertes
+            renderAlerts();
+        }
+        
+        // Charger la préférence au démarrage
+        function loadCardDesignPreference() {
+            const saved = localStorage.getItem('useNewCardDesign');
+            if (saved !== null) {
+                useNewCardDesign = saved === 'true';
+                document.getElementById('new-card-design-toggle').checked = useNewCardDesign;
+            }
+        }
+        
         // Fermer le menu si on clique ailleurs
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('settings-menu');
@@ -1691,6 +1724,9 @@
 
         // ==================== INIT ====================
         async function init() {
+            // Charger la préférence de design
+            loadCardDesignPreference();
+            
             // Charger Trello d'abord, puis afficher le dashboard
             const trelloSuccess = await fetchData();
             
