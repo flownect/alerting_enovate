@@ -1296,42 +1296,45 @@
             // Liens ADX
             let adxLinks = '';
             if (perfData?.adxId) {
-                adxLinks = `<a href="https://app.hubscale.com/campaigns/${perfData.adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
+                adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${perfData.adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
             }
             
             const div = document.createElement('div');
             div.className = `bg-white dark:bg-gray-800 rounded-lg shadow border-l-4 ${card.flaggedAsImportant ? 'border-yellow-500' : 'border-gray-300'} overflow-hidden`;
             div.innerHTML = `
-                <div class="p-3">
+                <div class="p-4">
                     <!-- En-tête -->
-                    <div class="flex items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
-                            ${card.flaggedAsImportant ? '<span class="text-yellow-500 flex-shrink-0" title="Prioritaire">⭐</span>' : ''}
-                            <span class="font-medium text-gray-900 dark:text-white text-sm truncate" title="${card.title || 'Sans nom'}">${card.title || 'Sans nom'}</span>
+                            ${card.flaggedAsImportant ? '<span class="text-yellow-500 flex-shrink-0 text-lg" title="Prioritaire">⭐</span>' : ''}
+                            <span class="font-semibold text-gray-900 dark:text-white text-base truncate" title="${card.title || 'Sans nom'}">${card.title || 'Sans nom'}</span>
                         </div>
-                        <div class="flex items-center gap-1 flex-shrink-0">
-                            ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
                     </div>
                     
                     <!-- Corps en 2 colonnes -->
-                    <div class="flex gap-3">
+                    <div class="flex gap-6">
                         <!-- Colonne gauche 30% -->
-                        <div class="w-[30%] space-y-1 text-xs">
-                            <div class="text-gray-600 dark:text-gray-400">
-                                <span class="font-medium">Trinôme:</span> ${card.commercial || 'N/A'} / ${card.accountManager || 'N/A'} / ${trader}
+                        <div class="w-[30%] space-y-2 text-xs">
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trinôme</div>
+                                <div class="text-gray-600 dark:text-gray-400">${card.commercial || 'N/A'} / ${card.accountManager || 'N/A'} / ${trader}</div>
                             </div>
-                            <div class="text-gray-600 dark:text-gray-400">
-                                <span class="font-medium">CSM:</span> ${trader}
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Sale-CSM</div>
+                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
                             </div>
-                            <div class="text-gray-600 dark:text-gray-400">
-                                <span class="font-medium">Durée:</span> ${duration.percent}% • ${duration.daysLeft}j restants
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
+                                <div class="text-gray-600 dark:text-gray-400">${duration.percent}% • ${duration.daysLeft}j restants</div>
                             </div>
                         </div>
                         
                         <!-- Colonne droite 70% -->
-                        <div class="w-[70%] space-y-1">
+                        <div class="w-[70%] space-y-2">
                             ${alertsHTML}
                         </div>
                     </div>
@@ -1702,43 +1705,46 @@
             // Liens ADX
             let adxLinks = '';
             if (campaign.adxId) {
-                adxLinks = `<a href="https://app.hubscale.com/campaigns/${campaign.adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
+                adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${campaign.adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
             }
             
             const div = document.createElement('div');
             div.className = `bg-white dark:bg-gray-800 rounded-lg shadow border-l-4 ${campaign.flaggedAsImportant ? 'border-yellow-500' : 'border-gray-300'} overflow-hidden`;
             div.innerHTML = `
-                <div class="p-3">
+                <div class="p-4">
                     <!-- En-tête -->
-                    <div class="flex items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-200 dark:border-gray-700">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
-                            ${campaign.flaggedAsImportant ? '<span class="text-yellow-500 flex-shrink-0" title="Prioritaire">⭐</span>' : ''}
-                            <span class="font-medium text-gray-900 dark:text-white text-sm truncate" title="${campaign.campaignName || 'Sans nom'}">${campaign.campaignName || 'Sans nom'}</span>
+                            ${campaign.flaggedAsImportant ? '<span class="text-yellow-500 flex-shrink-0 text-lg" title="Prioritaire">⭐</span>' : ''}
+                            <span class="font-semibold text-gray-900 dark:text-white text-base truncate" title="${campaign.campaignName || 'Sans nom'}">${campaign.campaignName || 'Sans nom'}</span>
                         </div>
-                        <div class="flex items-center gap-1 flex-shrink-0">
-                            ${campaign.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            ${campaign.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
                     </div>
                     
                     <!-- Corps en 2 colonnes -->
-                    <div class="flex gap-3">
+                    <div class="flex gap-6">
                         <!-- Colonne gauche 30% -->
-                        <div class="w-[30%] space-y-1 text-xs">
-                            <div class="text-gray-600 dark:text-gray-400">
-                                <span class="font-medium">Trinôme:</span> ${alert.commercial || 'N/A'} / N/A / ${trader}
+                        <div class="w-[30%] space-y-2 text-xs">
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trinôme</div>
+                                <div class="text-gray-600 dark:text-gray-400">${alert.commercial || 'N/A'} / N/A / ${trader}</div>
                             </div>
-                            <div class="text-gray-600 dark:text-gray-400">
-                                <span class="font-medium">Sale-CSM:</span> ${trader}
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Sale-CSM</div>
+                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
                             </div>
-                            <div class="text-gray-600 dark:text-gray-400">
-                                <span class="font-medium">Durée:</span> ${duration.percent}% • ${duration.daysLeft}j restants
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
+                                <div class="text-gray-600 dark:text-gray-400">${duration.percent}% • ${duration.daysLeft}j restants</div>
                             </div>
                         </div>
                         
                         <!-- Colonne droite 70% -->
-                        <div class="w-[70%] space-y-1">
-                            ${alertsHTML || '<div class="text-xs text-gray-500">Aucune alerte spécifique</div>'}
+                        <div class="w-[70%] space-y-2">
+                            ${alertsHTML || '<div class="text-sm text-gray-500 italic">Aucune alerte spécifique</div>'}
                         </div>
                     </div>
                 </div>
