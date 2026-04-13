@@ -621,25 +621,27 @@
                     });
                 }
 
-                // Alerte Bilan non saisi
-                if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1) {
-                    const isVisitesEnMagasin = hasTag(card, 'Visites en magasin');
+                // Alerte Bilan non saisi OU Piges non faites
+                const isBilanMissing = hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi');
+                const isPigesMissing = hasTag(card, 'Terminé') && !card.areSubdivisionsPigesDone;
+                
+                if ((isBilanMissing || isPigesMissing) && daysFromEnd !== null && daysFromEnd >= 1) {
                     const isPriority = card.flaggedAsImportant === true;
                     let criticality = 'attention';
                     let timing = `J+${daysFromEnd}`;
+                    let message = '';
                     
-                    if (isVisitesEnMagasin) {
-                        // Visites en magasin: toujours à partir de J+14
-                        if (daysFromEnd >= 14 && daysFromEnd <= 15) {
-                            criticality = 'attention'; // J+14 à J+15
-                        } else if (daysFromEnd >= 16 && daysFromEnd <= 18) {
-                            criticality = 'urgent'; // J+16 à J+18
-                        } else if (daysFromEnd > 18) {
-                            criticality = 'critical'; // > J+18
-                        } else {
-                            continue; // Pas d'alerte avant J+14
-                        }
-                    } else if (isPriority) {
+                    // Déterminer le message
+                    if (isBilanMissing && isPigesMissing) {
+                        message = isPriority ? 'Bilan & Piges manquants (Prioritaire)' : 'Bilan & Piges manquants';
+                    } else if (isBilanMissing) {
+                        message = isPriority ? 'Bilan non saisi (Prioritaire)' : 'Bilan non saisi';
+                    } else {
+                        message = isPriority ? 'Piges non faites (Prioritaire)' : 'Piges non faites';
+                    }
+                    
+                    // Règles de criticité
+                    if (isPriority) {
                         // Campagnes prioritaires
                         if (daysFromEnd >= 3 && daysFromEnd <= 4) {
                             criticality = 'urgent'; // J+3 à J+4
@@ -662,12 +664,12 @@
                     }
                     
                     alerts.push({
-                        type: 'bilan',
-                        subtype: 'bilan-non-saisi',
+                        type: 'performance',
+                        subtype: isBilanMissing && isPigesMissing ? 'bilan-piges' : isBilanMissing ? 'bilan-non-saisi' : 'piges-non-faites',
                         criticality,
                         timing,
                         card,
-                        message: isVisitesEnMagasin ? 'Bilan non saisi (Visites magasin)' : isPriority ? 'Bilan non saisi (Prioritaire)' : 'Bilan non saisi',
+                        message,
                         daysFromEnd // Pour le tri secondaire
                     });
                 }
