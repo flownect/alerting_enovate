@@ -479,6 +479,10 @@
                 const diff = getDaysDiff(now, startDate);
                 return diff >= 0 && diff <= 7;
             });
+            
+            // Séparer programmés et programmables
+            const programmed = programmableLaunches.filter(c => c.areSubdivisionsProgrammed === true);
+            const programmable = programmableLaunches.filter(c => c.areSubdivisionsProgrammed !== true);
 
             // Bilans à saisir
             const bilans = traderCards.filter(c => 
@@ -489,6 +493,8 @@
                 live: liveCampaignIds.size,
                 checked: checkedCampaignIds.size,
                 programmableLaunches: programmableLaunches.length,
+                programmed: programmed.length,
+                programmable: programmable.length,
                 bilans: bilans.length,
                 // Listes pour les boutons "ouvrir tout"
                 programmableLaunchesCards: programmableLaunches,
@@ -498,13 +504,15 @@
 
         function getTeamStats(teamName) {
             const members = TEAMS[teamName] || [];
-            let stats = { live: 0, checked: 0, programmableLaunches: 0, bilans: 0 };
+            let stats = { live: 0, checked: 0, programmableLaunches: 0, programmed: 0, programmable: 0, bilans: 0 };
             
             for (const member of members) {
                 const memberStats = getTraderStats(member);
                 stats.live += memberStats.live;
                 stats.checked += memberStats.checked;
                 stats.programmableLaunches += memberStats.programmableLaunches;
+                stats.programmed += memberStats.programmed;
+                stats.programmable += memberStats.programmable;
                 stats.bilans += memberStats.bilans;
             }
             
@@ -846,7 +854,7 @@
                             <div class="text-2xl font-bold ${checkColor}">${stats.checked}/${stats.live}</div>
                             <div class="text-xs text-gray-500 dark:text-gray-400">Checkées</div>
                         </div>
-                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg" title="Programmés: ${stats.programmed} | Programmables: ${stats.programmable}">
                             <div class="text-2xl font-bold ${stats.programmableLaunches > 0 ? 'text-blue-600' : 'text-gray-400'}">${stats.programmableLaunches}</div>
                             <div class="text-xs text-gray-500 dark:text-gray-400">Lancements (7j)</div>
                         </div>
