@@ -561,8 +561,9 @@
                 const isInLiveLane = card.laneId === 'lane3';
                 const hasAnyLiveSubdivision = card.subdivisions?.some(sub => sub.isLive === true);
                 const isActuallyLive = card.areSubdivisionsLive || isInLiveLane || hasAnyLiveSubdivision;
+                const isProgrammed = card.areSubdivisionsProgrammed === true;
                 
-                if (card.isProgrammable && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
+                if (card.isProgrammable && isProgrammed && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
                     const daysLate = Math.abs(daysToStart);
                     let timing = daysToStart === 0 ? 'J0' : `J+${daysLate}`;
                     
