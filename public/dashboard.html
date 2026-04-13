@@ -1352,6 +1352,8 @@
             }
             noAlerts.classList.add('hidden');
             
+            console.log(`Rendu ${containerId}: ${alerts.length} alertes, nouveau design: ${useNewCardDesign}`);
+            
             // Tri: PRIO first, puis par % volume DESC
             if (useNewCardDesign) {
                 alerts = [...alerts].sort((a, b) => {
@@ -1857,6 +1859,8 @@
         
         function toggleCardDesign() {
             useNewCardDesign = document.getElementById('new-card-design-toggle').checked;
+            console.log('Toggle nouveau design:', useNewCardDesign);
+            console.log('Campaign stats disponibles:', !!campaignStatsData);
             // Sauvegarder la préférence
             localStorage.setItem('useNewCardDesign', useNewCardDesign);
             // Re-render les alertes
