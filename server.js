@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
-const LearningsAnalyzer = require('./services/learnings-analyzer');
+const ProgrammingTracker = require('./services/programming-tracker');
 
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
@@ -328,23 +328,51 @@ app.get('/api/proxy/*', async (req, res) => {
     }
 });
 
-// ==================== LEARNINGS ANALYZER ====================
-// Analyse automatique 3x par jour: 8h, 14h, 20h
-let trelloCache = null;
-let statsCache = null;
-
-async function runLearningsAnalysis() {
+// Endpoint pour récupérer les stats de programmation
+app.get('/api/programming-stats', requireAuth, async (req, res) => {
     if (!process.env.DATABASE_URL) {
-        log('LEARNINGS', '⚠️  DATABASE_URL non configurée, analyse désactivée');
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const period = req.query.period || '30d';
+        const tracker = new ProgrammingTracker(process.env.DATABASE_URL);
+        const stats = await tracker.getStats(period);
+        
+        res.json({
+            success: true,
+            data: stats,
+            period,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur stats: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ==================== PROGRAMMING TRACKER ====================
+// Tracking automatique 3x par jour: 8h, 14h, 20h
+let trelloCache = null;
+
+async function runProgrammingTracking() {
+    if (!process.env.DATABASE_URL) {
+        log('TRACKING', '⚠️  DATABASE_URL non configurée, tracking désactivé');
         return;
     }
 
     try {
-        log('LEARNINGS', '🔍 Début de l\'analyse automatique...');
+        log('TRACKING', '🔍 Début du tracking des programmations...');
         
-        // Récupérer les données fraîches
+        // Récupérer les données Trello
         if (!trelloCache) {
-            log('LEARNINGS', 'Récupération des données Trello...');
+            log('TRACKING', 'Récupération des données Trello...');
             const trelloResponse = await fetch(`${NOVA_URL_PROD}/trello`, {
                 headers: { 'X-API-Key': NOVA_API_KEY },
                 timeout: FETCH_TIMEOUT
@@ -352,27 +380,17 @@ async function runLearningsAnalysis() {
             trelloCache = await trelloResponse.json();
         }
 
-        if (!statsCache) {
-            log('LEARNINGS', 'Récupération des stats campagnes...');
-            const statsResponse = await fetch(`${NOVA_URL_PROD}/campaign-stats`, {
-                headers: { 'X-API-Key': NOVA_API_KEY },
-                timeout: FETCH_TIMEOUT
-            });
-            statsCache = await statsResponse.json();
-        }
-
-        // Lancer l'analyse
-        const analyzer = new LearningsAnalyzer(process.env.DATABASE_URL);
-        const results = await analyzer.runAnalysis(trelloCache, statsCache);
+        // Lancer le tracking
+        const tracker = new ProgrammingTracker(process.env.DATABASE_URL);
+        const results = await tracker.trackProgramming(trelloCache);
         
-        log('LEARNINGS', `✅ Analyse terminée: ${results.events} événements, ${results.patterns} patterns, ${results.insights} insights`);
+        log('TRACKING', `✅ Tracking terminé: ${results.new} nouvelles programmations détectées (${results.total} total)`);
         
-        // Réinitialiser le cache après analyse
+        // Réinitialiser le cache
         trelloCache = null;
-        statsCache = null;
 
     } catch (error) {
-        log('LEARNINGS', '❌ Erreur lors de l\'analyse:', error.message);
+        log('TRACKING', '❌ Erreur lors du tracking:', error.message);
     }
 }
 
@@ -393,11 +411,11 @@ function scheduleAnalysis() {
     }
     
     const delay = nextRun - now;
-    log('LEARNINGS', `⏰ Prochaine analyse programmée à ${nextRun.toLocaleString('fr-FR')}`);
+    log('TRACKING', `⏰ Prochain tracking programmé à ${nextRun.toLocaleString('fr-FR')}`);
     
     setTimeout(() => {
-        runLearningsAnalysis();
-        scheduleAnalysis(); // Reprogrammer la suivante
+        runProgrammingTracking();
+        scheduleAnalysis(); // Reprogrammer le suivant
     }, delay);
 }
 
@@ -411,13 +429,13 @@ app.listen(PORT, () => {
 ║  Environment: ${(process.env.NODE_ENV || 'development').padEnd(39)}║
 ║  API Key: ${(NOVA_API_KEY ? '✅ Configured' : '❌ Missing').padEnd(43)}║
 ║  Preprod URL: ${NOVA_URL_PREPROD.substring(0, 38).padEnd(39)}║
-║  Learnings: ${(process.env.DATABASE_URL ? '✅ Enabled (3x/day)' : '❌ Disabled').padEnd(39)}║
+║  Programming: ${(process.env.DATABASE_URL ? '✅ Tracking (3x/day)' : '❌ Disabled').padEnd(37)}║
 ╚═══════════════════════════════════════════════════════╝
     `);
     
-    // Lancer l'analyse immédiatement au démarrage (si DATABASE_URL existe)
+    // Lancer le tracking immédiatement au démarrage (si DATABASE_URL existe)
     if (process.env.DATABASE_URL) {
-        setTimeout(() => runLearningsAnalysis(), 5000); // 5s après le démarrage
-        scheduleAnalysis(); // Programmer les prochaines
+        setTimeout(() => runProgrammingTracking(), 5000); // 5s après le démarrage
+        scheduleAnalysis(); // Programmer les prochains
     }
 });
