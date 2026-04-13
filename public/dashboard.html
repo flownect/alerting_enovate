@@ -992,10 +992,10 @@
             const campaignsList = campaigns.map(c => `
                 <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 gap-3">
                     <div class="flex-1 min-w-0">
-                        <div class="font-medium text-gray-900 dark:text-white text-sm truncate" title="${c.campaignName || 'Sans nom'}">${c.campaignName || 'Sans nom'}</div>
+                        <div class="font-medium text-gray-900 dark:text-white text-sm truncate" title="${c.title || 'Sans nom'}">${c.title || 'Sans nom'}</div>
                         <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             <span class="font-mono text-[10px]">${c.campaignId || 'N/A'}</span>
-                            ${c.traderName ? ` • ${c.traderName}` : ''}
+                            ${c.trader ? ` • ${c.trader}` : ''}
                         </div>
                     </div>
                     ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="flex-shrink-0 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Ouvrir</a>` : ''}
