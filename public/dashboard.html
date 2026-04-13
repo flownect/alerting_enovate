@@ -1643,6 +1643,110 @@
             renderPerformance();
         }
         
+        // Rendu des alertes de performance - Nouveau design
+        function renderPerformanceCardNew(alert, container) {
+            const campaign = alert.campaign;
+            const trader = alert.trader;
+            
+            // Calcul durée et progression
+            const duration = {
+                percent: Math.round(alert.durationProgress || 0),
+                daysLeft: alert.daysLeft || 0
+            };
+            
+            // Génération des alertes selon type
+            let alertsHTML = '';
+            
+            // Alerte volume (retard ou surlivraison)
+            if (alert.deliveryProgress !== null) {
+                const volumeProgress = Math.round(alert.deliveryProgress);
+                if (volumeProgress < duration.percent - 10) {
+                    const gap = duration.percent - volumeProgress;
+                    alertsHTML += `
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-red-600">⚠️ Retard volume:</span>
+                            <span class="text-gray-700 dark:text-gray-300">${volumeProgress}% vs ${duration.percent}% attendu (-${gap}%)</span>
+                        </div>
+                    `;
+                } else if (volumeProgress > 100) {
+                    alertsHTML += `
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-orange-600">📈 Surlivraison:</span>
+                            <span class="text-gray-700 dark:text-gray-300">${volumeProgress}% de l'objectif atteint</span>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Alerte marge
+            if (alert.marginRate !== null && alert.marginRate < 72) {
+                alertsHTML += `
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-red-600">💰 Marge faible:</span>
+                        <span class="text-gray-700 dark:text-gray-300">${alert.marginRate.toFixed(1)}% vs 72% objectif</span>
+                    </div>
+                `;
+            }
+            
+            // Autres raisons
+            if (alert.reasons && alert.reasons.length > 0) {
+                alert.reasons.forEach(reason => {
+                    alertsHTML += `
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-gray-600 dark:text-gray-400">${reason}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            // Liens ADX
+            let adxLinks = '';
+            if (campaign.adxId) {
+                adxLinks = `<a href="https://app.hubscale.com/campaigns/${campaign.adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
+            }
+            
+            const div = document.createElement('div');
+            div.className = `bg-white dark:bg-gray-800 rounded-lg shadow border-l-4 ${campaign.flaggedAsImportant ? 'border-yellow-500' : 'border-gray-300'} overflow-hidden`;
+            div.innerHTML = `
+                <div class="p-3">
+                    <!-- En-tête -->
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                            ${campaign.flaggedAsImportant ? '<span class="text-yellow-500 flex-shrink-0" title="Prioritaire">⭐</span>' : ''}
+                            <span class="font-medium text-gray-900 dark:text-white text-sm truncate" title="${campaign.campaignName || 'Sans nom'}">${campaign.campaignName || 'Sans nom'}</span>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            ${campaign.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
+                            ${adxLinks}
+                        </div>
+                    </div>
+                    
+                    <!-- Corps en 2 colonnes -->
+                    <div class="flex gap-3">
+                        <!-- Colonne gauche 30% -->
+                        <div class="w-[30%] space-y-1 text-xs">
+                            <div class="text-gray-600 dark:text-gray-400">
+                                <span class="font-medium">Trinôme:</span> ${alert.commercial || 'N/A'} / N/A / ${trader}
+                            </div>
+                            <div class="text-gray-600 dark:text-gray-400">
+                                <span class="font-medium">Sale-CSM:</span> ${trader}
+                            </div>
+                            <div class="text-gray-600 dark:text-gray-400">
+                                <span class="font-medium">Durée:</span> ${duration.percent}% • ${duration.daysLeft}j restants
+                            </div>
+                        </div>
+                        
+                        <!-- Colonne droite 70% -->
+                        <div class="w-[70%] space-y-1">
+                            ${alertsHTML || '<div class="text-xs text-gray-500">Aucune alerte spécifique</div>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(div);
+        }
+        
         // Rendu des alertes de performance
         function renderPerformance() {
             const container = document.getElementById('performance-container');
@@ -1679,7 +1783,30 @@
             }
             noPerf.classList.add('hidden');
             
+            console.log(`Rendu Performance: ${filteredAlerts.length} alertes, nouveau design: ${useNewCardDesign}`);
+            
+            // Tri: PRIO first, puis par % volume DESC si nouveau design
+            if (useNewCardDesign) {
+                filteredAlerts = [...filteredAlerts].sort((a, b) => {
+                    // PRIO en premier
+                    if (a.campaign.flaggedAsImportant && !b.campaign.flaggedAsImportant) return -1;
+                    if (!a.campaign.flaggedAsImportant && b.campaign.flaggedAsImportant) return 1;
+                    
+                    // Ensuite par % volume (deliveryProgress)
+                    const volA = a.deliveryProgress || 0;
+                    const volB = b.deliveryProgress || 0;
+                    
+                    return volB - volA; // DESC
+                });
+            }
+            
             for (const alert of filteredAlerts) {
+                if (useNewCardDesign) {
+                    renderPerformanceCardNew(alert, container);
+                    continue;
+                }
+                
+                // Ancien design (code existant)
                 const campaign = alert.campaign;
                 const levelClass = alert.level === 'critique' ? 'alert-critical' 
                     : alert.level === 'alerte' ? 'alert-urgent' 
@@ -1863,8 +1990,11 @@
             console.log('Campaign stats disponibles:', !!campaignStatsData);
             // Sauvegarder la préférence
             localStorage.setItem('useNewCardDesign', useNewCardDesign);
-            // Re-render les alertes
+            // Re-render les alertes ET performance
             renderAlerts();
+            if (allPerformanceAlerts.length > 0) {
+                renderPerformance();
+            }
         }
         
         // Charger la préférence au démarrage
