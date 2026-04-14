@@ -373,11 +373,17 @@ async function runProgrammingTracking() {
         // Récupérer les données Trello
         if (!trelloCache) {
             log('TRACKING', 'Récupération des données Trello...');
-            const trelloResponse = await fetch(`${NOVA_URL_PROD}/trello`, {
-                headers: { 'X-API-Key': NOVA_API_KEY },
+            const url = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+            const trelloResponse = await fetch(url, {
                 timeout: FETCH_TIMEOUT
             });
+            
+            if (!trelloResponse.ok) {
+                throw new Error(`HTTP ${trelloResponse.status}: ${trelloResponse.statusText}`);
+            }
+            
             trelloCache = await trelloResponse.json();
+            log('TRACKING', `✅ ${trelloCache?.data?.lanes?.reduce((sum, lane) => sum + (lane.cards?.length || 0), 0) || 0} cartes récupérées`);
         }
 
         // Lancer le tracking
