@@ -591,13 +591,15 @@
                     if (daysToStart === 0) { criticality = 'critical'; timing = 'J0'; }
                     else if (daysToStart === 1) { criticality = 'urgent'; timing = 'J-1'; }
                     
+                    const launchDate = card.dates?.startingDateFormatted || 'N/A';
+                    
                     alerts.push({
                         type: 'launch',
                         subtype: 'non-programmable',
                         criticality,
                         timing,
                         card,
-                        message: 'Campagne non programmable'
+                        message: `Campagne non programmable • Lancement: ${launchDate}`
                     });
                 }
 
