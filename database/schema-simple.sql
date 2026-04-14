@@ -2,12 +2,14 @@
 -- SCHEMA SIMPLIFIÉ - Tracking programmation campagnes
 -- ============================================
 
--- Supprimer les anciennes tables si elles existent
+-- Supprimer les anciennes tables et vues si elles existent
 DROP TABLE IF EXISTS learnings_insights CASCADE;
 DROP TABLE IF EXISTS learnings_rules CASCADE;
 DROP TABLE IF EXISTS learnings_patterns CASCADE;
 DROP TABLE IF EXISTS campaigns_events CASCADE;
 DROP VIEW IF EXISTS v_learnings_stats CASCADE;
+DROP VIEW IF EXISTS v_programming_stats_30d CASCADE;
+DROP VIEW IF EXISTS v_programming_stats_by_csm CASCADE;
 DROP FUNCTION IF EXISTS update_updated_at_column CASCADE;
 
 -- Table unique : Suivi des programmations
