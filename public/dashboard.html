@@ -1350,6 +1350,12 @@
                     <div class="flex gap-6">
                         <!-- Colonne gauche 30% -->
                         <div class="w-[30%] space-y-2 text-xs">
+                            ${card.isProgrammable ? `
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trader</div>
+                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
+                            </div>
+                            ` : `
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trinôme</div>
                                 <div class="text-gray-600 dark:text-gray-400">${card.commercial || 'N/A'} / ${card.accountManager || 'N/A'} / ${trader}</div>
@@ -1358,6 +1364,7 @@
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Sale-CSM</div>
                                 <div class="text-gray-600 dark:text-gray-400">${trader}</div>
                             </div>
+                            `}
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
                                 <div class="text-gray-600 dark:text-gray-400">${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}</div>
@@ -1372,8 +1379,22 @@
                         
                         <!-- Colonne droite 70% -->
                         <div class="w-[70%] space-y-2">
-                            <!-- Badge jours avant lancement / restants / retard -->
-                            ${!duration.isFinished && duration.daysLeft !== 0 ? `
+                            <!-- Badges timing + catégorie -->
+                            <div class="flex items-center gap-2">
+                            ${card.isProgrammable ? `
+                                <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${
+                                    alert.criticality === 'critical' 
+                                        ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                        : alert.criticality === 'urgent'
+                                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                }">
+                                    ${alert.timing}
+                                </div>
+                                <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
+                                    ${alert.type === 'bilan' ? 'Bilan' : alert.subtype === 'not-live' ? 'Non Live' : alert.subtype === 'no-trader' ? 'Trader' : 'Lancement'}
+                                </div>
+                            ` : !duration.isFinished && duration.daysLeft !== 0 ? `
                                 <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${
                                     duration.daysBeforeLaunch > 0 
                                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -1389,7 +1410,11 @@
                                                 : `🚨 ${Math.abs(duration.daysLeft)}j de retard`
                                     }
                                 </div>
+                                <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
+                                    ${alert.type === 'launch' ? 'Lancement' : alert.type === 'volume' ? 'Volume' : alert.type === 'margin' ? 'Marge' : 'Alerte'}
+                                </div>
                             ` : ''}
+                            </div>
                             ${alertsHTML}
                         </div>
                     </div>
@@ -1473,7 +1498,7 @@
                         <div class="flex items-center gap-2">
                             ${criticalityBadge}
                             ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
-                            <span class="bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-mono px-1.5 py-0.5 rounded">${alert.timing}</span>
+                            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">${alert.timing}</span>
                             <span class="font-medium text-gray-900 dark:text-white text-xs">${alert.message}</span>
                         </div>
                         <div class="mt-1 text-xs text-gray-600 dark:text-gray-400 truncate">
@@ -1822,7 +1847,8 @@
                         
                         <!-- Colonne droite 70% -->
                         <div class="w-[70%] space-y-2">
-                            <!-- Badge jours avant lancement / restants / retard -->
+                            <!-- Badges timing + catégorie -->
+                            <div class="flex items-center gap-2">
                             ${!duration.isFinished && duration.daysLeft !== 0 ? `
                                 <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${
                                     duration.daysBeforeLaunch > 0 
@@ -1840,6 +1866,12 @@
                                     }
                                 </div>
                             ` : ''}
+                            ${alert.level === 'critique' || alert.level === 'alerte' || alert.level === 'faible' ? `
+                                <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
+                                    Perf
+                                </div>
+                            ` : ''}
+                            </div>
                             ${alertsHTML || '<div class="text-sm text-gray-500 italic">Aucune alerte spécifique</div>'}
                         </div>
                     </div>
