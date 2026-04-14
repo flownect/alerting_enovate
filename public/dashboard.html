@@ -628,6 +628,7 @@
                 if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
                     const daysLate = Math.abs(daysToStart);
                     let timing = daysToStart === 0 ? 'J0' : `J+${daysLate}`;
+                    const launchDate = card.dates?.startingDateFormatted || 'N/A';
                     
                     alerts.push({
                         type: 'launch',
@@ -635,23 +636,23 @@
                         criticality: 'critical',
                         timing,
                         card,
-                        message: 'Campagne non live - devrait être en cours'
+                        message: `Campagne non live - devrait être en cours • Lancement: ${launchDate}`
                     });
                 }
 
-                // Alerte Bilan non saisi
+                // Alerte Bilan non saisi (jamais critique, max urgent)
                 if (hasTag(card, 'Terminé') && hasTag(card, 'Bilan non saisi') && daysFromEnd !== null && daysFromEnd >= 1) {
                     const isPriority = card.flaggedAsImportant === true;
                     let criticality = 'attention';
                     let timing = `J+${daysFromEnd}`;
                     
-                    // Règles de criticité
+                    // Règles de criticité (max urgent)
                     if (isPriority) {
                         // Campagnes prioritaires
                         if (daysFromEnd >= 3 && daysFromEnd <= 4) {
-                            criticality = 'urgent'; // J+3 à J+4
+                            criticality = 'attention'; // J+3 à J+4
                         } else if (daysFromEnd >= 5) {
-                            criticality = 'critical'; // >= J+5
+                            criticality = 'urgent'; // >= J+5 (max urgent)
                         } else {
                             continue; // Pas d'alerte avant J+3
                         }
@@ -659,10 +660,8 @@
                         // Campagnes non-prioritaires
                         if (daysFromEnd >= 3 && daysFromEnd <= 4) {
                             criticality = 'attention'; // J+3 à J+4
-                        } else if (daysFromEnd >= 5 && daysFromEnd <= 7) {
-                            criticality = 'urgent'; // J+5 à J+7
-                        } else if (daysFromEnd > 7) {
-                            criticality = 'critical'; // > J+7
+                        } else if (daysFromEnd >= 5) {
+                            criticality = 'urgent'; // >= J+5 (max urgent)
                         } else {
                             continue; // Pas d'alerte avant J+3
                         }
