@@ -1202,17 +1202,19 @@
             const start = parseDate(startDate);
             const end = parseDate(endDate);
             
-            if (!start || !end) return { percent: 0, daysLeft: 0, isFinished: false };
+            if (!start || !end) return { percent: 0, daysLeft: 0, isFinished: false, daysBeforeLaunch: 0 };
             
             const totalDuration = end - start;
             const elapsed = now - start;
             const remaining = end - now;
+            const beforeLaunch = start - now;
             
             const percent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
             const daysLeft = Math.ceil(remaining / (1000 * 60 * 60 * 24));
+            const daysBeforeLaunch = Math.ceil(beforeLaunch / (1000 * 60 * 60 * 24));
             const isFinished = percent >= 100 || daysLeft < 0;
             
-            return { percent, daysLeft, isFinished };
+            return { percent, daysLeft, isFinished, daysBeforeLaunch };
         }
         
         function renderCampaignCardNew(alert, container) {
@@ -1357,10 +1359,22 @@
                         
                         <!-- Colonne droite 70% -->
                         <div class="w-[70%] space-y-2">
-                            <!-- Badge jours restants/retard -->
+                            <!-- Badge jours avant lancement / restants / retard -->
                             ${!duration.isFinished && duration.daysLeft !== 0 ? `
-                                <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${duration.daysLeft > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">
-                                    ${duration.daysLeft > 0 ? `⏱️ ${duration.daysLeft}j restants` : `🚨 ${Math.abs(duration.daysLeft)}j de retard`}
+                                <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${
+                                    duration.daysBeforeLaunch > 0 
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                        : duration.daysLeft > 0 
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }">
+                                    ${
+                                        duration.daysBeforeLaunch > 0 
+                                            ? `🗓️ ${duration.daysBeforeLaunch}j avant lancement`
+                                            : duration.daysLeft > 0 
+                                                ? `⏱️ ${duration.daysLeft}j restants` 
+                                                : `🚨 ${Math.abs(duration.daysLeft)}j de retard`
+                                    }
                                 </div>
                             ` : ''}
                             ${alertsHTML}
@@ -1689,7 +1703,13 @@
             const percent = Math.round(alert.durationProgress || 0);
             const daysLeft = alert.daysLeft || 0;
             const isFinished = percent >= 100 || daysLeft < 0;
-            const duration = { percent, daysLeft, isFinished };
+            
+            // Calculer jours avant lancement si campagne pas encore démarrée
+            const startDate = parseDate(campaign.vStartDate);
+            const now = new Date();
+            const daysBeforeLaunch = startDate ? Math.ceil((startDate - now) / (1000 * 60 * 60 * 24)) : 0;
+            
+            const duration = { percent, daysLeft, isFinished, daysBeforeLaunch };
             
             // Génération des alertes selon type
             let alertsHTML = '';
@@ -1785,10 +1805,22 @@
                         
                         <!-- Colonne droite 70% -->
                         <div class="w-[70%] space-y-2">
-                            <!-- Badge jours restants/retard -->
+                            <!-- Badge jours avant lancement / restants / retard -->
                             ${!duration.isFinished && duration.daysLeft !== 0 ? `
-                                <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${duration.daysLeft > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}">
-                                    ${duration.daysLeft > 0 ? `⏱️ ${duration.daysLeft}j restants` : `🚨 ${Math.abs(duration.daysLeft)}j de retard`}
+                                <div class="inline-flex items-center gap-2 px-3 py-2 rounded font-bold text-sm ${
+                                    duration.daysBeforeLaunch > 0 
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                        : duration.daysLeft > 0 
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }">
+                                    ${
+                                        duration.daysBeforeLaunch > 0 
+                                            ? `🗓️ ${duration.daysBeforeLaunch}j avant lancement`
+                                            : duration.daysLeft > 0 
+                                                ? `⏱️ ${duration.daysLeft}j restants` 
+                                                : `🚨 ${Math.abs(duration.daysLeft)}j de retard`
+                                    }
                                 </div>
                             ` : ''}
                             ${alertsHTML || '<div class="text-sm text-gray-500 italic">Aucune alerte spécifique</div>'}
