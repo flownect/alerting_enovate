@@ -27,12 +27,21 @@ class ProgrammingTracker {
      */
     async trackProgramming(trelloData) {
         console.log('🔍 Tracking des programmations...');
+        console.log('📦 Données Trello reçues:', {
+            hasData: !!trelloData,
+            hasDataProperty: !!trelloData?.data,
+            hasLanes: !!trelloData?.data?.lanes,
+            lanesCount: trelloData?.data?.lanes?.length || 0
+        });
+        
         const startTime = Date.now();
 
         try {
             await this.connect();
 
             const programmedCampaigns = this.findProgrammedCampaigns(trelloData);
+            console.log(`🎯 ${programmedCampaigns.length} campagnes programmées trouvées`);
+            
             let newCount = 0;
 
             for (const campaign of programmedCampaigns) {

@@ -383,7 +383,15 @@ async function runProgrammingTracking() {
             }
             
             trelloCache = await trelloResponse.json();
-            log('TRACKING', `✅ ${trelloCache?.data?.lanes?.reduce((sum, lane) => sum + (lane.cards?.length || 0), 0) || 0} cartes récupérées`);
+            
+            const totalCards = trelloCache?.data?.lanes?.reduce((sum, lane) => sum + (lane.cards?.length || 0), 0) || 0;
+            log('TRACKING', `✅ ${totalCards} cartes récupérées`);
+            log('TRACKING', `Structure des données:`, {
+                success: trelloCache?.success,
+                hasData: !!trelloCache?.data,
+                hasLanes: !!trelloCache?.data?.lanes,
+                lanesCount: trelloCache?.data?.lanes?.length || 0
+            });
         }
 
         // Lancer le tracking
