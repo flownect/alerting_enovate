@@ -1233,6 +1233,7 @@
             let marginRate = null;
             let bounceRate = null;
             let bounceObjective = null;
+            let budget = 0;
             
             if (perfData) {
                 volumeCurrent = perfData.data?.impressions?.value2 || 0;
@@ -1240,6 +1241,7 @@
                 volumeProgress = calculateProgressPercentage(volumeCurrent, volumeObjective);
                 marginRate = perfData.data?.marginRate?.value2;
                 bounceRate = perfData.data?.bounceRate?.value2;
+                budget = parseFloat(perfData.objectives?.revenue?.overall || 0);
                 // Objectif bounce rate (à définir selon vos règles)
                 bounceObjective = 30; // Exemple: 30% max
             }
@@ -1345,6 +1347,12 @@
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
                                 <div class="text-gray-600 dark:text-gray-400">${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}</div>
                             </div>
+                            ${budget > 0 ? `
+                            <div class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                                <div class="font-semibold text-blue-700 dark:text-blue-300 mb-1">Budget</div>
+                                <div class="text-blue-600 dark:text-blue-400 font-bold">${budget.toLocaleString('fr-FR')} €</div>
+                            </div>
+                            ` : ''}
                         </div>
                         
                         <!-- Colonne droite 70% -->
