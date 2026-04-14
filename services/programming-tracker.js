@@ -69,8 +69,12 @@ class ProgrammingTracker {
         const campaigns = [];
         const now = new Date();
 
-        if (!trelloData?.data?.lanes) {
+        // Gérer différentes structures de réponse
+        const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
+        
+        if (!lanes || lanes.length === 0) {
             console.log('⚠️  Pas de lanes dans les données Trello');
+            console.log('Structure reçue:', Object.keys(trelloData || {}));
             return campaigns;
         }
 
@@ -78,7 +82,7 @@ class ProgrammingTracker {
         let programmableCards = 0;
         let programmedCards = 0;
 
-        for (const lane of trelloData.data.lanes) {
+        for (const lane of lanes) {
             for (const card of lane.cards || []) {
                 totalCards++;
                 

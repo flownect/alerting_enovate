@@ -384,14 +384,14 @@ async function runProgrammingTracking() {
             
             trelloCache = await trelloResponse.json();
             
-            const totalCards = trelloCache?.data?.lanes?.reduce((sum, lane) => sum + (lane.cards?.length || 0), 0) || 0;
-            log('TRACKING', `✅ ${totalCards} cartes récupérées`);
-            log('TRACKING', `Structure des données:`, {
-                success: trelloCache?.success,
-                hasData: !!trelloCache?.data,
-                hasLanes: !!trelloCache?.data?.lanes,
-                lanesCount: trelloCache?.data?.lanes?.length || 0
-            });
+            // Log de la structure complète pour debug
+            log('TRACKING', `Structure reçue:`, JSON.stringify(Object.keys(trelloCache || {})));
+            
+            // Adapter la structure selon ce qui est retourné
+            let lanes = trelloCache?.data?.lanes || trelloCache?.lanes || [];
+            const totalCards = lanes.reduce((sum, lane) => sum + (lane.cards?.length || 0), 0);
+            
+            log('TRACKING', `✅ ${totalCards} cartes récupérées dans ${lanes.length} lanes`);
         }
 
         // Lancer le tracking
