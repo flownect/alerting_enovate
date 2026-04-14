@@ -112,16 +112,11 @@
             <h3 class="font-bold text-gray-900 dark:text-white">Paramètres</h3>
         </div>
         <div class="p-4 space-y-4">
-            <!-- Environment Section -->
+            <!-- Stats de programmation -->
             <div>
-                <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Environnement</h4>
-                <select id="env-select" onchange="fetchData()" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
-                    <option value="preprod">Preprod</option>
-                    <option value="prod" selected>Production</option>
-                </select>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    Les données sont récupérées depuis l'API Trello interne.
-                </p>
+                <button onclick="showProgrammingStats()" class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">
+                    📊 Voir les stats de programmation
+                </button>
             </div>
             
             <!-- UI Settings -->
@@ -137,28 +132,6 @@
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     Activer le nouveau design des cartes de campagnes avec métriques détaillées.
                 </p>
-            </div>
-            
-            <!-- Learnings Section -->
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
-                <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                    <span>💡</span>
-                    <span>Learnings & Intelligence</span>
-                </h4>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    Système d'apprentissage automatique pour identifier les récurrences et patterns dans les campagnes.
-                </p>
-                <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-sm text-blue-800 dark:text-blue-300">
-                    <p class="font-medium mb-1">Exemples de détection :</p>
-                    <ul class="list-disc list-inside space-y-1 text-xs">
-                        <li>Campagnes lancées à J alors qu'en non-programmable</li>
-                        <li>Retards récurrents par CSM ou type de campagne</li>
-                        <li>Patterns de performance par format/device</li>
-                    </ul>
-                </div>
-                <button onclick="showProgrammingStats()" class="mt-3 w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">
-                    Voir les stats de programmation
-                </button>
             </div>
         </div>
     </div>
@@ -1753,6 +1726,9 @@
             
             const duration = { percent, daysLeft, isFinished, daysBeforeLaunch };
             
+            // Déterminer les badges de catégorie selon les problèmes
+            let categoryBadges = [];
+            
             // Génération des alertes selon type
             let alertsHTML = '';
             
@@ -1760,6 +1736,7 @@
             if (alert.deliveryProgress !== null) {
                 const volumeProgress = Math.round(alert.deliveryProgress);
                 if (volumeProgress < duration.percent - 10) {
+                    categoryBadges.push({ label: 'Retard Volume', color: 'bg-red-500' });
                     const gap = duration.percent - volumeProgress;
                     alertsHTML += `
                         <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
@@ -1770,6 +1747,7 @@
                         </div>
                     `;
                 } else if (volumeProgress > 100) {
+                    categoryBadges.push({ label: 'Surlivraison', color: 'bg-orange-500' });
                     alertsHTML += `
                         <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded p-2">
                             <div class="flex items-start gap-2 text-xs">
@@ -1783,6 +1761,7 @@
             
             // Alerte marge
             if (alert.marginRate !== null && alert.marginRate < 72) {
+                categoryBadges.push({ label: 'Marge', color: 'bg-red-500' });
                 alertsHTML += `
                     <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
                         <div class="flex items-start gap-2 text-xs">
@@ -1796,6 +1775,25 @@
             // Autres raisons
             if (alert.reasons && alert.reasons.length > 0) {
                 alert.reasons.forEach(reason => {
+                    // Détecter le type de problème dans la raison
+                    if (reason.toLowerCase().includes('rebond')) {
+                        if (!categoryBadges.find(b => b.label === 'Rebond')) {
+                            categoryBadges.push({ label: 'Rebond', color: 'bg-orange-500' });
+                        }
+                    } else if (reason.toLowerCase().includes('diffusion')) {
+                        if (!categoryBadges.find(b => b.label === 'Diffusion')) {
+                            categoryBadges.push({ label: 'Diffusion', color: 'bg-red-500' });
+                        }
+                    } else if (reason.toLowerCase().includes('clic')) {
+                        if (!categoryBadges.find(b => b.label === 'Clics')) {
+                            categoryBadges.push({ label: 'Clics', color: 'bg-orange-500' });
+                        }
+                    } else if (reason.toLowerCase().includes('revenu')) {
+                        if (!categoryBadges.find(b => b.label === 'Revenu')) {
+                            categoryBadges.push({ label: 'Revenu', color: 'bg-red-500' });
+                        }
+                    }
+                    
                     alertsHTML += `
                         <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded p-2">
                             <div class="text-xs text-gray-700 dark:text-gray-300">${reason}</div>
@@ -1866,11 +1864,11 @@
                                     }
                                 </div>
                             ` : ''}
-                            ${alert.level === 'critique' || alert.level === 'alerte' || alert.level === 'faible' ? `
-                                <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
-                                    Perf
+                            ${categoryBadges.map(badge => `
+                                <div class="inline-flex items-center px-3 py-1.5 rounded-lg font-bold text-xs text-white ${badge.color} shadow-sm">
+                                    ${badge.label}
                                 </div>
-                            ` : ''}
+                            `).join('')}
                             </div>
                             ${alertsHTML || '<div class="text-sm text-gray-500 italic">Aucune alerte spécifique</div>'}
                         </div>
@@ -2013,8 +2011,7 @@
         }
         
         async function fetchData() {
-            const envSelect = document.getElementById('env-select');
-            const env = envSelect ? envSelect.value : 'prod'; // Par défaut: production
+            const env = 'prod'; // Toujours en production
             const loadingEl = document.getElementById('trello-loading');
             const statusEl = document.getElementById('trello-status');
             
@@ -2044,7 +2041,7 @@
         }
         
         async function fetchCampaignStats() {
-            const env = document.getElementById('env-select').value;
+            const env = 'prod'; // Toujours en production
             const loadingEl = document.getElementById('stats-loading');
             const statusEl = document.getElementById('stats-status');
             const perfLoadingEl = document.getElementById('perf-loading');
