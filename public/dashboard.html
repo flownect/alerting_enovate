@@ -767,53 +767,15 @@
                 let level = null;
                 let reasons = [];
                 
-                // CRITIQUE - Aucune diffusion récente (uniquement si pas de reprise depuis)
+                // CRITIQUE - Campagne ne diffuse pas actuellement
                 const impressionsData = campaign.data?.impressions;
-                const impressionsHistory = impressionsData?.history || [];
+                const yesterday = impressionsData?.yesterday || 0;
                 
-                // Construire la timeline complète (history + yesterday/beforeYesterday)
-                const timeline = [];
-                for (const h of impressionsHistory) {
-                    const hDate = new Date(h.date);
-                    if (hDate >= startDate && hDate <= endDate) {
-                        timeline.push({ date: h.date, value: h.value || 0 });
-                    }
-                }
-                if (impressionsData) {
-                    const yesterdayDate = new Date(now);
-                    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-                    const beforeYesterdayDate = new Date(now);
-                    beforeYesterdayDate.setDate(beforeYesterdayDate.getDate() - 2);
-                    
-                    const byDateStr = beforeYesterdayDate.toISOString().split('T')[0];
-                    if (!timeline.some(t => t.date === byDateStr) && beforeYesterdayDate >= startDate && beforeYesterdayDate <= endDate) {
-                        timeline.push({ date: byDateStr, value: impressionsData.beforeYesterday || 0 });
-                    }
-                    const yDateStr = yesterdayDate.toISOString().split('T')[0];
-                    if (!timeline.some(t => t.date === yDateStr) && yesterdayDate >= startDate && yesterdayDate <= endDate) {
-                        timeline.push({ date: yDateStr, value: impressionsData.yesterday || 0 });
-                    }
-                }
-                // Trier par date
-                timeline.sort((a, b) => a.date.localeCompare(b.date));
-                
-                // Ne déclencher l'alerte que si la campagne n'a PAS repris après le dernier jour à 0
-                if (timeline.length > 0) {
-                    // Trouver le dernier jour à 0
-                    let lastZeroIdx = -1;
-                    for (let i = timeline.length - 1; i >= 0; i--) {
-                        if (timeline[i].value === 0) { lastZeroIdx = i; break; }
-                    }
-                    // Vérifier qu'il n'y a pas eu de diffusion APRÈS ce jour
-                    if (lastZeroIdx >= 0) {
-                        const hasResumedAfter = timeline.slice(lastZeroIdx + 1).some(t => t.value > 0);
-                        if (!hasResumedAfter) {
-                            const zeroDaysCount = timeline.filter(t => t.value === 0).length;
-                            const lastZeroDayLabel = new Date(timeline[lastZeroIdx].date).toLocaleDateString('fr-FR');
-                            level = 'critique';
-                            reasons.push(`Aucune diffusion le ${lastZeroDayLabel}${zeroDaysCount > 1 ? ` (${zeroDaysCount} jours sans diffusion)` : ''}`);
-                        }
-                    }
+                // Si 0 impressions hier = campagne ne diffuse pas actuellement
+                // L'alerte disparaît automatiquement dès que ça relivre (yesterday > 0)
+                if (yesterday === 0) {
+                    level = 'critique';
+                    reasons.push(`Campagne ne diffuse pas (0 impressions hier)`);
                 }
                 
                 // Alertes objectifs (principal + secondaire) à partir de 50% durée
