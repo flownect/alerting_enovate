@@ -60,35 +60,55 @@ class ProgrammingTracker {
         const campaigns = [];
         const now = new Date();
 
-        if (!trelloData?.data?.lanes) return campaigns;
+        if (!trelloData?.data?.lanes) {
+            console.log('⚠️  Pas de lanes dans les données Trello');
+            return campaigns;
+        }
+
+        let totalCards = 0;
+        let programmableCards = 0;
+        let programmedCards = 0;
 
         for (const lane of trelloData.data.lanes) {
             for (const card of lane.cards || []) {
-                // Seulement les campagnes programmées
-                if (card.isProgrammable && card.areSubdivisionsProgrammed === true) {
-                    const startDate = this.parseDate(card.dates?.startingDateFormatted);
-                    if (startDate) {
-                        const daysBeforeStart = this.getDaysDiff(now, startDate);
-                        
-                        campaigns.push({
-                            campaign_id: card.campaignId,
-                            campaign_name: card.name,
-                            csm_name: card.commercial,
-                            trader_name: this.getFirstTrader(card.trader),
-                            programmed_at: now,
-                            campaign_start_date: startDate,
-                            days_before_start: daysBeforeStart,
-                            metadata: {
-                                trackerId: card.trackerId,
-                                laneId: lane.id,
-                                laneName: lane.name
-                            }
-                        });
+                totalCards++;
+                
+                // Seulement les campagnes programmables
+                if (card.isProgrammable) {
+                    programmableCards++;
+                    
+                    // Vérifier si programmée (plusieurs conditions possibles)
+                    const isProgrammed = card.areSubdivisionsProgrammed === true || 
+                                       card.areSubdivisionsProgrammed === 'true' ||
+                                       (card.subdivisions && card.subdivisions.some(sub => sub.isProgrammed === true));
+                    
+                    if (isProgrammed) {
+                        programmedCards++;
+                        const startDate = this.parseDate(card.dates?.startingDateFormatted);
+                        if (startDate) {
+                            const daysBeforeStart = this.getDaysDiff(now, startDate);
+                            
+                            campaigns.push({
+                                campaign_id: card.campaignId,
+                                campaign_name: card.name,
+                                csm_name: card.commercial,
+                                trader_name: this.getFirstTrader(card.trader),
+                                programmed_at: now,
+                                campaign_start_date: startDate,
+                                days_before_start: daysBeforeStart,
+                                metadata: {
+                                    trackerId: card.trackerId,
+                                    laneId: lane.id,
+                                    laneName: lane.name
+                                }
+                            });
+                        }
                     }
                 }
             }
         }
 
+        console.log(`📊 Cartes analysées: ${totalCards} total, ${programmableCards} programmables, ${programmedCards} programmées`);
         return campaigns;
     }
 
