@@ -1520,10 +1520,17 @@
                 const trader = getEffectiveTrader(card.trader);
                 const startDate = parseDate(card.dates?.startingDateFormatted);
                 const daysToStart = startDate ? getDaysDiff(now, startDate) : null;
-                const timing = daysToStart === 0 ? 'Aujourd\'hui' : daysToStart === 1 ? 'Demain' : `J-${daysToStart}`;
+                // Affichage du timing
+                let timing;
+                if (daysToStart === 0) timing = 'Aujourd\'hui (J0)';
+                else if (daysToStart < 0) timing = `J${daysToStart}`; // Retard
+                else if (daysToStart === 1) timing = 'Demain (J+1)';
+                else timing = `J+${daysToStart}`;
                 
-                // Couleur selon urgence
-                const urgencyClass = daysToStart <= 1 ? 'border-l-4 border-l-red-500' : daysToStart <= 3 ? 'border-l-4 border-l-orange-500' : 'border-l-4 border-l-blue-500';
+                // Couleur selon urgence - J0 et futur (J+1, J+2...) = CRITIQUE (rouge)
+                const urgencyClass = daysToStart <= 1 ? 'border-l-4 border-l-red-600 bg-red-50 dark:bg-red-900/20' : 
+                                    daysToStart <= 3 ? 'border-l-4 border-l-orange-500' : 
+                                    'border-l-4 border-l-blue-500';
                 
                 // Tags de la campagne
                 const tags = card.tags || [];
