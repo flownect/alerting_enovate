@@ -628,8 +628,9 @@
                 
                 if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStart !== null && daysToStart < 0) {
                     const daysLate = Math.abs(daysToStart);
-                    let timing = `J+${daysLate}`;
+                    let timing = daysLate === 0 ? 'Aujourd\'hui' : `J+${daysLate}`;
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
+                    const sinceText = daysLate === 0 ? 'Aujourd\'hui' : `Depuis ${daysLate}j`;
                     
                     alerts.push({
                         type: 'launch',
@@ -637,7 +638,7 @@
                         criticality: 'critical',
                         timing,
                         card,
-                        message: `Campagne non live - devrait être en cours • Lancement: ${launchDate}`
+                        message: `Campagne non live - devrait être en cours • ${sinceText} (Lancement: ${launchDate})`
                     });
                 }
 
@@ -646,6 +647,15 @@
                     const isPriority = card.flaggedAsImportant === true;
                     let criticality = 'attention';
                     let timing = `J+${daysFromEnd}`;
+                    
+                    // Calculer la date limite (lendemain de fin)
+                    const endDate = parseDate(card.dates?.endingDateFormatted);
+                    let deadlineDate = 'N/A';
+                    if (endDate) {
+                        const deadline = new Date(endDate);
+                        deadline.setDate(deadline.getDate() + 1);
+                        deadlineDate = deadline.toLocaleDateString('fr-FR');
+                    }
                     
                     // Règles de criticité (max urgent)
                     if (isPriority) {
@@ -668,13 +678,16 @@
                         }
                     }
                     
+                    const priorityText = isPriority ? ' (Prioritaire)' : '';
+                    const message = `Bilan non saisi${priorityText} • Attendu le ${deadlineDate} • ${daysFromEnd}j de retard`;
+                    
                     alerts.push({
                         type: 'bilan',
                         subtype: 'bilan-non-saisi',
                         criticality,
                         timing,
                         card,
-                        message: isPriority ? 'Bilan non saisi (Prioritaire)' : 'Bilan non saisi',
+                        message,
                         daysFromEnd // Pour le tri secondaire
                     });
                 }
@@ -1539,6 +1552,10 @@
                 const tags = card.tags || [];
                 const tagsHtml = tags.map(t => `<span class="bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded">${t}</span>`).join('');
                 
+                // Récupérer ADX ID
+                const perfData = getCampaignPerformanceData(card);
+                const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
+                
                 const div = document.createElement('div');
                 div.className = `p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${urgencyClass}`;
                 div.innerHTML = `
@@ -1547,8 +1564,8 @@
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="font-mono text-xs px-2 py-1 rounded ${daysToStart <= 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : daysToStart <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${timing}</span>
                                 ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
-                                <span class="text-xs text-gray-500 dark:text-gray-400">[${card.campaignId || 'N/A'}]</span>
-                                ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs">🔗 Ouvrir</a>` : ''}
+                                ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
+                                ${adxId ? `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>` : ''}
                             </div>
                             <h4 class="font-semibold text-gray-900 dark:text-white">${card.title || 'Sans nom'}</h4>
                             <div class="mt-2 grid md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
