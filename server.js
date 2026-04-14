@@ -419,8 +419,43 @@ function scheduleAnalysis() {
     }, delay);
 }
 
+// Initialiser la base de données au démarrage
+async function initializeDatabase() {
+    if (!process.env.DATABASE_URL) {
+        log('DB', '⚠️  DATABASE_URL non configurée, initialisation ignorée');
+        return;
+    }
+
+    const { Client } = require('pg');
+    const fs = require('fs');
+    
+    try {
+        log('DB', '🔧 Initialisation de la base de données...');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        
+        // Lire et exécuter le script SQL
+        const sqlScript = fs.readFileSync(path.join(__dirname, 'database', 'schema-simple.sql'), 'utf8');
+        await client.query(sqlScript);
+        
+        await client.end();
+        log('DB', '✅ Base de données initialisée avec succès');
+    } catch (error) {
+        // Si la table existe déjà, c'est OK
+        if (error.message.includes('already exists')) {
+            log('DB', '✅ Base de données déjà initialisée');
+        } else {
+            log('DB', `❌ Erreur lors de l\'initialisation: ${error.message}`);
+        }
+    }
+}
+
 // Démarrage du serveur
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║         🚨 Alerting E-Novate - Server Started         ║
@@ -432,6 +467,9 @@ app.listen(PORT, () => {
 ║  Programming: ${(process.env.DATABASE_URL ? '✅ Tracking (3x/day)' : '❌ Disabled').padEnd(37)}║
 ╚═══════════════════════════════════════════════════════╝
     `);
+    
+    // Initialiser la base de données
+    await initializeDatabase();
     
     // Lancer le tracking immédiatement au démarrage (si DATABASE_URL existe)
     if (process.env.DATABASE_URL) {
