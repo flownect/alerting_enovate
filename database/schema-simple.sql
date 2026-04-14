@@ -61,16 +61,16 @@ CREATE OR REPLACE VIEW v_programming_stats_30d AS
 SELECT 
     csm_name,
     COUNT(*) as total_programmed,
-    COUNT(*) FILTER (WHERE days_before_start = 0) as programmed_j0,
-    COUNT(*) FILTER (WHERE days_before_start = 1) as programmed_j1,
-    COUNT(*) FILTER (WHERE days_before_start = 2) as programmed_j2,
-    COUNT(*) FILTER (WHERE days_before_start >= 3) as programmed_j3_plus,
-    COUNT(*) FILTER (WHERE days_before_start < 0) as programmed_late
+    COUNT(*) FILTER (WHERE days_before_start = 0) as late_j0,
+    COUNT(*) FILTER (WHERE days_before_start = 1) as late_j1,
+    COUNT(*) FILTER (WHERE days_before_start = 2) as late_j2,
+    COUNT(*) FILTER (WHERE days_before_start = 3) as on_time_j3,
+    COUNT(*) FILTER (WHERE days_before_start > 3) as on_time_j3_plus
 FROM campaign_programming
 WHERE programmed_at >= NOW() - INTERVAL '30 days'
   AND csm_name IS NOT NULL
 GROUP BY csm_name
-ORDER BY total_programmed DESC;
+ORDER BY COUNT(*) FILTER (WHERE days_before_start <= 2) DESC;
 
 -- Commentaires
 COMMENT ON TABLE campaign_programming IS 'Suivi des dates de programmation des campagnes par CSM';
