@@ -1173,23 +1173,42 @@
         function getCampaignPerformanceData(card) {
             if (!campaignStatsData?.data) return null;
             
-            // Trouver la campagne correspondante dans campaign-stats
-            // 1. D'abord par campaignId
-            let perfData = campaignStatsData.data.find(c => c.campaignId === card.campaignId);
+            // Extraire l'ID Nova du titre (format: [12345] Nom_Campagne)
+            let novaId = null;
+            if (card.title) {
+                const match = card.title.match(/^\[(\d+)\]/);
+                if (match) {
+                    novaId = match[1];
+                }
+            }
             
-            // 2. Fallback: chercher par nom de campagne si pas trouvé
+            // Trouver la campagne correspondante dans campaign-stats
+            let perfData = null;
+            
+            // 1. Chercher par ID Nova dans le nom de campagne
+            if (novaId) {
+                perfData = campaignStatsData.data.find(c => {
+                    if (!c.campaignName) return false;
+                    const statsMatch = c.campaignName.match(/^\[(\d+)\]/);
+                    return statsMatch && statsMatch[1] === novaId;
+                });
+                
+                if (perfData) {
+                    console.log('✅ Match par ID Nova:', novaId, '-', card.title);
+                    console.log('  ADX ID:', perfData.adxDisplayId || perfData.adxId);
+                }
+            }
+            
+            // 2. Fallback: chercher par campaignId exact
+            if (!perfData && card.campaignId) {
+                perfData = campaignStatsData.data.find(c => c.campaignId === card.campaignId);
+            }
+            
+            // 3. Fallback: chercher par nom exact
             if (!perfData && card.title) {
                 perfData = campaignStatsData.data.find(c => 
                     c.campaignName && c.campaignName.toLowerCase() === card.title.toLowerCase()
                 );
-                
-                // Debug: si trouvé par nom, afficher les IDs
-                if (perfData) {
-                    console.log('✅ Match par nom:', card.title);
-                    console.log('  Trello campaignId:', card.campaignId);
-                    console.log('  Stats campaignId:', perfData.campaignId);
-                    console.log('  ADX ID:', perfData.adxDisplayId || perfData.adxId);
-                }
             }
             
             return perfData;
