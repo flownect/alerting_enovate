@@ -967,7 +967,12 @@
             if (!stats || !stats.priorityCampaigns || stats.priorityCampaigns.length === 0) return;
             
             const campaigns = stats.priorityCampaigns;
-            const campaignsList = campaigns.map(c => `
+            const campaignsList = campaigns.map(c => {
+                // Récupérer l'ADX ID depuis les données de performance
+                const perfData = getCampaignPerformanceData(c);
+                const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
+                
+                return `
                 <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 gap-3">
                     <div class="flex-1 min-w-0">
                         <div class="font-medium text-gray-900 dark:text-white text-sm truncate" title="${c.title || 'Sans nom'}">${c.title || 'Sans nom'}</div>
@@ -976,9 +981,13 @@
                             ${c.trader ? ` • ${c.trader}` : ''}
                         </div>
                     </div>
-                    ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="flex-shrink-0 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Ouvrir</a>` : ''}
+                    <div class="flex gap-2 flex-shrink-0">
+                        ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
+                        ${adxId ? `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
+                    </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
             
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
@@ -1215,8 +1224,8 @@
                 marginRate = perfData.data?.marginRate?.value2;
                 bounceRate = perfData.data?.bounceRate?.value2;
                 budget = parseFloat(perfData.objectives?.revenue?.overall || 0);
-                // Objectif bounce rate (à définir selon vos règles)
-                bounceObjective = 30; // Exemple: 30% max
+                // Objectif bounce rate depuis l'API ou 30% par défaut
+                bounceObjective = parseFloat(perfData.objectives?.bounceRate?.overall || 30);
             }
             
             // Génération des alertes selon type
@@ -1281,11 +1290,13 @@
             
             // Liens ADX (utiliser adxDisplayId pour l'URL)
             let adxLinks = '';
-            if (perfData) {
-                const adxId = perfData.adxDisplayId || perfData.adxId;
-                if (adxId) {
-                    adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
-                }
+            let adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
+            // Fallback: chercher dans les données Trello si disponible
+            if (!adxId && card.adxId) {
+                adxId = card.adxId;
+            }
+            if (adxId) {
+                adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
             }
             
             const div = document.createElement('div');
@@ -1542,9 +1553,13 @@
                 const tags = card.tags || [];
                 const tagsHtml = tags.map(t => `<span class="bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded">${t}</span>`).join('');
                 
-                // Récupérer ADX ID
+                // Récupérer ADX ID depuis les données de performance ou directement depuis Trello
                 const perfData = getCampaignPerformanceData(card);
-                const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
+                let adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
+                // Fallback: chercher dans les données Trello si disponible
+                if (!adxId && card.adxId) {
+                    adxId = card.adxId;
+                }
                 
                 const div = document.createElement('div');
                 div.className = `p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${urgencyClass}`;
@@ -1812,6 +1827,9 @@
                             <span class="font-semibold text-gray-900 dark:text-white text-base truncate" title="${campaign.campaignName || 'Sans nom'}">${campaign.campaignName || 'Sans nom'}</span>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
+                            <button onclick="copyCampaignInfo_${alertId}()" class="px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded shadow-sm" title="Copier les informations">
+                                📋 Copier
+                            </button>
                             ${campaign.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
@@ -1867,6 +1885,64 @@
                     </div>
                 </div>
             `;
+            
+            // Créer la fonction de copie pour cette campagne
+            window[`copyCampaignInfo_${alertId}`] = function() {
+                // Formater les informations de la campagne
+                const priorityText = campaign.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
+                const novaLink = campaign.campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}` : 'N/A';
+                const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A';
+                
+                // Formater les alertes
+                let alertsText = '';
+                if (alert.reasons && alert.reasons.length > 0) {
+                    alertsText = alert.reasons.map(r => `  • ${r}`).join('\n');
+                } else {
+                    alertsText = '  Aucune alerte spécifique';
+                }
+                
+                // Formater les badges de catégorie
+                const categoriesText = categoryBadges.length > 0 
+                    ? categoryBadges.map(b => b.label).join(', ')
+                    : 'Aucun';
+                
+                const text = `${priorityText}📊 ALERTE PERFORMANCE
+
+Campagne: ${campaign.campaignName || 'Sans nom'}
+Trader: ${trader}
+Commercial: ${alert.commercial || 'N/A'}
+
+📅 Durée: ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
+${alert.deliveryProgress !== null ? `📈 Progression volume: ${Math.round(alert.deliveryProgress)}%` : ''}
+${alert.marginRate !== null ? `💰 Marge: ${alert.marginRate.toFixed(1)}%` : ''}
+
+🏷️ Catégories: ${categoriesText}
+
+⚠️ Alertes:
+${alertsText}
+
+🔗 Liens:
+Nova: ${novaLink}
+ADX: ${adxLink}`;
+
+                // Copier dans le presse-papier
+                navigator.clipboard.writeText(text).then(() => {
+                    // Feedback visuel
+                    const btn = event.target.closest('button');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ Copié !';
+                    btn.classList.remove('bg-gray-500', 'hover:bg-gray-600');
+                    btn.classList.add('bg-green-500');
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('bg-green-500');
+                        btn.classList.add('bg-gray-500', 'hover:bg-gray-600');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Erreur copie:', err);
+                    alert('Erreur lors de la copie');
+                });
+            };
             
             container.appendChild(div);
         }
