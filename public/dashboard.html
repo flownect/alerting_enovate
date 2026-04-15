@@ -1780,6 +1780,9 @@
             const campaign = alert.campaign;
             const trader = alert.trader;
             
+            // Générer un ID unique pour cette alerte
+            const alertId = `perf-${Math.random().toString(36).substr(2, 9)}`;
+            
             // Calcul durée et progression
             const percent = Math.round(alert.durationProgress || 0);
             const daysLeft = alert.daysLeft || 0;
