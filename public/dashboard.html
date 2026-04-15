@@ -696,11 +696,21 @@
             if (campaignStatsData.data.length > 0) {
                 const sample = campaignStatsData.data[0];
                 console.log('Sample campaign:', sample.campaignName);
+                console.log('  - briefId:', sample.briefId);
+                console.log('  - campaignId:', sample.campaignId);
+                console.log('  - adxId:', sample.adxId);
+                console.log('  - adxDisplayId:', sample.adxDisplayId);
                 console.log('  - data:', sample.data ? Object.keys(sample.data) : 'ABSENT');
                 console.log('  - objectives:', sample.objectives ? Object.keys(sample.objectives) : 'ABSENT');
                 console.log('  - impressions data:', sample.data?.impressions);
                 console.log('  - impressions objective:', sample.objectives?.impressions);
                 console.log('  - marginRate:', sample.data?.marginRate);
+                
+                // Afficher quelques noms de campagnes pour voir le format
+                console.log('Premiers noms de campagnes:');
+                campaignStatsData.data.slice(0, 5).forEach(c => {
+                    console.log('  -', c.campaignName, '| briefId:', c.briefId, '| adxId:', c.adxDisplayId || c.adxId);
+                });
             }
             
             const alerts = [];
