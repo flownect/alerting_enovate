@@ -972,6 +972,12 @@
                 const perfData = getCampaignPerformanceData(c);
                 const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
                 
+                // Debug: afficher les infos de matching
+                console.log('Popup Prioritaires - Campagne:', c.title);
+                console.log('  campaignId:', c.campaignId);
+                console.log('  perfData trouvé:', !!perfData);
+                console.log('  adxId:', adxId);
+                
                 return `
                 <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 gap-3">
                     <div class="flex-1 min-w-0">
@@ -1300,6 +1306,17 @@
             // Liens ADX (utiliser adxDisplayId pour l'URL)
             let adxLinks = '';
             const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
+            
+            // Debug: afficher les infos de matching
+            console.log('Alerte - Campagne:', card.title);
+            console.log('  campaignId:', card.campaignId);
+            console.log('  perfData trouvé:', !!perfData);
+            if (perfData) {
+                console.log('  perfData.adxDisplayId:', perfData.adxDisplayId);
+                console.log('  perfData.adxId:', perfData.adxId);
+            }
+            console.log('  adxId final:', adxId);
+            
             if (adxId) {
                 adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
             }
