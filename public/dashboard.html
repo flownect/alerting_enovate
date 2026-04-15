@@ -787,9 +787,13 @@
                 const impressionsData = campaign.data?.impressions;
                 const yesterday = impressionsData?.yesterday || 0;
                 
-                // Si 0 impressions hier = campagne ne diffuse pas actuellement
+                // Vérifier si la campagne a démarré (ne pas alerter si elle commence aujourd'hui)
+                const campaignStartDate = parseDate(campaign.vStartDate);
+                const hasStarted = campaignStartDate && campaignStartDate < now;
+                
+                // Si 0 impressions hier ET campagne déjà démarrée = campagne ne diffuse pas
                 // L'alerte disparaît automatiquement dès que ça relivre (yesterday > 0)
-                if (yesterday === 0) {
+                if (yesterday === 0 && hasStarted) {
                     level = 'critique';
                     reasons.push(`Campagne ne diffuse pas (0 impressions hier)`);
                 }
@@ -1394,6 +1398,7 @@
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
                                 <div class="text-gray-600 dark:text-gray-400">${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">${card.dates?.startingDateFormatted || 'N/A'} → ${card.dates?.endingDateFormatted || 'N/A'}</div>
                             </div>
                             ${budget > 0 ? `
                             <div class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
@@ -1947,6 +1952,7 @@
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
                                 <div class="text-gray-600 dark:text-gray-400">${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">${campaign.vStartDate || 'N/A'} → ${campaign.vEndDate || 'N/A'}</div>
                             </div>
                         </div>
                         
@@ -1983,12 +1989,13 @@
                 </div>
             `;
             
-            // Créer la fonction de copie pour cette campagne
-            window[`copyCampaignInfo_${alertId}`] = function() {
-                // Formater les informations de la campagne
-                const priorityText = campaign.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
-                const novaLink = perfData?.campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}` : 'N/A';
-                const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A';
+            // Créer la fonction de copie pour cette campagne (capturer les variables)
+            window[`copyCampaignInfo_${alertId}`] = (function(campaign, alert, trader, duration, categoryBadges, adxId, perfData) {
+                return function() {
+                    // Formater les informations de la campagne
+                    const priorityText = campaign.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
+                    const novaLink = perfData?.campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}` : 'N/A';
+                    const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A';
                 
                 // Formater les alertes
                 let alertsText = '';
@@ -2039,7 +2046,8 @@ ADX: ${adxLink}`;
                     console.error('Erreur copie:', err);
                     alert('Erreur lors de la copie');
                 });
-            };
+                };
+            })(campaign, alert, trader, duration, categoryBadges, adxId, perfData);
             
             container.appendChild(div);
         }
