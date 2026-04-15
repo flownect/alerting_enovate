@@ -983,16 +983,6 @@
             
             const campaigns = stats.priorityCampaigns;
             const campaignsList = campaigns.map(c => {
-                // Récupérer l'ADX ID depuis les données de performance
-                const perfData = getCampaignPerformanceData(c);
-                const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
-                
-                // Debug: afficher les infos de matching
-                console.log('Popup Prioritaires - Campagne:', c.title);
-                console.log('  campaignId:', c.campaignId);
-                console.log('  perfData trouvé:', !!perfData);
-                console.log('  adxId:', adxId);
-                
                 return `
                 <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 gap-3">
                     <div class="flex-1 min-w-0">
@@ -1003,8 +993,8 @@
                         </div>
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
-                        ${perfData?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
-                        ${adxId ? `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
+                        ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
+                        ${c.adxCampaignUrl ? `<a href="${c.adxCampaignUrl}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
                     </div>
                 </div>
                 `;
@@ -1343,22 +1333,10 @@
                 `;
             }
             
-            // Liens ADX (utiliser adxDisplayId pour l'URL)
+            // Lien ADX depuis Trello (URL complète déjà construite)
             let adxLinks = '';
-            const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
-            
-            // Debug: afficher les infos de matching
-            console.log('Alerte - Campagne:', card.title);
-            console.log('  campaignId:', card.campaignId);
-            console.log('  perfData trouvé:', !!perfData);
-            if (perfData) {
-                console.log('  perfData.adxDisplayId:', perfData.adxDisplayId);
-                console.log('  perfData.adxId:', perfData.adxId);
-            }
-            console.log('  adxId final:', adxId);
-            
-            if (adxId) {
-                adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
+            if (card.adxCampaignUrl) {
+                adxLinks = `<a href="${card.adxCampaignUrl}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
             }
             
             const div = document.createElement('div');
@@ -1372,7 +1350,7 @@
                             <span class="font-semibold text-gray-900 dark:text-white text-base truncate" title="${card.title || 'Sans nom'}">${card.title || 'Sans nom'}</span>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            ${perfData?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
+                            ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
                     </div>
@@ -1616,10 +1594,6 @@
                 const tags = card.tags || [];
                 const tagsHtml = tags.map(t => `<span class="bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded">${t}</span>`).join('');
                 
-                // Récupérer ADX ID depuis les données de performance
-                const perfData = getCampaignPerformanceData(card);
-                const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
-                
                 const div = document.createElement('div');
                 div.className = `p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${urgencyClass}`;
                 div.innerHTML = `
@@ -1628,8 +1602,8 @@
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="font-mono text-xs px-2 py-1 rounded ${daysToStart <= 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : daysToStart <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${timing}</span>
                                 ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
-                                ${perfData?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
-                                ${adxId ? `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>` : ''}
+                                ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
+                                ${card.adxCampaignUrl ? `<a href="${card.adxCampaignUrl}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>` : ''}
                             </div>
                             <h4 class="font-semibold text-gray-900 dark:text-white">${card.title || 'Sans nom'}</h4>
                             <div class="mt-2 grid md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
@@ -1672,10 +1646,6 @@
             // Créer la popup avec la liste des campagnes
             const title = type === 'launches' ? '🚀 Lancements programmés' : '📊 Bilans à saisir';
             const campaignsList = cards.map(c => {
-                // Récupérer l'ADX ID depuis les données de performance
-                const perfData = getCampaignPerformanceData(c);
-                const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
-                
                 return `
                 <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 gap-3">
                     <div class="flex-1 min-w-0">
@@ -1687,8 +1657,8 @@
                         </div>
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
-                        ${perfData?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
-                        ${adxId ? `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
+                        ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
+                        ${c.adxCampaignUrl ? `<a href="${c.adxCampaignUrl}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
                     </div>
                 </div>
                 `;
@@ -1936,7 +1906,7 @@
                             <button onclick="copyCampaignInfo_${alertId}()" class="px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded shadow-sm" title="Copier les informations">
                                 📋 Copier
                             </button>
-                            ${perfData?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
+                            ${campaign.briefId?.briefCampaignInfo?.[0] ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
                     </div>
@@ -1998,7 +1968,7 @@
                 return function() {
                     // Formater les informations de la campagne
                     const priorityText = campaign.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
-                    const novaLink = perfData?.campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${perfData.campaignId}` : 'N/A';
+                    const novaLink = campaign.briefId?.briefCampaignInfo?.[0] ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}` : 'N/A';
                     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A';
                 
                 // Formater les alertes
