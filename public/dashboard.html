@@ -2059,6 +2059,8 @@ ADX: ${adxLink}`;
             const noPerf = document.getElementById('no-performance');
             container.innerHTML = '';
             
+            console.log('🔍 renderPerformance appelé, allPerformanceAlerts:', allPerformanceAlerts.length);
+            
             const faibleAlerts = allPerformanceAlerts.filter(a => a.level === 'faible');
             const alerteAlerts = allPerformanceAlerts.filter(a => a.level === 'alerte');
             const critiqueAlerts = allPerformanceAlerts.filter(a => a.level === 'critique');
