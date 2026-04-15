@@ -1361,17 +1361,21 @@
                         <div class="w-[30%] space-y-2 text-xs">
                             ${card.isProgrammable ? `
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trader</div>
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trader(s)</div>
                                 <div class="text-gray-600 dark:text-gray-400">${trader}</div>
                             </div>
                             ` : `
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trinôme</div>
-                                <div class="text-gray-600 dark:text-gray-400">${card.commercial || 'N/A'} / ${card.accountManager || 'N/A'} / ${trader}</div>
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trader(s)</div>
+                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
                             </div>
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Sale-CSM</div>
-                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Commercial</div>
+                                <div class="text-gray-600 dark:text-gray-400">${card.commercial || 'N/A'}</div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Account Manager</div>
+                                <div class="text-gray-600 dark:text-gray-400">${card.accountManager || 'N/A'}</div>
                             </div>
                             `}
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
@@ -1916,12 +1920,16 @@
                         <!-- Colonne gauche 30% -->
                         <div class="w-[30%] space-y-2 text-xs">
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trinôme</div>
-                                <div class="text-gray-600 dark:text-gray-400">${alert.commercial || 'N/A'} / N/A / ${trader}</div>
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Trader(s)</div>
+                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
                             </div>
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Sale-CSM</div>
-                                <div class="text-gray-600 dark:text-gray-400">${trader}</div>
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Commercial</div>
+                                <div class="text-gray-600 dark:text-gray-400">${alert.commercial || 'N/A'}</div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Account Manager</div>
+                                <div class="text-gray-600 dark:text-gray-400">N/A</div>
                             </div>
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
