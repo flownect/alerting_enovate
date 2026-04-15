@@ -1824,6 +1824,9 @@
             // Générer un ID unique pour cette alerte
             const alertId = `perf-${Math.random().toString(36).substr(2, 9)}`;
             
+            // Récupérer perfData (pour les liens et la fonction copier)
+            const perfData = campaign; // Dans les alertes de performance, campaign EST déjà perfData
+            
             // Calcul durée et progression
             const percent = Math.round(alert.durationProgress || 0);
             const daysLeft = alert.daysLeft || 0;
