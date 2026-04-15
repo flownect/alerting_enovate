@@ -786,16 +786,17 @@
                 // CRITIQUE - Campagne ne diffuse pas actuellement
                 const impressionsData = campaign.data?.impressions;
                 const yesterday = impressionsData?.yesterday || 0;
+                const today = impressionsData?.value1 || 0; // Impressions aujourd'hui
                 
                 // Vérifier si la campagne a démarré (ne pas alerter si elle commence aujourd'hui)
                 const campaignStartDate = parseDate(campaign.vStartDate);
                 const hasStarted = campaignStartDate && campaignStartDate < now;
                 
-                // Si 0 impressions hier ET campagne déjà démarrée = campagne ne diffuse pas
-                // L'alerte disparaît automatiquement dès que ça relivre (yesterday > 0)
-                if (yesterday === 0 && hasStarted) {
+                // Si 0 impressions aujourd'hui ET campagne déjà démarrée = campagne ne diffuse pas
+                // L'alerte disparaît automatiquement dès que ça relivre (today > 0)
+                if (today === 0 && hasStarted) {
                     level = 'critique';
-                    reasons.push(`Campagne ne diffuse pas (0 impressions hier)`);
+                    reasons.push(`Campagne ne diffuse pas (0 impressions aujourd'hui)`);
                 }
                 
                 // Alertes objectifs (principal + secondaire) à partir de 50% durée
