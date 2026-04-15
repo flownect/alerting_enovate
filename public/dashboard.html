@@ -1182,6 +1182,14 @@
                 perfData = campaignStatsData.data.find(c => 
                     c.campaignName && c.campaignName.toLowerCase() === card.title.toLowerCase()
                 );
+                
+                // Debug: si trouvé par nom, afficher les IDs
+                if (perfData) {
+                    console.log('✅ Match par nom:', card.title);
+                    console.log('  Trello campaignId:', card.campaignId);
+                    console.log('  Stats campaignId:', perfData.campaignId);
+                    console.log('  ADX ID:', perfData.adxDisplayId || perfData.adxId);
+                }
             }
             
             return perfData;
