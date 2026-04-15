@@ -1183,29 +1183,25 @@
         function getCampaignPerformanceData(card) {
             if (!campaignStatsData?.data) return null;
             
-            // Extraire l'ID Nova du titre (format: [12345] Nom_Campagne)
-            let novaId = null;
+            // Extraire l'ID entre crochets du titre (format: [12345] Nom_Campagne)
+            let extractedId = null;
             if (card.title) {
                 const match = card.title.match(/^\[(\d+)\]/);
                 if (match) {
-                    novaId = match[1];
+                    extractedId = parseInt(match[1], 10);
                 }
             }
             
             // Trouver la campagne correspondante dans campaign-stats
             let perfData = null;
             
-            // 1. Chercher par ID Nova dans le nom de campagne
-            if (novaId) {
-                perfData = campaignStatsData.data.find(c => {
-                    if (!c.campaignName) return false;
-                    const statsMatch = c.campaignName.match(/^\[(\d+)\]/);
-                    return statsMatch && statsMatch[1] === novaId;
-                });
+            // 1. Chercher par adxDisplayId (l'ID entre crochets correspond à adxDisplayId)
+            if (extractedId) {
+                perfData = campaignStatsData.data.find(c => c.adxDisplayId === extractedId);
                 
                 if (perfData) {
-                    console.log('✅ Match par ID Nova:', novaId, '-', card.title);
-                    console.log('  ADX ID:', perfData.adxDisplayId || perfData.adxId);
+                    console.log('✅ Match par adxDisplayId:', extractedId, '-', card.title);
+                    console.log('  ADX ID:', perfData.adxDisplayId);
                 }
             }
             
@@ -1214,10 +1210,12 @@
                 perfData = campaignStatsData.data.find(c => c.campaignId === card.campaignId);
             }
             
-            // 3. Fallback: chercher par nom exact
+            // 3. Fallback: chercher par nom (sans l'ID entre crochets)
             if (!perfData && card.title) {
+                // Enlever l'ID entre crochets du titre Trello
+                const titleWithoutId = card.title.replace(/^\[\d+\]\s*/, '');
                 perfData = campaignStatsData.data.find(c => 
-                    c.campaignName && c.campaignName.toLowerCase() === card.title.toLowerCase()
+                    c.campaignName && c.campaignName.toLowerCase() === titleWithoutId.toLowerCase()
                 );
             }
             
