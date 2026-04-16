@@ -61,7 +61,7 @@ ORDER BY total_programmed DESC;
 -- Vue pour stats par période (30 derniers jours)
 CREATE OR REPLACE VIEW v_programming_stats_30d AS
 SELECT 
-    csm_name,
+    COALESCE(csm_name, trader_name) as csm_name,
     COUNT(*) as total_programmed,
     COUNT(*) FILTER (WHERE days_before_start = 0) as late_j0,
     COUNT(*) FILTER (WHERE days_before_start = 1) as late_j1,
@@ -71,8 +71,8 @@ SELECT
     MAX(programmed_at) as last_programmed_at
 FROM campaign_programming
 WHERE programmed_at >= NOW() - INTERVAL '30 days'
-  AND csm_name IS NOT NULL
-GROUP BY csm_name
+  AND (csm_name IS NOT NULL OR trader_name IS NOT NULL)
+GROUP BY COALESCE(csm_name, trader_name)
 ORDER BY COUNT(*) FILTER (WHERE days_before_start <= 2) DESC;
 
 -- Table pour les commentaires sur les campagnes

@@ -358,6 +358,41 @@ app.get('/api/programming-stats', async (req, res) => {
 });
 
 // ==================== CAMPAIGN COMMENTS ====================
+// Récupérer le nombre de commentaires pour toutes les campagnes
+app.get('/api/comments-count', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.json({ success: true, data: {} });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query(
+            'SELECT campaign_id, COUNT(*) as count FROM campaign_comments GROUP BY campaign_id'
+        );
+        await client.end();
+        
+        // Convertir en objet { campaignId: count }
+        const counts = {};
+        result.rows.forEach(row => {
+            counts[row.campaign_id] = parseInt(row.count);
+        });
+        
+        res.json({
+            success: true,
+            data: counts
+        });
+    } catch (error) {
+        log('API', `❌ Erreur récupération compteurs: ${error.message}`);
+        res.json({ success: true, data: {} });
+    }
+});
+
 // Récupérer les commentaires d'une campagne
 app.get('/api/comments/:campaignId', async (req, res) => {
     if (!process.env.DATABASE_URL) {

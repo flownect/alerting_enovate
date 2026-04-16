@@ -388,6 +388,7 @@
         let useNewCardDesign = false; // Toggle pour nouveau design
         let allPerformanceAlerts = [];
         let teamStatsCache = {}; // Cache des stats par team pour la popup
+        let commentsCountCache = {}; // Cache du nombre de commentaires par campagne
 
         // ==================== HELPERS ====================
         function normalizeTraderName(name) {
@@ -1062,17 +1063,13 @@
                             </button>
                         </div>
                         <div class="p-4">
-                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">${campaignName || 'Campagne'}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">ID: ${campaignId}</p>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">${campaignName || 'Campagne'}</p>
                         </div>
                         <div class="flex-1 overflow-y-auto p-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
                             ${commentsHtml}
                         </div>
                         <div class="p-4 border-t border-gray-200 dark:border-gray-700">
                             <form onsubmit="addCampaignComment(event, '${campaignId}', '${campaignName?.replace(/'/g, "\\'")}'); return false;">
-                                <div class="mb-2">
-                                    <input type="text" id="comment-author" placeholder="Votre nom (optionnel)" class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                                </div>
                                 <div class="flex gap-2">
                                     <textarea id="comment-text" placeholder="Ajouter un commentaire..." rows="2" class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required></textarea>
                                     <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded">Envoyer</button>
@@ -1093,7 +1090,6 @@
         async function addCampaignComment(event, campaignId, campaignName) {
             event.preventDefault();
             
-            const author = document.getElementById('comment-author').value.trim();
             const commentText = document.getElementById('comment-text').value.trim();
             
             if (!commentText) return;
@@ -1106,7 +1102,7 @@
                         campaignId,
                         campaignName,
                         commentText,
-                        author: author || 'Anonyme'
+                        author: 'Utilisateur'
                     })
                 });
                 
@@ -1117,9 +1113,14 @@
                     return;
                 }
                 
-                // Recharger la popup
+                // Recharger le cache et la popup
+                await loadCommentsCount();
                 document.querySelector('.fixed.inset-0').remove();
                 showCampaignComments(campaignId, campaignName);
+                
+                // Re-render les cartes pour mettre à jour les badges
+                renderAlerts();
+                renderPerformance();
                 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -1148,9 +1149,14 @@
                     return;
                 }
                 
-                // Recharger la popup
+                // Recharger le cache et la popup
+                await loadCommentsCount();
                 document.querySelector('.fixed.inset-0').remove();
                 showCampaignComments(campaignId, campaignName);
+                
+                // Re-render les cartes pour mettre à jour les badges
+                renderAlerts();
+                renderPerformance();
                 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -1173,9 +1179,14 @@
                     return;
                 }
                 
-                // Recharger la popup
+                // Recharger le cache et la popup
+                await loadCommentsCount();
                 document.querySelector('.fixed.inset-0').remove();
                 showCampaignComments(campaignId, campaignName);
+                
+                // Re-render les cartes pour mettre à jour les badges
+                renderAlerts();
+                renderPerformance();
                 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -1556,7 +1567,7 @@
                             <span class="font-semibold text-gray-900 dark:text-white text-base truncate" title="${card.title || 'Sans nom'}">${card.title || 'Sans nom'}</span>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            ${card.campaignId ? `<button onclick="showCampaignComments('${card.campaignId}', '${(card.title || 'Sans nom').replace(/'/g, "\\'")}'); event.stopPropagation();" class="px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded shadow-sm" title="Commentaires">💬</button>` : ''}
+                            ${card.campaignId ? `<button onclick="showCampaignComments('${card.campaignId}', '${(card.title || 'Sans nom').replace(/'/g, "\\'")}'); event.stopPropagation();" class="relative px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded shadow-sm" title="Commentaires">💬${commentsCountCache[card.campaignId] ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${commentsCountCache[card.campaignId]}</span>` : ''}</button>` : ''}
                             ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
@@ -2127,7 +2138,7 @@
                             <span class="font-semibold text-gray-900 dark:text-white text-base truncate" title="${campaign.campaignName || 'Sans nom'}">${campaign.campaignName || 'Sans nom'}</span>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            ${campaign.briefId?.briefCampaignInfo?.[0] ? `<button onclick="showCampaignComments('${campaign.briefId.briefCampaignInfo[0]}', '${(campaign.campaignName || 'Sans nom').replace(/'/g, "\\'")}'); event.stopPropagation();" class="px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded shadow-sm" title="Commentaires">💬</button>` : ''}
+                            ${campaign.briefId?.briefCampaignInfo?.[0] ? `<button onclick="showCampaignComments('${campaign.briefId.briefCampaignInfo[0]}', '${(campaign.campaignName || 'Sans nom').replace(/'/g, "\\'")}'); event.stopPropagation();" class="relative px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded shadow-sm" title="Commentaires">💬${commentsCountCache[campaign.briefId.briefCampaignInfo[0]] ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${commentsCountCache[campaign.briefId.briefCampaignInfo[0]]}</span>` : ''}</button>` : ''}
                             <button onclick="copyCampaignInfo_${alertId}()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded shadow-sm" title="Copier les informations">
                                 📋 Copier
                             </button>
@@ -2556,10 +2567,26 @@ ADX: ${adxLink}`;
             document.getElementById('stat-launches').textContent = launchesNext7Days;
         }
 
+        // Charger le nombre de commentaires pour toutes les campagnes
+        async function loadCommentsCount() {
+            try {
+                const response = await fetch('/api/comments-count');
+                const result = await response.json();
+                if (result.success) {
+                    commentsCountCache = result.data;
+                }
+            } catch (error) {
+                console.error('Erreur chargement compteurs commentaires:', error);
+            }
+        }
+        
         // ==================== INIT ====================
         async function init() {
             // Charger la préférence de design
             loadCardDesignPreference();
+            
+            // Charger le nombre de commentaires
+            loadCommentsCount();
             
             // Charger Trello d'abord, puis afficher le dashboard
             const trelloSuccess = await fetchData();
