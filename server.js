@@ -440,6 +440,104 @@ app.post('/api/comments', async (req, res) => {
     }
 });
 
+// Modifier un commentaire
+app.put('/api/comments/:commentId', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const { commentId } = req.params;
+        const { commentText } = req.body;
+        
+        if (!commentText) {
+            return res.status(400).json({
+                success: false,
+                error: 'commentText is required'
+            });
+        }
+        
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query(
+            'UPDATE campaign_comments SET comment_text = $1 WHERE id = $2 RETURNING *',
+            [commentText, commentId]
+        );
+        await client.end();
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Comment not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        log('API', `❌ Erreur modification commentaire: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Supprimer un commentaire
+app.delete('/api/comments/:commentId', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const { commentId } = req.params;
+        
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query(
+            'DELETE FROM campaign_comments WHERE id = $1 RETURNING *',
+            [commentId]
+        );
+        await client.end();
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Comment not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        log('API', `❌ Erreur suppression commentaire: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== PROGRAMMING TRACKER ====================
 // Tracking automatique 3x par jour: 8h, 14h, 20h
 let trelloCache = null;
