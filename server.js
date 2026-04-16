@@ -402,6 +402,45 @@ app.get('/api/debug/programming', async (req, res) => {
     }
 });
 
+// Vider la table de programmation (reset)
+app.post('/api/reset/programming', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.json({ success: false, error: 'Database not configured' });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        
+        // Compter avant suppression
+        const countBefore = await client.query('SELECT COUNT(*) FROM campaign_programming');
+        
+        // Vider la table
+        await client.query('TRUNCATE TABLE campaign_programming');
+        
+        await client.end();
+        
+        log('API', `🗑️  Table campaign_programming vidée (${countBefore.rows[0].count} lignes supprimées)`);
+        
+        res.json({
+            success: true,
+            message: `Table vidée avec succès`,
+            deletedCount: parseInt(countBefore.rows[0].count)
+        });
+    } catch (error) {
+        log('API', `❌ Erreur reset: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== CAMPAIGN COMMENTS ====================
 // Récupérer le nombre de commentaires pour toutes les campagnes
 app.get('/api/comments-count', async (req, res) => {
