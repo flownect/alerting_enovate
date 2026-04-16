@@ -39,7 +39,7 @@ class ProgrammingTracker {
         try {
             await this.connect();
 
-            const programmedCampaigns = this.findProgrammedCampaigns(trelloData);
+            const programmedCampaigns = await this.findProgrammedCampaigns(trelloData);
             console.log(`🎯 ${programmedCampaigns.length} campagnes programmées trouvées`);
             
             let newCount = 0;
