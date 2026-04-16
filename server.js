@@ -357,6 +357,51 @@ app.get('/api/programming-stats', async (req, res) => {
     }
 });
 
+// ==================== DEBUG PROGRAMMING ====================
+// Debug endpoint pour voir les données brutes
+app.get('/api/debug/programming', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.json({ success: false, error: 'Database not configured' });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        
+        // Récupérer toutes les données des 30 derniers jours
+        const rawData = await client.query(`
+            SELECT campaign_id, campaign_name, csm_name, trader_name, programmed_at, days_before_start
+            FROM campaign_programming
+            WHERE programmed_at >= NOW() - INTERVAL '30 days'
+            ORDER BY programmed_at DESC
+            LIMIT 50
+        `);
+        
+        // Récupérer la vue
+        const viewData = await client.query('SELECT * FROM v_programming_stats_30d');
+        
+        await client.end();
+        
+        res.json({
+            success: true,
+            rawData: rawData.rows,
+            viewData: viewData.rows,
+            count: rawData.rows.length
+        });
+    } catch (error) {
+        log('API', `❌ Erreur debug: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== CAMPAIGN COMMENTS ====================
 // Récupérer le nombre de commentaires pour toutes les campagnes
 app.get('/api/comments-count', async (req, res) => {
