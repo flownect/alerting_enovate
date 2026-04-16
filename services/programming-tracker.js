@@ -104,7 +104,7 @@ class ProgrammingTracker {
                             campaigns.push({
                                 campaign_id: card.campaignId,
                                 campaign_name: card.name,
-                                csm_name: card.commercial,
+                                csm_name: card.accountManager || card.commercial || null,
                                 trader_name: this.getFirstTrader(card.trader),
                                 programmed_at: now,
                                 campaign_start_date: startDate,

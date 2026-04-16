@@ -357,6 +357,89 @@ app.get('/api/programming-stats', async (req, res) => {
     }
 });
 
+// ==================== CAMPAIGN COMMENTS ====================
+// Récupérer les commentaires d'une campagne
+app.get('/api/comments/:campaignId', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const { campaignId } = req.params;
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query(
+            'SELECT * FROM campaign_comments WHERE campaign_id = $1 ORDER BY created_at DESC',
+            [campaignId]
+        );
+        await client.end();
+        
+        res.json({
+            success: true,
+            data: result.rows
+        });
+    } catch (error) {
+        log('API', `❌ Erreur récupération commentaires: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Ajouter un commentaire
+app.post('/api/comments', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const { campaignId, campaignName, commentText, author } = req.body;
+        
+        if (!campaignId || !commentText) {
+            return res.status(400).json({
+                success: false,
+                error: 'campaignId and commentText are required'
+            });
+        }
+        
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query(
+            'INSERT INTO campaign_comments (campaign_id, campaign_name, comment_text, author) VALUES ($1, $2, $3, $4) RETURNING *',
+            [campaignId, campaignName, commentText, author || 'Anonyme']
+        );
+        await client.end();
+        
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+    } catch (error) {
+        log('API', `❌ Erreur ajout commentaire: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== PROGRAMMING TRACKER ====================
 // Tracking automatique 3x par jour: 8h, 14h, 20h
 let trelloCache = null;

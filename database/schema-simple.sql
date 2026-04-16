@@ -67,13 +67,29 @@ SELECT
     COUNT(*) FILTER (WHERE days_before_start = 1) as late_j1,
     COUNT(*) FILTER (WHERE days_before_start = 2) as late_j2,
     COUNT(*) FILTER (WHERE days_before_start = 3) as on_time_j3,
-    COUNT(*) FILTER (WHERE days_before_start > 3) as on_time_j3_plus
+    COUNT(*) FILTER (WHERE days_before_start > 3) as on_time_j3_plus,
+    MAX(programmed_at) as last_programmed_at
 FROM campaign_programming
 WHERE programmed_at >= NOW() - INTERVAL '30 days'
   AND csm_name IS NOT NULL
 GROUP BY csm_name
 ORDER BY COUNT(*) FILTER (WHERE days_before_start <= 2) DESC;
 
+-- Table pour les commentaires sur les campagnes
+CREATE TABLE IF NOT EXISTS campaign_comments (
+    id SERIAL PRIMARY KEY,
+    campaign_id VARCHAR(50) NOT NULL,
+    campaign_name TEXT,
+    comment_text TEXT NOT NULL,
+    author VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Index pour recherche rapide par campagne
+CREATE INDEX IF NOT EXISTS idx_campaign_comments_campaign ON campaign_comments(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_comments_date ON campaign_comments(created_at DESC);
+
 -- Commentaires
 COMMENT ON TABLE campaign_programming IS 'Suivi des dates de programmation des campagnes par CSM';
 COMMENT ON COLUMN campaign_programming.days_before_start IS 'Nombre de jours avant le début (0=J0, 1=J-1, 2=J-2, négatif=en retard)';
+COMMENT ON TABLE campaign_comments IS 'Commentaires sur les campagnes, persistants et associés à l''ID Nova';
