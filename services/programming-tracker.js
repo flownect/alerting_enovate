@@ -63,9 +63,9 @@ class ProgrammingTracker {
     }
 
     /**
-     * Trouver toutes les campagnes programmées
+     * Trouver toutes les campagnes programmées (NOUVELLES uniquement)
      */
-    findProgrammedCampaigns(trelloData) {
+    async findProgrammedCampaigns(trelloData) {
         const campaigns = [];
         const now = new Date();
 
@@ -81,66 +81,64 @@ class ProgrammingTracker {
         let totalCards = 0;
         let programmableCards = 0;
         let programmedCards = 0;
+        let newlyProgrammed = 0;
 
-        for (const lane of lanes) {
-            for (const card of lane.cards || []) {
-                totalCards++;
+        // Récupérer les campagnes déjà enregistrées
+        const existingCampaigns = await this.client.query(
+            'SELECT campaign_id FROM campaign_programming'
+        );
+        const existingIds = new Set(existingCampaigns.rows.map(r => r.campaign_id));
+
+        for (const lane of trelloData.lanes) {
+            // Lanes programmables
+            if (['Programmable', 'Programmé', 'Programmé - En attente', 'Programmé - Validé'].includes(lane.name)) {
+                programmableCards += lane.cards.length;
                 
-                // Seulement les campagnes programmables
-                if (card.isProgrammable) {
-                    programmableCards++;
+                for (const card of lane.cards) {
+                    totalCards++;
                     
-                    // Vérifier si programmée (plusieurs conditions possibles)
-                    const isProgrammed = card.areSubdivisionsProgrammed === true || 
-                                       card.areSubdivisionsProgrammed === 'true' ||
-                                       (card.subdivisions && card.subdivisions.some(sub => sub.isProgrammed === true));
-                    
-                    if (isProgrammed) {
+                    // Carte programmée = a un trackerId
+                    if (card.trackerId) {
                         programmedCards++;
-                        const startDate = this.parseDate(card.dates?.startingDateFormatted);
-                        if (startDate) {
-                            const daysBeforeStart = this.getDaysDiff(now, startDate);
-                            
-                            campaigns.push({
-                                campaign_id: card.campaignId,
-                                campaign_name: card.name,
-                                csm_name: card.accountManager || card.commercial || null,
-                                trader_name: this.getFirstTrader(card.trader),
-                                programmed_at: now,
-                                campaign_start_date: startDate,
-                                days_before_start: daysBeforeStart,
-                                metadata: {
-                                    trackerId: card.trackerId,
-                                    laneId: lane.id,
-                                    laneName: lane.name
-                                }
-                            });
+                        
+                        // Vérifier si c'est une NOUVELLE programmation
+                        if (!existingIds.has(card.campaignId)) {
+                            const startDate = this.parseDate(card.dates?.startingDateFormatted);
+                            if (startDate) {
+                                const daysBeforeStart = this.getDaysDiff(now, startDate);
+                                
+                                newProgrammations.push({
+                                    campaign_id: card.campaignId,
+                                    campaign_name: card.name,
+                                    csm_name: card.accountManager || card.commercial || null,
+                                    trader_name: this.getFirstTrader(card.trader),
+                                    programmed_at: now,
+                                    campaign_start_date: startDate,
+                                    days_before_start: daysBeforeStart,
+                                    metadata: {
+                                        trackerId: card.trackerId,
+                                        laneId: lane.id,
+                                        laneName: lane.name
+                                    }
+                                });
+                                newlyProgrammed++;
+                            }
                         }
                     }
                 }
             }
         }
 
-        console.log(`📊 Cartes analysées: ${totalCards} total, ${programmableCards} programmables, ${programmedCards} programmées`);
-        return campaigns;
+        console.log(`📊 Cartes analysées: ${totalCards} total, ${programmableCards} programmables, ${programmedCards} programmées, ${newlyProgrammed} nouvelles`);
+        return newProgrammations;
     }
 
     /**
-     * Logger une programmation (éviter les doublons)
+     * Logger une nouvelle programmation (pas de vérification de doublon car déjà fait)
      */
     async logProgramming(campaign) {
         try {
-            // Vérifier si existe déjà
-            const existing = await this.client.query(
-                'SELECT id FROM campaign_programming WHERE campaign_id = $1',
-                [campaign.campaign_id]
-            );
-
-            if (existing.rows.length > 0) {
-                return false; // Déjà enregistrée
-            }
-
-            // Insérer
+            // Insérer directement (pas de vérification car déjà filtré)
             await this.client.query(`
                 INSERT INTO campaign_programming 
                 (campaign_id, campaign_name, csm_name, trader_name, programmed_at,
@@ -157,7 +155,7 @@ class ProgrammingTracker {
                 JSON.stringify(campaign.metadata)
             ]);
 
-            return true; // Nouvelle insertion
+            return true;
         } catch (error) {
             console.error(`Erreur lors du log de ${campaign.campaign_id}:`, error.message);
             return false;

@@ -943,7 +943,11 @@
                             <span class="text-gray-500 dark:text-gray-400">Total programmé:</span>
                             <span class="font-bold text-gray-900 dark:text-white ml-2 text-lg">${s.total_programmed}</span>
                         </div>
-                        <div class="grid grid-cols-5 gap-2 text-sm">
+                        <div class="grid grid-cols-6 gap-2 text-sm">
+                            <div class="text-center p-2 bg-purple-100 dark:bg-purple-900/30 rounded">
+                                <div class="text-purple-800 dark:text-purple-300 font-bold text-lg">${s.programmed_after_start || 0}</div>
+                                <div class="text-xs text-purple-600 dark:text-purple-400 mt-1">Après</div>
+                            </div>
                             <div class="text-center p-2 bg-red-100 dark:bg-red-900/30 rounded">
                                 <div class="text-red-800 dark:text-red-300 font-bold text-lg">${s.late_j0}</div>
                                 <div class="text-xs text-red-600 dark:text-red-400 mt-1">J0</div>
@@ -1013,6 +1017,10 @@
                         </div>
                         <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style="flex-shrink: 0;">
                             <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                                <div class="flex items-center gap-1">
+                                    <span class="w-3 h-3 bg-purple-600 rounded"></span>
+                                    <span>Après = Programmé après début</span>
+                                </div>
                                 <div class="flex items-center gap-1">
                                     <span class="w-3 h-3 bg-red-600 rounded"></span>
                                     <span>J0 = Très critique</span>

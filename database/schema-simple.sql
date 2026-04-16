@@ -63,6 +63,7 @@ CREATE OR REPLACE VIEW v_programming_stats_30d AS
 SELECT 
     COALESCE(csm_name, trader_name) as csm_name,
     COUNT(*) as total_programmed,
+    COUNT(*) FILTER (WHERE days_before_start < 0) as programmed_after_start,
     COUNT(*) FILTER (WHERE days_before_start = 0) as late_j0,
     COUNT(*) FILTER (WHERE days_before_start = 1) as late_j1,
     COUNT(*) FILTER (WHERE days_before_start = 2) as late_j2,
