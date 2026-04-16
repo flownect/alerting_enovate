@@ -1863,27 +1863,48 @@
             if (alert.reasons && alert.reasons.length > 0) {
                 alert.reasons.forEach(reason => {
                     // Détecter le type de problème dans la raison
+                    let alertColor = 'bg-gray-50 dark:bg-gray-700/50';
+                    let borderColor = 'border-gray-200 dark:border-gray-600';
+                    let textColor = 'text-gray-700 dark:text-gray-300';
+                    let icon = '';
+                    
                     if (reason.toLowerCase().includes('rebond')) {
                         if (!categoryBadges.find(b => b.label === 'Rebond')) {
                             categoryBadges.push({ label: 'Rebond', color: 'bg-orange-500' });
                         }
-                    } else if (reason.toLowerCase().includes('diffusion')) {
-                        if (!categoryBadges.find(b => b.label === 'Diffusion')) {
-                            categoryBadges.push({ label: 'Diffusion', color: 'bg-red-500' });
+                        alertColor = 'bg-orange-50 dark:bg-orange-900/20';
+                        borderColor = 'border-orange-200 dark:border-orange-800';
+                        textColor = 'text-orange-700 dark:text-orange-300';
+                        icon = '🔄';
+                    } else if (reason.toLowerCase().includes('diffusion') || reason.toLowerCase().includes('impressions')) {
+                        if (!categoryBadges.find(b => b.label === '🚫 Arrêt diffusion')) {
+                            categoryBadges.push({ label: '🚫 Arrêt diffusion', color: 'bg-red-600' });
                         }
+                        alertColor = 'bg-red-50 dark:bg-red-900/20';
+                        borderColor = 'border-red-200 dark:border-red-800';
+                        textColor = 'text-red-700 dark:text-red-300';
+                        icon = '🚫';
                     } else if (reason.toLowerCase().includes('clic')) {
                         if (!categoryBadges.find(b => b.label === 'Clics')) {
                             categoryBadges.push({ label: 'Clics', color: 'bg-orange-500' });
                         }
+                        alertColor = 'bg-orange-50 dark:bg-orange-900/20';
+                        borderColor = 'border-orange-200 dark:border-orange-800';
+                        textColor = 'text-orange-700 dark:text-orange-300';
+                        icon = '👆';
                     } else if (reason.toLowerCase().includes('revenu')) {
                         if (!categoryBadges.find(b => b.label === 'Revenu')) {
                             categoryBadges.push({ label: 'Revenu', color: 'bg-red-500' });
                         }
+                        alertColor = 'bg-red-50 dark:bg-red-900/20';
+                        borderColor = 'border-red-200 dark:border-red-800';
+                        textColor = 'text-red-700 dark:text-red-300';
+                        icon = '💸';
                     }
                     
                     alertsHTML += `
-                        <div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded p-2">
-                            <div class="text-xs text-gray-700 dark:text-gray-300">${reason}</div>
+                        <div class="${alertColor} border ${borderColor} rounded p-2">
+                            <div class="text-xs ${textColor} font-medium">${icon} ${reason}</div>
                         </div>
                     `;
                 });
