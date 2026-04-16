@@ -1876,22 +1876,14 @@
                         borderColor = 'border-orange-200 dark:border-orange-800';
                         textColor = 'text-orange-700 dark:text-orange-300';
                         icon = '🔄';
-                    } else if (reason.toLowerCase().includes('diffusion') || reason.toLowerCase().includes('impressions')) {
-                        if (!categoryBadges.find(b => b.label === '🚫 Arrêt diffusion')) {
-                            categoryBadges.push({ label: '🚫 Arrêt diffusion', color: 'bg-red-600' });
+                    } else if (reason.toLowerCase().includes('diffusion') || reason.toLowerCase().includes('impressions') || reason.toLowerCase().includes('clic')) {
+                        if (!categoryBadges.find(b => b.label === 'Volume')) {
+                            categoryBadges.push({ label: 'Volume', color: 'bg-red-600' });
                         }
                         alertColor = 'bg-red-50 dark:bg-red-900/20';
                         borderColor = 'border-red-200 dark:border-red-800';
                         textColor = 'text-red-700 dark:text-red-300';
-                        icon = '🚫';
-                    } else if (reason.toLowerCase().includes('clic')) {
-                        if (!categoryBadges.find(b => b.label === 'Clics')) {
-                            categoryBadges.push({ label: 'Clics', color: 'bg-orange-500' });
-                        }
-                        alertColor = 'bg-orange-50 dark:bg-orange-900/20';
-                        borderColor = 'border-orange-200 dark:border-orange-800';
-                        textColor = 'text-orange-700 dark:text-orange-300';
-                        icon = '👆';
+                        icon = '📊';
                     } else if (reason.toLowerCase().includes('revenu')) {
                         if (!categoryBadges.find(b => b.label === 'Revenu')) {
                             categoryBadges.push({ label: 'Revenu', color: 'bg-red-500' });
