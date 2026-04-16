@@ -904,8 +904,17 @@
         }
         
         function renderProgrammingStatsModal(stats, sortBy = 'retards') {
-            // Trier les données
-            let sortedStats = [...stats];
+            // Convertir les strings en nombres et trier les données
+            let sortedStats = stats.map(s => ({
+                ...s,
+                total_programmed: parseInt(s.total_programmed) || 0,
+                late_j0: parseInt(s.late_j0) || 0,
+                late_j1: parseInt(s.late_j1) || 0,
+                late_j2: parseInt(s.late_j2) || 0,
+                on_time_j3: parseInt(s.on_time_j3) || 0,
+                on_time_j3_plus: parseInt(s.on_time_j3_plus) || 0
+            }));
+            
             if (sortBy === 'date') {
                 sortedStats.sort((a, b) => new Date(b.last_programmed_at) - new Date(a.last_programmed_at));
             } else if (sortBy === 'total') {
@@ -913,8 +922,8 @@
             } else {
                 // Par défaut: par retards (J0+J-1+J-2)
                 sortedStats.sort((a, b) => {
-                    const retardsA = (a.late_j0 || 0) + (a.late_j1 || 0) + (a.late_j2 || 0);
-                    const retardsB = (b.late_j0 || 0) + (b.late_j1 || 0) + (b.late_j2 || 0);
+                    const retardsA = a.late_j0 + a.late_j1 + a.late_j2;
+                    const retardsB = b.late_j0 + b.late_j1 + b.late_j2;
                     return retardsB - retardsA;
                 });
             }
