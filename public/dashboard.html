@@ -1037,6 +1037,7 @@
                 
                 console.log('🎨 Stats HTML length:', statsHtml.length);
                 console.log('🎨 Creating modal...');
+                console.log('🎨 First 500 chars of statsHtml:', statsHtml.substring(0, 500));
                 
                 // Supprimer l'ancienne modale si elle existe
                 const existingModal = document.querySelector('.fixed.inset-0');
@@ -1048,6 +1049,11 @@
                 console.log('🎨 Appending modal to body');
                 document.body.appendChild(modal);
                 console.log('🎨 Modal appended successfully');
+                
+                // Vérifier que le contenu est bien dans le DOM
+                const gridContainer = modal.querySelector('.grid');
+                console.log('🎨 Grid container found:', gridContainer);
+                console.log('🎨 Grid container children count:', gridContainer?.children.length);
         }
         
         // ==================== CAMPAIGN COMMENTS ====================
