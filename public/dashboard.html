@@ -904,6 +904,9 @@
         }
         
         function renderProgrammingStatsModal(stats, sortBy = 'retards') {
+            console.log('🎨 Rendering modal with stats:', stats);
+            console.log('🎨 Sort by:', sortBy);
+            
             // Convertir les strings en nombres et trier les données
             let sortedStats = stats.map(s => ({
                 ...s,
@@ -914,6 +917,8 @@
                 on_time_j3: parseInt(s.on_time_j3) || 0,
                 on_time_j3_plus: parseInt(s.on_time_j3_plus) || 0
             }));
+            
+            console.log('🎨 Converted stats:', sortedStats);
             
             if (sortBy === 'date') {
                 sortedStats.sort((a, b) => new Date(b.last_programmed_at) - new Date(a.last_programmed_at));
@@ -927,6 +932,8 @@
                     return retardsB - retardsA;
                 });
             }
+            
+            console.log('🎨 Sorted stats:', sortedStats);
                 
                 // Créer le contenu HTML
                 const statsHtml = sortedStats.length > 0 ? sortedStats.map(s => `
@@ -1027,11 +1034,19 @@
                     </div>
                 `;
                 
+                console.log('🎨 Stats HTML length:', statsHtml.length);
+                console.log('🎨 Creating modal...');
+                
                 // Supprimer l'ancienne modale si elle existe
                 const existingModal = document.querySelector('.fixed.inset-0');
-                if (existingModal) existingModal.remove();
+                if (existingModal) {
+                    console.log('🎨 Removing existing modal');
+                    existingModal.remove();
+                }
                 
+                console.log('🎨 Appending modal to body');
                 document.body.appendChild(modal);
+                console.log('🎨 Modal appended successfully');
         }
         
         // ==================== CAMPAIGN COMMENTS ====================
