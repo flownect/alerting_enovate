@@ -877,6 +877,19 @@
                 }
                 
                 programmingStatsData = result.data;
+                
+                // Debug: afficher dans la console
+                console.log('📊 Programming Stats Data:', programmingStatsData);
+                console.log('📊 Nombre de CSM:', programmingStatsData.length);
+                
+                if (programmingStatsData.length === 0) {
+                    // Charger les données de debug
+                    const debugResponse = await fetch('/api/debug/programming');
+                    const debugResult = await debugResponse.json();
+                    console.log('🔍 Debug Data:', debugResult);
+                    alert('Aucune donnée trouvée. Vérifiez la console (F12) pour les détails de debug.');
+                }
+                
                 renderProgrammingStatsModal(programmingStatsData, 'retards');
                 
             } catch (error) {
