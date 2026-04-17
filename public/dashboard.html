@@ -766,13 +766,31 @@
                 
                 const durationProgress = Math.min((elapsedDays / totalDays) * 100, 100);
                 
+                // Calculer le % de diffusion (impressions)
+                const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
+                let deliveryProgressPercent = 0;
+                if (impressionsObjective > 0) {
+                    const impressionsActual = campaign.data?.impressions?.value2 || 0;
+                    deliveryProgressPercent = (impressionsActual / impressionsObjective) * 100;
+                }
+                
+                // Vérifier si la campagne ne diffuse pas (exception au seuil de 20%)
+                const impressionsData = campaign.data?.impressions;
+                const today = impressionsData?.value1 || 0;
+                const campaignStartDate = parseDate(campaign.vStartDate);
+                const hasStarted = campaignStartDate && campaignStartDate < now;
+                const isNotDelivering = (today === 0 && hasStarted);
+                
+                // RÈGLE GLOBALE : Aucune alerte avant 20% de diffusion
+                // SAUF pour "campagne ne diffuse pas" qui est toujours affichée
+                if (deliveryProgressPercent < 20 && !isNotDelivering) continue;
+                
                 // Mapping objectifs → champs data et labels
                 const OBJECTIVE_MAP = {
                     impressions:     { dataField: 'impressions',     label: 'Impressions' },
                     clicks:          { dataField: 'clicks',          label: 'Clics' },
                     conversions:     { dataField: 'conversions',     label: 'Conversions' },
                     evVideoComplete: { dataField: 'evVideoComplete', label: 'Complétions vidéo' },
-                    revenue:         { dataField: 'totalRevenue',    label: 'Revenu' },
                     evUser1:         { dataField: 'evUser4',         label: 'Sessions (evUser1)' },
                     evUser2:         { dataField: 'evUser5',         label: 'Visites LP (evUser2)' },
                     evUser3:         { dataField: 'evUser6',         label: 'Event custom 3 (evUser3)' },
@@ -819,17 +837,10 @@
                 let reasons = [];
                 
                 // CRITIQUE - Campagne ne diffuse pas actuellement
-                const impressionsData = campaign.data?.impressions;
-                const yesterday = impressionsData?.yesterday || 0;
-                const today = impressionsData?.value1 || 0; // Impressions aujourd'hui
-                
-                // Vérifier si la campagne a démarré (ne pas alerter si elle commence aujourd'hui)
-                const campaignStartDate = parseDate(campaign.vStartDate);
-                const hasStarted = campaignStartDate && campaignStartDate < now;
-                
+                // (variables déjà déclarées plus haut)
                 // Si 0 impressions aujourd'hui ET campagne déjà démarrée = campagne ne diffuse pas
                 // L'alerte disparaît automatiquement dès que ça relivre (today > 0)
-                if (today === 0 && hasStarted) {
+                if (isNotDelivering) {
                     level = 'critique';
                     reasons.push(`Campagne ne diffuse pas (0 impressions aujourd'hui)`);
                 }
@@ -1213,6 +1224,11 @@
         
         function calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue) {
             const gapPercent = (gap / benchmark.min) * 100;
+            
+            // RÈGLE SPÉCIALE : Si < 10% du temps restant et pas à l'objectif → Critique
+            if (timePercent > 90 && gap > 0) {
+                return 'critical';
+            }
             
             // Score de base selon l'écart au benchmark
             let baseScore = 0;
