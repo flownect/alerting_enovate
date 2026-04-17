@@ -561,7 +561,10 @@
                 );
                 
                 // Skip cette campagne si c'est une campagne de facturation
-                if (isBillingCampaign) continue;
+                if (isBillingCampaign) {
+                    console.log('🚫 Campagne de facturation exclue:', card.name);
+                    continue;
+                }
                 
                 const startDate = parseDate(card.dates?.startingDateFormatted);
                 const endDate = parseDate(card.dates?.endingDateFormatted);
