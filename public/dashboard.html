@@ -77,6 +77,10 @@
                     <div id="critical-counter" onclick="showCriticalAlerts()" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse cursor-pointer hover:bg-red-700 transition">
                         0 CRITIQUE
                     </div>
+                    <!-- Bouton Slack -->
+                    <button onclick="sendAlertsToSlack()" id="slack-button" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition flex items-center gap-2">
+                        📤 Envoyer sur Slack
+                    </button>
                     <!-- Status APIs -->
                     <div class="flex items-center gap-3 text-xs">
                         <div class="flex items-center gap-1" title="API Trello (Alertes)">
@@ -2492,6 +2496,64 @@ ADX: ${adxLink}`;
             renderAlerts();
             // Scroll vers la section alertes
             document.getElementById('section-alerts').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Fonction pour envoyer les alertes critiques sur Slack
+        async function sendAlertsToSlack() {
+            const btn = document.getElementById('slack-button');
+            const originalText = btn.innerHTML;
+            
+            try {
+                btn.innerHTML = '⏳ Envoi...';
+                btn.disabled = true;
+                
+                // Filtrer les alertes critiques
+                const criticalPerf = allPerformanceAlerts.filter(a => a.level === 'critique');
+                const criticalTraders = allAlerts.filter(a => a.card?.isProgrammable && a.criticality === 'critical');
+                const criticalCommerce = allAlerts.filter(a => !a.card?.isProgrammable && a.criticality === 'critical');
+                
+                const totalCritical = criticalPerf.length + criticalTraders.length + criticalCommerce.length;
+                
+                if (totalCritical === 0) {
+                    btn.innerHTML = '✅ Aucune alerte critique';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                    return;
+                }
+                
+                // Envoyer sur Slack
+                const response = await fetch('/api/slack/send-alerts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        performanceAlerts: criticalPerf,
+                        tradersAlerts: criticalTraders,
+                        commerceAlerts: criticalCommerce
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    btn.innerHTML = `✅ ${totalCritical} alerte${totalCritical > 1 ? 's' : ''} envoyée${totalCritical > 1 ? 's' : ''}`;
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 3000);
+                } else {
+                    throw new Error(result.error || 'Erreur inconnue');
+                }
+                
+            } catch (error) {
+                console.error('Erreur envoi Slack:', error);
+                btn.innerHTML = '❌ Erreur';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 3000);
+            }
         }
         
         // Switch between main tabs (Alerts / Performance / Traders / Launches)

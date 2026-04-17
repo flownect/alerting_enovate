@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const ProgrammingTracker = require('./services/programming-tracker');
+const { startScheduler } = require('./services/slack-scheduler');
 
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
@@ -59,10 +60,16 @@ function createSession() {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Routes
+const slackRouter = require('./routes/slack');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
+
+// API Routes
+app.use('/api/slack', slackRouter);
 
 // Page de login
 app.get('/login', (req, res) => {
@@ -904,5 +911,13 @@ app.listen(PORT, async () => {
     if (process.env.DATABASE_URL) {
         setTimeout(() => runProgrammingTracking(), 5000); // 5s après le démarrage
         scheduleAnalysis(); // Programmer les prochains
+    }
+    
+    // Démarrer le scheduler Slack (si SLACK_WEBHOOK_URL existe)
+    if (process.env.SLACK_WEBHOOK_URL) {
+        startScheduler();
+        log('SLACK', '✅ Scheduler Slack activé - Envoi quotidien à 8h30');
+    } else {
+        log('SLACK', '⚠️ SLACK_WEBHOOK_URL non configurée - Scheduler désactivé');
     }
 });
