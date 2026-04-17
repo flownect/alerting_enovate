@@ -558,25 +558,40 @@
                 const daysToStart = startDate ? getDaysDiff(now, startDate) : null;
                 const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
 
-                // Alerte Lancement - Non programmable (J-3 à J0)
-                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null && daysToStart >= 0 && daysToStart <= 3) {
-                    let criticality = 'attention';
-                    let timing = `J-${daysToStart}`;
-                    // J0 et J-1 (demain) = CRITIQUE
-                    if (daysToStart === 0) { criticality = 'critical'; timing = 'J0'; }
-                    else if (daysToStart === 1) { criticality = 'critical'; timing = 'J-1'; }
-                    else if (daysToStart === 2) { criticality = 'urgent'; timing = 'J-2'; }
-                    
+                // Alerte Lancement - Non programmable (J-3 à J0 et après lancement)
+                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null) {
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
                     
-                    alerts.push({
-                        type: 'launch',
-                        subtype: 'non-programmable',
-                        criticality,
-                        timing,
-                        card,
-                        message: `Campagne non programmable • Lancement: ${launchDate}`
-                    });
+                    // Campagne déjà lancée (jours négatifs)
+                    if (daysToStart < 0) {
+                        const daysLate = Math.abs(daysToStart);
+                        alerts.push({
+                            type: 'launch',
+                            subtype: 'non-programmable-late',
+                            criticality: 'critical',
+                            timing: `+${daysLate}j`,
+                            card,
+                            message: `Non programmable depuis ${daysLate} jour${daysLate > 1 ? 's' : ''} • Lancée: ${launchDate}`
+                        });
+                    }
+                    // Campagne à venir (J-3 à J0)
+                    else if (daysToStart >= 0 && daysToStart <= 3) {
+                        let criticality = 'attention';
+                        let timing = `J-${daysToStart}`;
+                        // J0 et J-1 (demain) = CRITIQUE
+                        if (daysToStart === 0) { criticality = 'critical'; timing = 'J0'; }
+                        else if (daysToStart === 1) { criticality = 'critical'; timing = 'J-1'; }
+                        else if (daysToStart === 2) { criticality = 'urgent'; timing = 'J-2'; }
+                        
+                        alerts.push({
+                            type: 'launch',
+                            subtype: 'non-programmable',
+                            criticality,
+                            timing,
+                            card,
+                            message: `Campagne non programmable • Lancement: ${launchDate}`
+                        });
+                    }
                 }
 
                 // Alerte Lancement - Sans trader (J-3 à J0)
