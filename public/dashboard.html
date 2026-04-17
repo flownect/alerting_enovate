@@ -904,12 +904,23 @@
         // Générer les alertes basées sur les benchmarks
         async function generateBenchmarkAlerts() {
             try {
+                console.log('🔍 Fetching benchmark alerts...');
                 const response = await fetch('/api/performance-analysis');
                 const result = await response.json();
                 
-                if (!result.success || !result.alerts) {
+                console.log('📊 Benchmark API response:', result);
+                
+                if (!result.success) {
+                    console.warn('⚠️ Benchmark API error:', result.error);
                     return [];
                 }
+                
+                if (!result.alerts || result.alerts.length === 0) {
+                    console.log('ℹ️ No benchmark alerts found');
+                    return [];
+                }
+                
+                console.log(`✅ Found ${result.alerts.length} benchmark alerts`);
                 
                 // Convertir les alertes benchmark en format compatible
                 return result.alerts.map(alert => {
@@ -925,7 +936,12 @@
                         c.adxId === alert.trackerId
                     );
                     
-                    if (!campaign) return null;
+                    if (!campaign) {
+                        console.warn('⚠️ Campaign not found for alert:', alert.title, 'trackerId:', alert.trackerId);
+                        return null;
+                    }
+                    
+                    console.log('✅ Matched campaign:', campaign.campaignName);
                     
                     return {
                         level,
