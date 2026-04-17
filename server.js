@@ -445,9 +445,15 @@ app.post('/api/reset/programming', async (req, res) => {
 // Analyse des performances avec benchmarks
 app.get('/api/performance-analysis', async (req, res) => {
     try {
+        log('API', '🔍 Performance analysis requested');
         const performanceAnalyzer = require('./services/performance-analyzer');
         const trelloData = await getTrelloData();
+        
+        log('API', `✅ Trello data: ${trelloData?.data?.lanes?.length || 0} lanes`);
+        
         const campaignStatsData = await getCampaignStats();
+        
+        log('API', `✅ Campaign stats: ${campaignStatsData?.data?.length || 0} campaigns`);
         
         if (!trelloData || !trelloData.data || !trelloData.data.lanes) {
             return res.json({ success: false, error: 'No Trello data' });
@@ -463,8 +469,12 @@ app.get('/api/performance-analysis', async (req, res) => {
             allCards.push(...(lane.cards || []));
         }
         
+        log('API', `📊 Analyzing ${allCards.length} cards`);
+        
         // Analyser toutes les campagnes
         const alerts = performanceAnalyzer.analyzeAllCampaigns(allCards, campaignStatsData);
+        
+        log('API', `✅ Generated ${alerts.length} alerts`);
         
         // Grouper par sévérité
         const grouped = {
