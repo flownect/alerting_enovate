@@ -891,7 +891,7 @@
             }
             
             // Ajouter les alertes basées sur les benchmarks
-            const benchmarkAlerts = await generateBenchmarkAlerts();
+            const benchmarkAlerts = generateBenchmarkAlerts();
             alerts.push(...benchmarkAlerts);
             
             // Trier par niveau de criticité
@@ -901,65 +901,100 @@
             return alerts;
         }
 
-        // Générer les alertes basées sur les benchmarks
-        async function generateBenchmarkAlerts() {
-            try {
-                console.log('🔍 Fetching benchmark alerts...');
-                const response = await fetch('/api/performance-analysis');
-                const result = await response.json();
-                
-                console.log('📊 Benchmark API response:', result);
-                
-                if (!result.success) {
-                    console.warn('⚠️ Benchmark API error:', result.error);
-                    return [];
-                }
-                
-                if (!result.alerts || result.alerts.length === 0) {
-                    console.log('ℹ️ No benchmark alerts found');
-                    return [];
-                }
-                
-                console.log(`✅ Found ${result.alerts.length} benchmark alerts`);
-                
-                // Convertir les alertes benchmark en format compatible
-                return result.alerts.map(alert => {
-                    // Mapper la sévérité
-                    let level = 'faible';
-                    if (alert.severity === 'critical') level = 'critique';
-                    else if (alert.severity === 'urgent') level = 'alerte';
-                    
-                    // Trouver la campagne correspondante dans campaignStatsData
-                    const campaign = campaignStatsData.data.find(c => 
-                        c.campaignId === alert.campaignId ||
-                        c.adxDisplayId === alert.trackerId ||
-                        c.adxId === alert.trackerId
-                    );
-                    
-                    if (!campaign) {
-                        console.warn('⚠️ Campaign not found for alert:', alert.title, 'trackerId:', alert.trackerId);
-                        return null;
-                    }
-                    
-                    console.log('✅ Matched campaign:', campaign.campaignName);
-                    
-                    return {
-                        level,
-                        campaign,
-                        durationProgress: alert.timePercent,
-                        deliveryProgress: alert.deliveryPercent,
-                        marginRate: null,
-                        reasons: [alert.detailedMessage || alert.message],
-                        trader: campaign.traderName || 'N/A',
-                        commercial: campaign.commercialName || 'N/A',
-                        isBenchmarkAlert: true,
-                        benchmarkData: alert
-                    };
-                }).filter(a => a !== null);
-            } catch (error) {
-                console.error('❌ Erreur génération alertes benchmark:', error);
+        // Générer les alertes basées sur les benchmarks (utilise les données déjà chargées)
+        function generateBenchmarkAlerts() {
+            console.log('🔍 Generating benchmark alerts from loaded data...');
+            
+            if (!campaignStatsData?.data || !trelloData?.data?.lanes) {
+                console.log('ℹ️ No data available for benchmark analysis');
                 return [];
             }
+            
+            const alerts = [];
+            
+            // Récupérer toutes les cartes Trello
+            const allCards = [];
+            for (const lane of trelloData.data.lanes) {
+                allCards.push(...(lane.cards || []));
+            }
+            
+            console.log(`📊 Analyzing ${allCards.length} cards for benchmark alerts`);
+            
+            // Pour chaque campagne ADX
+            for (const campaign of campaignStatsData.data) {
+                // Ignorer les campagnes non live
+                if (!campaign.isLive) continue;
+                
+                // Vérifier le % de diffusion (volume)
+                const deliveryPercent = getDeliveryPercent(campaign);
+                
+                // N'afficher les alertes qu'après 30% de diffusion
+                if (deliveryPercent < 30) continue;
+                
+                // Calculer le % de temps écoulé
+                const timePercent = getTimePercent(campaign);
+                
+                // Trouver la carte Trello correspondante
+                const card = findMatchingCard(campaign, allCards);
+                if (!card) continue;
+                
+                // Récupérer les KPIs de la carte
+                const kpis = getCardKpis(card);
+                
+                // Vérifier chaque KPI
+                for (const kpi of kpis) {
+                    const alert = checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent);
+                    if (alert) {
+                        alerts.push(alert);
+                    }
+                }
+            }
+            
+            console.log(`✅ Generated ${alerts.length} benchmark alerts`);
+            return alerts;
+        }
+        
+        // Fonctions helper pour l'analyse benchmark
+        function getDeliveryPercent(campaign) {
+            return campaign.data?.volumeProgression?.value2 || 0;
+        }
+        
+        function getTimePercent(campaign) {
+            const startDate = parseDate(campaign.vStartDate);
+            const endDate = parseDate(campaign.vEndDate);
+            if (!startDate || !endDate) return 0;
+            
+            const now = new Date();
+            if (now < startDate) return 0;
+            if (now > endDate) return 100;
+            
+            const totalDuration = endDate - startDate;
+            const elapsed = now - startDate;
+            return (elapsed / totalDuration) * 100;
+        }
+        
+        function findMatchingCard(campaign, cards) {
+            return cards.find(c => 
+                c.campaignId === campaign.campaignId ||
+                c.briefId?.briefCampaignInfo?.[0] === campaign.briefId?.briefCampaignInfo?.[0] ||
+                (c.trackerId && (campaign.adxDisplayId === c.trackerId || campaign.adxId === c.trackerId))
+            );
+        }
+        
+        function getCardKpis(card) {
+            const kpis = [];
+            if (card.subdivisions && card.subdivisions.length > 0) {
+                const sub = card.subdivisions[0];
+                if (sub.kpi) kpis.push({ name: sub.kpi, type: 'primary' });
+                if (sub.secondaryKpi) kpis.push({ name: sub.secondaryKpi, type: 'secondary' });
+            }
+            return kpis;
+        }
+        
+        function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
+            // TODO: Implémenter la vérification benchmark côté client
+            // Pour l'instant, retourner null (sera implémenté dans la prochaine version)
+            return null;
         }
 
         // ==================== RENDERING ====================
