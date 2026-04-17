@@ -564,6 +564,45 @@ app.get('/api/benchmark-test', async (req, res) => {
 });
 
 // ==================== CAMPAIGN COMMENTS ====================
+// Récupérer tous les commentaires
+app.get('/api/comments', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.json({ success: true, comments: [] });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query(
+            'SELECT * FROM campaign_comments ORDER BY created_at DESC'
+        );
+        await client.end();
+        
+        // Formater les commentaires pour correspondre au format attendu
+        const comments = result.rows.map(row => ({
+            _id: row.id,
+            content: row.comment_text,
+            cardId: row.campaign_id,
+            author: { name: row.author || 'Anonyme' },
+            createdAt: row.created_at,
+            isAdx: false
+        }));
+        
+        res.json({
+            success: true,
+            comments
+        });
+    } catch (error) {
+        log('API', `❌ Erreur récupération commentaires: ${error.message}`);
+        res.json({ success: true, comments: [] });
+    }
+});
+
 // Récupérer le nombre de commentaires pour toutes les campagnes
 app.get('/api/comments-count', async (req, res) => {
     if (!process.env.DATABASE_URL) {
