@@ -949,8 +949,8 @@
                 // Vérifier le % de diffusion (volume)
                 const deliveryPercent = getDeliveryPercent(campaign);
                 
-                // N'afficher les alertes qu'après 30% de diffusion
-                if (deliveryPercent < 30) continue;
+                // N'afficher les alertes qu'après 20% de diffusion
+                if (deliveryPercent < 20) continue;
                 above30Percent++;
                 
                 // Calculer le % de temps écoulé
@@ -1113,11 +1113,18 @@
             const severity = calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue);
             
             // Mapper vers niveau d'alerte
-            // Si KPI autre (ni primary ni secondary), forcer au niveau le plus bas
             let level = 'faible';
-            if (kpi.type === 'other') {
-                level = 'faible'; // Toujours faible pour les KPIs "autres"
-            } else {
+            
+            // Règle 1: Entre 20-30% de diffusion, toujours "faible" (attention)
+            if (deliveryPercent >= 20 && deliveryPercent < 30) {
+                level = 'faible';
+            }
+            // Règle 2: Si KPI autre (ni primary ni secondary), forcer au niveau le plus bas
+            else if (kpi.type === 'other') {
+                level = 'faible';
+            }
+            // Règle 3: Scoring normal pour primary/secondary après 30%
+            else {
                 if (severity === 'critical') level = 'critique';
                 else if (severity === 'urgent') level = 'alerte';
             }
