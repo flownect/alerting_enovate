@@ -554,15 +554,13 @@
 
         function generateAlerts() {
             const cards = getAllCards();
-            const nowReal = today(); // Date réelle (pour affichage)
-            let now = today(); // Date ajustée (pour calculs)
+            const now = today(); // Date actuelle
             
-            // Ajuster pour le weekend si on est vendredi
-            const dayOfWeek = now.getDay();
-            const isFriday = dayOfWeek === 5;
-            if (isFriday) { // Vendredi
-                now = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
-                console.log('📅 Vendredi détecté: +2 jours ajoutés aux calculs');
+            // Calculer une date ajustée pour la criticité (si vendredi, +2 jours)
+            const nowForCriticality = new Date(now);
+            const isFriday = now.getDay() === 5;
+            if (isFriday) {
+                nowForCriticality.setDate(nowForCriticality.getDate() + 2);
             }
             
             const alerts = [];
@@ -592,9 +590,9 @@
                 // Utiliser getEffectiveTrader pour l'attribution unique
                 const trader = getEffectiveTrader(card.trader);
                 
-                // Calculer les jours avec date ajustée (pour criticité) et date réelle (pour affichage)
+                // Calculer les jours (réels pour affichage, ajustés pour criticité)
                 const daysToStart = startDate ? getDaysDiff(now, startDate) : null;
-                const daysToStartReal = startDate ? getDaysDiff(nowReal, startDate) : null;
+                const daysToStartForCriticality = startDate ? getDaysDiff(nowForCriticality, startDate) : null;
                 const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
 
                 // Alerte Lancement - Non programmable (J-3 à J0 et après lancement)
@@ -616,17 +614,12 @@
                     // Campagne à venir (J-3 à J0)
                     else if (daysToStart >= 0 && daysToStart <= 3) {
                         let criticality = 'attention';
-                        let timing = `J-${daysToStartReal}`; // Afficher les jours réels
+                        let timing = `J-${daysToStart}`;
                         
-                        // Criticité basée sur jours ajustés (avec weekend)
-                        if (daysToStart === 0) { criticality = 'critical'; }
-                        else if (daysToStart === 1) { criticality = 'critical'; }
-                        else if (daysToStart === 2) { criticality = 'urgent'; }
-                        
-                        // Ajouter warning weekend dans le timing si vendredi
-                        if (isFriday && daysToStartReal > daysToStart) {
-                            timing += ' ⚠️ Weekend';
-                        }
+                        // Criticité basée sur les jours ajustés (weekend)
+                        if (daysToStartForCriticality === 0) { criticality = 'critical'; }
+                        else if (daysToStartForCriticality === 1) { criticality = 'critical'; }
+                        else if (daysToStartForCriticality === 2) { criticality = 'urgent'; }
                         
                         alerts.push({
                             type: 'launch',
@@ -642,17 +635,12 @@
                 // Alerte Lancement - Sans trader (J-3 à J0)
                 if (trader === 'Aucun' && card.isProgrammable && daysToStart !== null && daysToStart >= 0 && daysToStart <= 3) {
                     let criticality = 'attention';
-                    let timing = `J-${daysToStartReal}`; // Afficher les jours réels
+                    let timing = `J-${daysToStart}`;
                     
-                    // Criticité basée sur jours ajustés
-                    if (daysToStart === 0) { criticality = 'critical'; }
-                    else if (daysToStart === 1) { criticality = 'critical'; }
-                    else if (daysToStart === 2) { criticality = 'urgent'; }
-                    
-                    // Ajouter warning weekend dans le timing si vendredi
-                    if (isFriday && daysToStartReal > daysToStart) {
-                        timing += ' ⚠️ Weekend';
-                    }
+                    // Criticité basée sur les jours ajustés (weekend)
+                    if (daysToStartForCriticality === 0) { criticality = 'critical'; }
+                    else if (daysToStartForCriticality === 1) { criticality = 'critical'; }
+                    else if (daysToStartForCriticality === 2) { criticality = 'urgent'; }
                     
                     alerts.push({
                         type: 'launch',
@@ -671,10 +659,9 @@
                 const isActuallyLive = card.areSubdivisionsLive || isInLiveLane || hasAnyLiveSubdivision;
                 const isProgrammed = card.areSubdivisionsProgrammed === true;
                 
-                // Utiliser la date RÉELLE (pas ajustée) pour cette alerte
                 // Alerter dès J0 (jour du lancement)
-                if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStartReal !== null && daysToStartReal <= 0) {
-                    const daysLate = Math.abs(daysToStartReal);
+                if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
+                    const daysLate = Math.abs(daysToStart);
                     let timing = daysLate === 0 ? 'J0' : `J+${daysLate}`;
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
                     const sinceText = daysLate === 0 ? 'Aujourd\'hui' : `Depuis ${daysLate}j`;
@@ -784,6 +771,13 @@
             const alerts = [];
             const now = today();
             
+            // Calculer une date ajustée pour la comparaison durée/volume (si vendredi, +2 jours)
+            const nowForComparison = new Date(now);
+            const isFriday = now.getDay() === 5;
+            if (isFriday) {
+                nowForComparison.setDate(nowForComparison.getDate() + 2);
+            }
+            
             for (const campaign of campaignStatsData.data) {
                 // Ignorer les campagnes non live
                 if (!campaign.isLive) continue;
@@ -793,18 +787,13 @@
                 const endDate = parseDate(campaign.vEndDate);
                 if (!startDate || !endDate) continue;
                 
-                // Ajuster pour le weekend si on est vendredi
-                let adjustedNow = now;
-                const dayOfWeek = now.getDay();
-                if (dayOfWeek === 5) { // Vendredi
-                    adjustedNow = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
-                }
-                
                 const totalDays = getDaysDiff(startDate, endDate);
-                const elapsedDays = getDaysDiff(startDate, adjustedNow);
-                if (totalDays <= 0 || elapsedDays < 0) continue;
+                const elapsedDaysReal = getDaysDiff(startDate, now); // Jours réels pour affichage
+                const elapsedDaysForComparison = getDaysDiff(startDate, nowForComparison); // Jours ajustés pour comparaison
+                if (totalDays <= 0 || elapsedDaysReal < 0) continue;
                 
-                const durationProgress = Math.min((elapsedDays / totalDays) * 100, 100);
+                const durationProgress = Math.min((elapsedDaysReal / totalDays) * 100, 100); // Affichage avec jours réels
+                const durationProgressForComparison = Math.min((elapsedDaysForComparison / totalDays) * 100, 100); // Comparaison avec jours ajustés
                 
                 // Calculer le % de diffusion (impressions)
                 const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
@@ -885,14 +874,14 @@
                     reasons.push(`Campagne ne diffuse pas (0 impressions aujourd'hui)`);
                 }
                 
-                // Alertes objectifs (principal + secondaire) à partir de 50% durée
-                if (durationProgress >= 50) {
+                // Alertes objectifs (principal + secondaire) à partir de 50% durée (utiliser durée ajustée)
+                if (durationProgressForComparison >= 50) {
                     // Seuils d'écart (gap en points) par tranche de durée
                     let gapThreshold, durationLevel;
-                    if (durationProgress > 90) {
+                    if (durationProgressForComparison > 90) {
                         gapThreshold = 10;   // >90%: écart > 10pts = critique
                         durationLevel = 'critique';
-                    } else if (durationProgress > 70) {
+                    } else if (durationProgressForComparison > 70) {
                         gapThreshold = 15;   // 70-90%: écart > 15pts = alerte
                         durationLevel = 'alerte';
                     } else {
@@ -903,18 +892,18 @@
                     // Vérifier chaque objectif
                     for (const obj of objectiveGaps) {
                         if (obj.gap > gapThreshold) {
-                            reasons.push(`${obj.label}: ${obj.progress.toFixed(0)}% livré vs ${durationProgress.toFixed(0)}% durée (obj: ${Math.round(obj.overall).toLocaleString('fr-FR')})`);
+                            reasons.push(`${obj.label}: ${obj.progress.toFixed(0)}% livré vs ${durationProgressForComparison.toFixed(0)}% durée (obj: ${Math.round(obj.overall).toLocaleString('fr-FR')})`);
                             if (level !== 'critique') level = durationLevel;
                         }
                     }
                     
                     // Marge
-                    if (durationProgress > 90) {
+                    if (durationProgressForComparison > 90) {
                         if (marginRate !== null && marginRate < 72) {
                             reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
                             if (level !== 'critique') level = 'critique';
                         }
-                    } else if (durationProgress > 70) {
+                    } else if (durationProgressForComparison > 70) {
                         if (marginRate !== null && marginRate < 72) {
                             reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
                             if (level !== 'critique') level = 'alerte';
@@ -1958,8 +1947,9 @@
             // Générer un ID unique pour cette alerte (sans tirets pour JavaScript)
             const alertId = `alert_${Math.random().toString(36).substr(2, 9)}`;
             
-            // Vérifier si on est vendredi
-            const isFriday = new Date().getDay() === 5;
+            // Vérifier si la campagne se termine un weekend
+            const endDate = parseDate(card.dates?.endingDateFormatted);
+            const endsOnWeekend = endDate && (endDate.getDay() === 0 || endDate.getDay() === 6);
             
             // Calcul durée et progression
             const duration = calculateDurationProgress(
@@ -2100,7 +2090,7 @@
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
                                 <div class="text-gray-600 dark:text-gray-400">
                                     ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
-                                    ${isFriday && !duration.isFinished ? ' <span class="text-orange-600 font-semibold">⚠️ Weekend</span>' : ''}
+                                    ${endsOnWeekend && !duration.isFinished ? ' <span class="text-orange-600 font-semibold">⚠️ Weekend</span>' : ''}
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">${card.dates?.startingDateFormatted || 'N/A'} → ${card.dates?.endingDateFormatted || 'N/A'}</div>
                             </div>
@@ -2567,12 +2557,19 @@ ADX: ${adxLink}`;
                     const endDate = parseDate(a.campaign?.endDate);
                     const daysLeft = endDate ? Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
                     
+                    // Formater les dates
+                    const formatDateForSlack = (dateStr) => {
+                        if (!dateStr) return null;
+                        const date = new Date(dateStr);
+                        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    };
+                    
                     return {
                         title: a.campaign?.campaignName || 'Sans nom',
                         trader: a.trader || 'N/A',
                         commercial: a.commercial || 'N/A',
-                        startDate: a.campaign?.startDate,
-                        endDate: a.campaign?.endDate,
+                        startDate: formatDateForSlack(a.campaign?.vStartDate),
+                        endDate: formatDateForSlack(a.campaign?.vEndDate),
                         durationProgress: Math.round(a.durationProgress || 0),
                         daysLeft: daysLeft,
                         deliveryProgress: Math.round(a.deliveryProgress || 0),
