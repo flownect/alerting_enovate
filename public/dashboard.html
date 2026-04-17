@@ -2395,12 +2395,20 @@
             
             // Calcul durée et progression
             const percent = Math.round(alert.durationProgress || 0);
-            const daysLeft = alert.daysLeft || 0;
+            
+            // Calculer les jours restants à partir des dates
+            const startDate = parseDate(campaign.vStartDate);
+            const endDate = parseDate(campaign.vEndDate);
+            const now = new Date();
+            
+            let daysLeft = 0;
+            if (endDate) {
+                daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+            }
+            
             const isFinished = percent >= 100 || daysLeft < 0;
             
             // Calculer jours avant lancement si campagne pas encore démarrée
-            const startDate = parseDate(campaign.vStartDate);
-            const now = new Date();
             const daysBeforeLaunch = startDate ? Math.ceil((startDate - now) / (1000 * 60 * 60 * 24)) : 0;
             
             const duration = { percent, daysLeft, isFinished, daysBeforeLaunch };
@@ -2519,11 +2527,18 @@
                 });
             }
             
-            // Liens ADX (utiliser adxDisplayId pour l'URL)
+            // Liens ADX (l'URL complète est dans campaign.content)
             let adxLinks = '';
-            const adxId = campaign.adxDisplayId || campaign.adxId;
-            if (adxId) {
-                adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>`;
+            
+            // Vérifier si l'URL complète existe dans content
+            if (campaign.content && campaign.content.includes('hubscale.io')) {
+                adxLinks = `<a href="${campaign.content}" target="_blank" class="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium rounded shadow-sm">ADX</a>`;
+            } else {
+                // Fallback: construire l'URL avec adxDisplayId ou adxId
+                const adxId = campaign.adxDisplayId || campaign.adxId;
+                if (adxId) {
+                    adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium rounded shadow-sm">ADX</a>`;
+                }
             }
             
             const div = document.createElement('div');
