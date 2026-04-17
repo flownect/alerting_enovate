@@ -919,11 +919,6 @@
                     }
                 }
                 
-                // Ajouter le badge weekend si la campagne se termine un weekend et n'est pas terminée
-                if (endsOnWeekend && durationProgress < 100) {
-                    reasons.push('⚠️ Fin weekend');
-                }
-                
                 if (level && reasons.length > 0) {
                     alerts.push({
                         level,
@@ -2098,7 +2093,6 @@
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
                                 <div class="text-gray-600 dark:text-gray-400">
                                     ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
-                                    ${endsOnWeekend && !duration.isFinished ? ' <span class="text-orange-600 font-semibold">⚠️ Weekend</span>' : ''}
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">${card.dates?.startingDateFormatted || 'N/A'} → ${card.dates?.endingDateFormatted || 'N/A'}</div>
                             </div>
@@ -2127,6 +2121,11 @@
                                 <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
                                     ${alert.subtype === 'not-live' ? 'Non Live' : alert.subtype === 'no-trader' ? 'Trader' : 'Lancement'}
                                 </div>
+                                ${endsOnWeekend && !duration.isFinished ? `
+                                <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                    ⚠️ Weekend
+                                </div>
+                                ` : ''}
                             ` : alert.type === 'bilan' ? `
                                 <div class="inline-flex items-center px-2 py-1 rounded font-semibold text-xs bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
                                     Bilan
@@ -2837,6 +2836,13 @@ ADX: ${adxLink}`;
                 if (!categoryBadges.find(b => b.label === badgeLabel)) {
                     categoryBadges.push({ label: badgeLabel, color: badgeColor });
                 }
+            }
+            
+            // Badge weekend si la campagne se termine un weekend
+            const campaignEndDate = parseDate(campaign.vEndDate);
+            const endsOnWeekend = campaignEndDate && (campaignEndDate.getDay() === 0 || campaignEndDate.getDay() === 6);
+            if (endsOnWeekend && !duration.isFinished) {
+                categoryBadges.push({ label: '⚠️ Weekend', color: 'bg-orange-500' });
             }
             
             // Autres raisons
