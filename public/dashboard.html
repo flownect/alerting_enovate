@@ -2528,8 +2528,13 @@ ADX: ${adxLink}`;
                     const adxId = a.campaign?.adxId;
                     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
                     
-                    // Récupérer les 3 derniers commentaires non-ADX
-                    const comments = (a.campaign?.comments || [])
+                    // Récupérer les commentaires Nova (ADX) et Dashboard séparément
+                    const commentsNova = (a.campaign?.comments || [])
+                        .filter(c => c.isAdx && c.content)
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    const commentsDashboard = (a.campaign?.comments || [])
                         .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
@@ -2551,7 +2556,8 @@ ADX: ${adxLink}`;
                         reasons: a.reasons || [],
                         novaLink,
                         adxLink,
-                        comments
+                        commentsNova,
+                        commentsDashboard
                     };
                 });
                 

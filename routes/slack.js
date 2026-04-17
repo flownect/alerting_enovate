@@ -95,10 +95,23 @@ function formatAlertForSlack(alert) {
         details += `*Marge:* ${alert.marginRate}%\n`;
     }
     
-    // Commentaires
-    let commentsText = '';
-    if (alert.comments && alert.comments.length > 0) {
-        commentsText = '\n*💬 Commentaires récents:*\n' + 
+    // Commentaires Nova
+    let commentsNovaText = '';
+    if (alert.commentsNova && alert.commentsNova.length > 0) {
+        commentsNovaText = '\n*💬 Commentaires Nova:*\n' + 
+            alert.commentsNova.map(c => `• ${c}`).join('\n');
+    }
+    
+    // Commentaires Dashboard
+    let commentsDashboardText = '';
+    if (alert.commentsDashboard && alert.commentsDashboard.length > 0) {
+        commentsDashboardText = '\n*💬 Commentaires Dashboard:*\n' + 
+            alert.commentsDashboard.map(c => `• ${c}`).join('\n');
+    }
+    
+    // Fallback pour les alertes Traders/Commerce qui n'ont qu'un seul type
+    if (!commentsNovaText && !commentsDashboardText && alert.comments && alert.comments.length > 0) {
+        commentsDashboardText = '\n*💬 Commentaires:*\n' + 
             alert.comments.map(c => `• ${c}`).join('\n');
     }
     
@@ -115,7 +128,7 @@ function formatAlertForSlack(alert) {
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: `*${title}*\n\n${badges}\n${alertsText}\n\n${durationText}\n${details}${commentsText}${linksText}`
+            text: `*${title}*\n\n${badges}\n${alertsText}\n\n${durationText}\n${details}${commentsNovaText}${commentsDashboardText}${linksText}`
         }
     };
 }
@@ -151,7 +164,7 @@ router.post('/send-alerts', async (req, res) => {
                 type: 'section',
                 text: {
                     type: 'mrkdwn',
-                    text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*`
+                    text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${criticalPerf.length} | 👥 Traders: ${criticalTraders.length} | 💼 CSM: ${criticalCommerce.length}`
                 }
             },
             { type: 'divider' }
