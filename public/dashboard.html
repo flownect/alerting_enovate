@@ -901,6 +901,21 @@
             return alerts;
         }
 
+        // Benchmarks simplifiés (version client)
+        const BENCHMARKS = {
+            'CTR': { min: 0.17, max: 0.23 },
+            'CTR (%)': { min: 0.17, max: 0.23 },
+            'Taux de complétion vidéo': { min: 70, max: 85 },
+            'Complétion vidéo': { min: 70, max: 85 },
+            'VCR': { min: 70, max: 85 },
+            'Taux de session': { min: 30, max: 50 },
+            'Sessions': { min: 30, max: 50 },
+            'Taux de visite LP': { min: 60, max: 67 },
+            'Visites en Magasin / Taux de Visite LP': { min: 60, max: 67 },
+            'Taux de rebond': { min: 0, max: 30 },
+            'Brand Safety': { min: 97, max: 99 }
+        };
+        
         // Générer les alertes basées sur les benchmarks (utilise les données déjà chargées)
         function generateBenchmarkAlerts() {
             console.log('🔍 Generating benchmark alerts from loaded data...');
@@ -992,9 +1007,103 @@
         }
         
         function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
-            // TODO: Implémenter la vérification benchmark côté client
-            // Pour l'instant, retourner null (sera implémenté dans la prochaine version)
-            return null;
+            // Trouver le benchmark pour ce KPI
+            const benchmark = BENCHMARKS[kpi.name];
+            if (!benchmark) return null;
+            
+            // Mapper le KPI vers le champ ADX
+            const adxField = mapKpiToAdxField(kpi.name);
+            if (!adxField) return null;
+            
+            // Récupérer la valeur actuelle
+            const currentValue = campaign.data?.[adxField]?.value2;
+            if (currentValue === null || currentValue === undefined) return null;
+            
+            // Vérifier si en dessous du minimum
+            const belowMin = currentValue < benchmark.min;
+            
+            // Taux de rebond : alerte si SUPÉRIEUR au max
+            const isRebond = kpi.name.toLowerCase().includes('rebond');
+            const aboveMax = isRebond && currentValue > benchmark.max;
+            
+            if (!belowMin && !aboveMax) return null;
+            
+            // Calculer l'écart
+            const gap = belowMin ? (benchmark.min - currentValue) : (currentValue - benchmark.max);
+            
+            // Calculer la sévérité mixte
+            const severity = calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue);
+            
+            // Mapper vers niveau d'alerte
+            let level = 'faible';
+            if (severity === 'critical') level = 'critique';
+            else if (severity === 'urgent') level = 'alerte';
+            
+            const message = isRebond 
+                ? `${kpi.name}: ${currentValue.toFixed(1)}% (max: ${benchmark.max}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`
+                : `${kpi.name}: ${currentValue.toFixed(2)}% (min: ${benchmark.min}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`;
+            
+            return {
+                level,
+                campaign,
+                durationProgress: timePercent,
+                deliveryProgress: deliveryPercent,
+                marginRate: null,
+                reasons: [message],
+                trader: campaign.traderName || 'N/A',
+                commercial: campaign.commercialName || 'N/A',
+                isBenchmarkAlert: true,
+                benchmarkData: {
+                    kpi: kpi.name,
+                    kpiType: kpi.type,
+                    currentValue,
+                    benchmark,
+                    gap,
+                    severity
+                }
+            };
+        }
+        
+        function mapKpiToAdxField(kpiName) {
+            const mapping = {
+                'CTR': 'ctr',
+                'CTR (%)': 'ctr',
+                'Taux de complétion vidéo': 'vcr',
+                'Complétion vidéo': 'vcr',
+                'VCR': 'vcr',
+                'Taux de session': 'sessionsRate',
+                'Sessions': 'sessionsRate',
+                'Taux de visite LP': 'lpVisitsRate',
+                'Visites en Magasin / Taux de Visite LP': 'lpVisitsRate',
+                'Taux de rebond': 'bounceRate',
+                'Brand Safety': 'brandSafetyRate'
+            };
+            return mapping[kpiName] || null;
+        }
+        
+        function calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue) {
+            const gapPercent = (gap / benchmark.min) * 100;
+            
+            // Score de base selon l'écart au benchmark
+            let baseScore = 0;
+            if (gapPercent > 20) baseScore = 3;      // Critical
+            else if (gapPercent > 10) baseScore = 2; // Urgent
+            else baseScore = 1;                       // Attention
+            
+            // Bonus selon le temps écoulé
+            let timeBonus = 0;
+            if (timePercent > 75) timeBonus = 1;
+            else if (timePercent > 50) timeBonus = 0.5;
+            
+            // Bonus selon la diffusion
+            let deliveryBonus = 0;
+            if (deliveryPercent > 70) deliveryBonus = 0.5;
+            
+            const finalScore = baseScore + timeBonus + deliveryBonus;
+            
+            if (finalScore >= 4) return 'critical';
+            if (finalScore >= 2.5) return 'urgent';
+            return 'attention';
         }
 
         // ==================== RENDERING ====================
