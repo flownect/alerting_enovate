@@ -442,6 +442,51 @@ app.post('/api/reset/programming', async (req, res) => {
 });
 
 // ==================== BENCHMARK MATCHING ====================
+// Analyse des performances avec benchmarks
+app.get('/api/performance-analysis', async (req, res) => {
+    try {
+        const performanceAnalyzer = require('./services/performance-analyzer');
+        const trelloData = await getTrelloData();
+        const campaignStatsData = await getCampaignStats();
+        
+        if (!trelloData || !trelloData.data || !trelloData.data.lanes) {
+            return res.json({ success: false, error: 'No Trello data' });
+        }
+        
+        if (!campaignStatsData || !campaignStatsData.data) {
+            return res.json({ success: false, error: 'No campaign stats data' });
+        }
+        
+        // Récupérer toutes les cartes
+        const allCards = [];
+        for (const lane of trelloData.data.lanes) {
+            allCards.push(...(lane.cards || []));
+        }
+        
+        // Analyser toutes les campagnes
+        const alerts = performanceAnalyzer.analyzeAllCampaigns(allCards, campaignStatsData);
+        
+        // Grouper par sévérité
+        const grouped = {
+            critical: alerts.filter(a => a.severity === 'critical'),
+            urgent: alerts.filter(a => a.severity === 'urgent'),
+            attention: alerts.filter(a => a.severity === 'attention')
+        };
+        
+        res.json({
+            success: true,
+            total: alerts.length,
+            critical: grouped.critical.length,
+            urgent: grouped.urgent.length,
+            attention: grouped.attention.length,
+            alerts: alerts.slice(0, 50) // Limiter à 50 pour la démo
+        });
+    } catch (error) {
+        log('API', `❌ Erreur performance analysis: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Test du matching des benchmarks
 app.get('/api/benchmark-test', async (req, res) => {
     try {
