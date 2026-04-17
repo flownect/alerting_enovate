@@ -447,11 +447,18 @@ app.get('/api/performance-analysis', async (req, res) => {
     try {
         log('API', '🔍 Performance analysis requested');
         const performanceAnalyzer = require('./services/performance-analyzer');
-        const trelloData = await getTrelloData();
+        const env = req.query.env || 'preprod';
+        const baseUrl = getBaseUrl(env);
+        
+        // Récupérer les données Trello
+        const trelloResponse = await fetch(`${baseUrl}/api/trello/get-all-campaigns-data?env=${env}`);
+        const trelloData = await trelloResponse.json();
         
         log('API', `✅ Trello data: ${trelloData?.data?.lanes?.length || 0} lanes`);
         
-        const campaignStatsData = await getCampaignStats();
+        // Récupérer les stats de campagne
+        const statsResponse = await fetch(`${baseUrl}/api/campaign-stats/get-all-campaigns-stats?env=${env}`);
+        const campaignStatsData = await statsResponse.json();
         
         log('API', `✅ Campaign stats: ${campaignStatsData?.data?.length || 0} campaigns`);
         
