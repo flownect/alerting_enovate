@@ -912,9 +912,36 @@
             'Sessions': { min: 30, max: 50 },
             'Taux de visite LP': { min: 60, max: 67 },
             'Visites en Magasin / Taux de Visite LP': { min: 60, max: 67 },
+            'Visite LP': { min: 60, max: 67 },
             'Taux de rebond': { min: 0, max: 30 },
+            'Rebond': { min: 0, max: 30 },
             'Brand Safety': { min: 97, max: 99 }
         };
+        
+        // Normaliser les noms de KPIs pour le matching
+        function normalizeKpiName(kpiName) {
+            if (!kpiName) return '';
+            const normalized = kpiName.trim().toLowerCase();
+            
+            // IGNORER ces KPIs (pas de benchmark ou pas d'infos)
+            if (normalized.includes('visite') && normalized.includes('magasin')) return null;
+            if (normalized.includes('conditionné')) return null;
+            if (normalized.includes('attention publicitaire')) return null;
+            if (normalized.includes('interaction format')) return null;
+            if (normalized === 'leads') return null;
+            if (normalized === 'reach') return null;
+            if (normalized === 'visibilité') return null;
+            
+            // Mapping des variantes vers un nom standard
+            if (normalized === 'ctr') return 'CTR';
+            if (normalized.includes('complétion') || normalized.includes('vcr')) return 'VCR';
+            if (normalized.includes('session')) return 'Taux de session';
+            if (normalized === 'taux de visite lp') return 'Taux de visite LP';
+            if (normalized.includes('rebond') && normalized.includes('temps passé') && !normalized.includes('conditionné')) return 'Taux de rebond';
+            if (normalized.includes('brand') || normalized.includes('safety')) return 'Brand Safety';
+            
+            return null; // Ignorer si pas de match
+        }
         
         // Générer les alertes basées sur les benchmarks (utilise les données déjà chargées)
         function generateBenchmarkAlerts() {
@@ -1085,13 +1112,26 @@
         }
         
         function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
-            // Trouver le benchmark pour ce KPI
-            const benchmark = BENCHMARKS[kpi.name];
-            if (!benchmark) return null;
+            // Normaliser le nom du KPI
+            const normalizedName = normalizeKpiName(kpi.name);
             
-            // Mapper le KPI vers le champ ADX
-            const adxField = mapKpiToAdxField(kpi.name);
-            if (!adxField) return null;
+            // Si le KPI est à ignorer (null), retourner null
+            if (!normalizedName) {
+                return null;
+            }
+            
+            // Trouver le benchmark pour ce KPI
+            const benchmark = BENCHMARKS[normalizedName];
+            if (!benchmark) {
+                return null;
+            }
+            
+            // Mapper le KPI vers le champ ADX (utiliser le nom normalisé)
+            const adxField = mapKpiToAdxField(normalizedName);
+            if (!adxField) {
+                console.log(`⚠️ No ADX field mapping for: "${normalizedName}"`);
+                return null;
+            }
             
             // Récupérer la valeur actuelle
             const currentValue = campaign.data?.[adxField]?.value2;
