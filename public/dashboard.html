@@ -760,8 +760,15 @@
                 const endDate = parseDate(campaign.vEndDate);
                 if (!startDate || !endDate) continue;
                 
+                // Ajuster pour le weekend si on est vendredi
+                let adjustedNow = now;
+                const dayOfWeek = now.getDay();
+                if (dayOfWeek === 5) { // Vendredi
+                    adjustedNow = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
+                }
+                
                 const totalDays = getDaysDiff(startDate, endDate);
-                const elapsedDays = getDaysDiff(startDate, now);
+                const elapsedDays = getDaysDiff(startDate, adjustedNow);
                 if (totalDays <= 0 || elapsedDays < 0) continue;
                 
                 const durationProgress = Math.min((elapsedDays / totalDays) * 100, 100);
@@ -1049,7 +1056,14 @@
             const endDate = parseDate(campaign.vEndDate);
             if (!startDate || !endDate) return 0;
             
-            const now = new Date();
+            let now = new Date();
+            
+            // Si on est vendredi, ajouter 2 jours (weekend) pour le calcul
+            const dayOfWeek = now.getDay(); // 0 = Dimanche, 5 = Vendredi
+            if (dayOfWeek === 5) {
+                now = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
+            }
+            
             if (now < startDate) return 0;
             if (now > endDate) return 100;
             
