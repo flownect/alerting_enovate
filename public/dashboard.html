@@ -1026,18 +1026,24 @@
             return cards.find(c => {
                 if (!c) return false;
                 
-                // Match par campaignId
+                // Match 1: campaignId de la carte = briefId de la campagne ADX
+                if (c.campaignId && campaign.briefId?.briefCampaignInfo?.[0] &&
+                    c.campaignId === campaign.briefId.briefCampaignInfo[0]) {
+                    return true;
+                }
+                
+                // Match 2: campaignId exact (rare mais possible)
                 if (c.campaignId && campaign.campaignId && c.campaignId === campaign.campaignId) {
                     return true;
                 }
                 
-                // Match par briefId
+                // Match 3: par briefId (si les deux ont briefId)
                 if (c.briefId?.briefCampaignInfo?.[0] && campaign.briefId?.briefCampaignInfo?.[0] &&
                     c.briefId.briefCampaignInfo[0] === campaign.briefId.briefCampaignInfo[0]) {
                     return true;
                 }
                 
-                // Match par trackerId
+                // Match 4: par trackerId
                 if (c.trackerId && (campaign.adxDisplayId === c.trackerId || campaign.adxId === c.trackerId)) {
                     return true;
                 }
@@ -2534,13 +2540,13 @@
             
             // Liens ADX (l'URL complète est dans campaign.content)
             let adxLinks = '';
+            const adxId = campaign.adxDisplayId || campaign.adxId; // Déclarer ici pour la closure
             
             // Vérifier si l'URL complète existe dans content
             if (campaign.content && campaign.content.includes('hubscale.io')) {
                 adxLinks = `<a href="${campaign.content}" target="_blank" class="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium rounded shadow-sm">ADX</a>`;
             } else {
                 // Fallback: construire l'URL avec adxDisplayId ou adxId
-                const adxId = campaign.adxDisplayId || campaign.adxId;
                 if (adxId) {
                     adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium rounded shadow-sm">ADX</a>`;
                 }
