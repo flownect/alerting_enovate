@@ -2517,6 +2517,23 @@ ADX: ${adxLink}`;
                 btn.innerHTML = '⏳ Envoi...';
                 btn.disabled = true;
                 
+                // Charger les commentaires locaux de la BDD pour les fusionner avec les données Performance
+                const localCommentsResponse = await fetch('/api/comments');
+                const localCommentsData = await localCommentsResponse.json();
+                const localCommentsByCampaign = {};
+                
+                if (localCommentsData.success && localCommentsData.comments) {
+                    localCommentsData.comments.forEach(comment => {
+                        if (comment.cardId) {
+                            const campaignId = comment.cardId.split('_')[0]; // Extraire l'ID de campagne du cardId
+                            if (!localCommentsByCampaign[campaignId]) {
+                                localCommentsByCampaign[campaignId] = [];
+                            }
+                            localCommentsByCampaign[campaignId].push(comment);
+                        }
+                    });
+                }
+                
                 // Filtrer les alertes critiques et envoyer UNIQUEMENT les données essentielles
                 const criticalPerf = allPerformanceAlerts.filter(a => a.level === 'critique').map(a => {
                     // Nova : utiliser briefCampaignInfo[0]
@@ -2527,18 +2544,22 @@ ADX: ${adxLink}`;
                     const adxId = a.campaign?.adxId;
                     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
                     
+                    // Fusionner les commentaires de l'API avec ceux de la BDD locale
+                    const campaignId = a.campaign?.campaignId;
+                    const allComments = [...(a.campaign?.comments || []), ...(localCommentsByCampaign[campaignId] || [])];
+                    
                     // Récupérer les commentaires Nova (ADX), Dashboard et Plateforme séparément
-                    const commentsNova = (a.campaign?.comments || [])
+                    const commentsNova = allComments
                         .filter(c => c.isAdx && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
                     
-                    const commentsDashboard = (a.campaign?.comments || [])
+                    const commentsDashboard = allComments
                         .filter(c => c.cardId !== null && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
                     
-                    const commentsPlateforme = (a.campaign?.comments || [])
+                    const commentsPlateforme = allComments
                         .filter(c => !c.isAdx && c.cardId === null && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
