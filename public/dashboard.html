@@ -787,6 +787,9 @@
                 const endDate = parseDate(campaign.vEndDate);
                 if (!startDate || !endDate) continue;
                 
+                // Vérifier si la campagne se termine un weekend
+                const endsOnWeekend = endDate.getDay() === 0 || endDate.getDay() === 6;
+                
                 const totalDays = getDaysDiff(startDate, endDate);
                 const elapsedDaysReal = getDaysDiff(startDate, now); // Jours réels pour affichage
                 const elapsedDaysForComparison = getDaysDiff(startDate, nowForComparison); // Jours ajustés pour comparaison
@@ -914,6 +917,11 @@
                             if (level !== 'critique') level = 'alerte';
                         }
                     }
+                }
+                
+                // Ajouter le badge weekend si la campagne se termine un weekend et n'est pas terminée
+                if (endsOnWeekend && durationProgress < 100) {
+                    reasons.push('⚠️ Fin weekend');
                 }
                 
                 if (level && reasons.length > 0) {
