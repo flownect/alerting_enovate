@@ -2520,14 +2520,15 @@ ADX: ${adxLink}`;
                 
                 // Filtrer les alertes critiques et envoyer UNIQUEMENT les données essentielles
                 const criticalPerf = allPerformanceAlerts.filter(a => a.level === 'critique').map(a => {
-                    const campaignId = a.campaign?.campaignId || a.campaign?.briefId?.briefCampaignInfo?.[0];
-                    const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
+                    // Nova : utiliser briefCampaignInfo[0]
+                    const briefId = a.campaign?.briefId?.briefCampaignInfo?.[0];
+                    const novaLink = briefId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
                     
-                    // Extraire lien ADX des commentaires
-                    let adxLink = a.campaign?.adxCampaignUrl;
-                    if (!adxLink && a.campaign?.comments) {
+                    // ADX : chercher dans les commentaires
+                    let adxLink = null;
+                    if (a.campaign?.comments) {
                         const adxComment = a.campaign.comments.find(c => 
-                            c.content && c.content.includes('hubscale.io/manager/campaigns/view/')
+                            c.content && c.content.includes('https://enovate.hubscale.io/manager/campaigns/view/')
                         );
                         if (adxComment) {
                             adxLink = adxComment.content.trim();
