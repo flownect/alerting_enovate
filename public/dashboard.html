@@ -666,19 +666,18 @@
 
                 // Alerte CRITIQUE - Campagne non live alors que date J0 ou passée (responsabilité Traders)
                 // Exclure si la campagne est dans la colonne "Campagne Live" (lane3) ou si au moins une subdivision est live
-                // Ne pas alerter le jour même du lancement (J0) pour laisser le temps de livrer
                 const isInLiveLane = card.laneId === 'lane3';
                 const hasAnyLiveSubdivision = card.subdivisions?.some(sub => sub.isLive === true);
                 const isActuallyLive = card.areSubdivisionsLive || isInLiveLane || hasAnyLiveSubdivision;
                 const isProgrammed = card.areSubdivisionsProgrammed === true;
                 
                 // Utiliser la date RÉELLE (pas ajustée) pour cette alerte
-                // Alerter seulement si J+1 ou plus (pas le jour même)
-                if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStartReal !== null && daysToStartReal < -1) {
+                // Alerter dès J0 (jour du lancement)
+                if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStartReal !== null && daysToStartReal <= 0) {
                     const daysLate = Math.abs(daysToStartReal);
-                    let timing = `J+${daysLate}`;
+                    let timing = daysLate === 0 ? 'J0' : `J+${daysLate}`;
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
-                    const sinceText = `Depuis ${daysLate}j`;
+                    const sinceText = daysLate === 0 ? 'Aujourd\'hui' : `Depuis ${daysLate}j`;
                     
                     alerts.push({
                         type: 'launch',
