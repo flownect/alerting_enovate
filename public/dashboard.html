@@ -672,11 +672,13 @@
                 const isActuallyLive = card.areSubdivisionsLive || isInLiveLane || hasAnyLiveSubdivision;
                 const isProgrammed = card.areSubdivisionsProgrammed === true;
                 
-                if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStart !== null && daysToStart < 0) {
-                    const daysLate = Math.abs(daysToStart);
-                    let timing = daysLate === 0 ? 'Aujourd\'hui' : `J+${daysLate}`;
+                // Utiliser la date RÉELLE (pas ajustée) pour cette alerte
+                // Alerter seulement si J+1 ou plus (pas le jour même)
+                if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStartReal !== null && daysToStartReal < -1) {
+                    const daysLate = Math.abs(daysToStartReal);
+                    let timing = `J+${daysLate}`;
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
-                    const sinceText = daysLate === 0 ? 'Aujourd\'hui' : `Depuis ${daysLate}j`;
+                    const sinceText = `Depuis ${daysLate}j`;
                     
                     alerts.push({
                         type: 'launch',
