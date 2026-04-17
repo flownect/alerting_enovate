@@ -588,6 +588,7 @@ app.get('/api/comments', async (req, res) => {
             _id: row.id,
             content: row.comment_text,
             cardId: row.campaign_id,
+            campaignName: row.campaign_name,
             author: { name: row.author || 'Anonyme' },
             createdAt: row.created_at,
             isAdx: false

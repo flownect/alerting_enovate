@@ -2520,16 +2520,15 @@ ADX: ${adxLink}`;
                 // Charger les commentaires locaux de la BDD pour les fusionner avec les données Performance
                 const localCommentsResponse = await fetch('/api/comments');
                 const localCommentsData = await localCommentsResponse.json();
-                const localCommentsByCampaign = {};
+                const localCommentsByCampaignName = {};
                 
                 if (localCommentsData.success && localCommentsData.comments) {
                     localCommentsData.comments.forEach(comment => {
-                        if (comment.cardId) {
-                            const campaignId = comment.cardId.split('_')[0]; // Extraire l'ID de campagne du cardId
-                            if (!localCommentsByCampaign[campaignId]) {
-                                localCommentsByCampaign[campaignId] = [];
+                        if (comment.campaignName) {
+                            if (!localCommentsByCampaignName[comment.campaignName]) {
+                                localCommentsByCampaignName[comment.campaignName] = [];
                             }
-                            localCommentsByCampaign[campaignId].push(comment);
+                            localCommentsByCampaignName[comment.campaignName].push(comment);
                         }
                     });
                 }
@@ -2544,9 +2543,9 @@ ADX: ${adxLink}`;
                     const adxId = a.campaign?.adxId;
                     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
                     
-                    // Fusionner les commentaires de l'API avec ceux de la BDD locale
-                    const campaignId = a.campaign?.campaignId;
-                    const allComments = [...(a.campaign?.comments || []), ...(localCommentsByCampaign[campaignId] || [])];
+                    // Fusionner les commentaires de l'API avec ceux de la BDD locale (par nom de campagne)
+                    const campaignName = a.campaign?.campaignName;
+                    const allComments = [...(a.campaign?.comments || []), ...(localCommentsByCampaignName[campaignName] || [])];
                     
                     // Récupérer les commentaires Nova (ADX), Dashboard et Plateforme séparément
                     const commentsNova = allComments
