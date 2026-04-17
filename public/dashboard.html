@@ -998,7 +998,12 @@
         
         // Fonctions helper pour l'analyse benchmark
         function getDeliveryPercent(campaign) {
-            return campaign.data?.volumeProgression?.value2 || 0;
+            // Calculer le % de diffusion à partir des objectifs (comme dans generatePerformanceAlerts)
+            const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
+            if (impressionsObjective <= 0) return 0;
+            
+            const impressionsActual = campaign.data?.impressions?.value2 || 0;
+            return (impressionsActual / impressionsObjective) * 100;
         }
         
         function getTimePercent(campaign) {
