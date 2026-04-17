@@ -553,9 +553,12 @@
             console.log(`🔍 generateAlerts: ${cards.length} cartes à analyser`);
 
             for (const card of cards) {
-                // Debug: afficher les campagnes qui contiennent "CoSpirit" ou "facturation"
-                if (card.name?.includes('CoSpirit') || card.name?.toLowerCase().includes('facturation')) {
+                // Debug: afficher les campagnes qui contiennent "CoSpirit", "facturation" ou "35909"
+                if (card.name?.includes('CoSpirit') || card.name?.includes('35909') || card.name?.toLowerCase().includes('facturation')) {
                     console.log('🔎 Carte trouvée:', card.name);
+                    console.log('   isProgrammable:', card.isProgrammable);
+                    console.log('   Test ne pas prog:', /ne\s*pas\s*prog/i.test(card.name));
+                    console.log('   Test pour facturation:', /pour\s*facturation/i.test(card.name));
                 }
                 
                 // Exclure les campagnes de facturation de TOUTES les alertes
