@@ -2475,8 +2475,8 @@
             const campaign = alert.campaign;
             const trader = alert.trader;
             
-            // Générer un ID unique pour cette alerte
-            const alertId = `perf-${Math.random().toString(36).substr(2, 9)}`;
+            // Générer un ID unique pour cette alerte (sans tirets pour JavaScript)
+            const alertId = `perf_${Math.random().toString(36).substr(2, 9)}`;
             
             // Récupérer perfData (pour les liens et la fonction copier)
             const perfData = campaign; // Dans les alertes de performance, campaign EST déjà perfData
