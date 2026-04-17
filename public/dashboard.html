@@ -616,10 +616,9 @@
                         else if (daysToStart === 1) { criticality = 'critical'; }
                         else if (daysToStart === 2) { criticality = 'urgent'; }
                         
-                        // Message avec indication weekend si vendredi
-                        let message = `Campagne non programmable • Lancement: ${launchDate}`;
+                        // Ajouter warning weekend dans le timing si vendredi
                         if (isFriday && daysToStartReal > daysToStart) {
-                            message += ` ⚠️ Attention weekend`;
+                            timing += ' ⚠️ Weekend';
                         }
                         
                         alerts.push({
@@ -628,7 +627,7 @@
                             criticality,
                             timing,
                             card,
-                            message
+                            message: `Campagne non programmable • Lancement: ${launchDate}`
                         });
                     }
                 }
@@ -643,10 +642,9 @@
                     else if (daysToStart === 1) { criticality = 'critical'; }
                     else if (daysToStart === 2) { criticality = 'urgent'; }
                     
-                    // Message avec indication weekend si vendredi
-                    let message = 'Campagne sans trader assigné';
+                    // Ajouter warning weekend dans le timing si vendredi
                     if (isFriday && daysToStartReal > daysToStart) {
-                        message += ` ⚠️ Attention weekend`;
+                        timing += ' ⚠️ Weekend';
                     }
                     
                     alerts.push({
@@ -655,7 +653,7 @@
                         criticality,
                         timing,
                         card,
-                        message
+                        message: 'Campagne sans trader assigné'
                     });
                 }
 
