@@ -95,6 +95,13 @@ function formatAlertForSlack(alert) {
         details += `*Marge:* ${alert.marginRate}%\n`;
     }
     
+    // Commentaires Dashboard (en premier)
+    let commentsDashboardText = '';
+    if (alert.commentsDashboard && alert.commentsDashboard.length > 0) {
+        commentsDashboardText = '\n*💬 Commentaires Dashboard:*\n' + 
+            alert.commentsDashboard.map(c => `• ${c}`).join('\n');
+    }
+    
     // Commentaires Nova
     let commentsNovaText = '';
     if (alert.commentsNova && alert.commentsNova.length > 0) {
@@ -102,15 +109,15 @@ function formatAlertForSlack(alert) {
             alert.commentsNova.map(c => `• ${c}`).join('\n');
     }
     
-    // Commentaires Dashboard
-    let commentsDashboardText = '';
-    if (alert.commentsDashboard && alert.commentsDashboard.length > 0) {
-        commentsDashboardText = '\n*💬 Commentaires Dashboard:*\n' + 
-            alert.commentsDashboard.map(c => `• ${c}`).join('\n');
+    // Commentaires ADX
+    let commentsADXText = '';
+    if (alert.commentsPlateforme && alert.commentsPlateforme.length > 0) {
+        commentsADXText = '\n*💬 Commentaires ADX:*\n' + 
+            alert.commentsPlateforme.map(c => `• ${c}`).join('\n');
     }
     
     // Fallback pour les alertes Traders/Commerce qui n'ont qu'un seul type
-    if (!commentsNovaText && !commentsDashboardText && alert.comments && alert.comments.length > 0) {
+    if (!commentsNovaText && !commentsDashboardText && !commentsADXText && alert.comments && alert.comments.length > 0) {
         commentsDashboardText = '\n*💬 Commentaires:*\n' + 
             alert.comments.map(c => `• ${c}`).join('\n');
     }
@@ -128,7 +135,7 @@ function formatAlertForSlack(alert) {
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: `*${title}*\n\n${badges}\n${alertsText}\n\n${durationText}\n${details}${commentsNovaText}${commentsDashboardText}${linksText}`
+            text: `*${title}*\n\n${badges}\n${alertsText}\n\n${durationText}\n${details}${commentsDashboardText}${commentsNovaText}${commentsADXText}${linksText}`
         }
     };
 }

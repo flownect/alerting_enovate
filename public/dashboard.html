@@ -2527,14 +2527,19 @@ ADX: ${adxLink}`;
                     const adxId = a.campaign?.adxId;
                     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
                     
-                    // Récupérer les commentaires Nova (ADX) et Dashboard séparément
+                    // Récupérer les commentaires Nova (ADX), Dashboard et Plateforme séparément
                     const commentsNova = (a.campaign?.comments || [])
                         .filter(c => c.isAdx && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
                     
                     const commentsDashboard = (a.campaign?.comments || [])
-                        .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
+                        .filter(c => c.cardId !== null && c.content)
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    const commentsPlateforme = (a.campaign?.comments || [])
+                        .filter(c => !c.isAdx && c.cardId === null && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
                     
@@ -2556,7 +2561,8 @@ ADX: ${adxLink}`;
                         novaLink,
                         adxLink,
                         commentsNova,
-                        commentsDashboard
+                        commentsDashboard,
+                        commentsPlateforme
                     };
                 });
                 
@@ -2564,9 +2570,14 @@ ADX: ${adxLink}`;
                     const campaignId = a.card?.campaignId;
                     const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
                     
-                    // Récupérer les 3 derniers commentaires non-ADX
-                    const comments = (a.card?.comments || [])
-                        .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
+                    // Récupérer les commentaires Nova (ADX) et Dashboard séparément
+                    const commentsNova = (a.card?.comments || [])
+                        .filter(c => c.isAdx && c.content)
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    const commentsDashboard = (a.card?.comments || [])
+                        .filter(c => c.cardId !== null && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
                     
@@ -2580,7 +2591,8 @@ ADX: ${adxLink}`;
                         message: a.message,
                         novaLink,
                         adxLink: a.card?.adxCampaignUrl,
-                        comments
+                        commentsNova,
+                        commentsDashboard
                     };
                 });
                 
@@ -2588,9 +2600,14 @@ ADX: ${adxLink}`;
                     const campaignId = a.card?.campaignId;
                     const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
                     
-                    // Récupérer les 3 derniers commentaires non-ADX
-                    const comments = (a.card?.comments || [])
-                        .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
+                    // Récupérer les commentaires Nova (ADX) et Dashboard séparément
+                    const commentsNova = (a.card?.comments || [])
+                        .filter(c => c.isAdx && c.content)
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    const commentsDashboard = (a.card?.comments || [])
+                        .filter(c => c.cardId !== null && c.content)
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
                     
@@ -2604,7 +2621,8 @@ ADX: ${adxLink}`;
                         message: a.message,
                         novaLink,
                         adxLink: a.card?.adxCampaignUrl,
-                        comments
+                        commentsNova,
+                        commentsDashboard
                     };
                 });
                 
