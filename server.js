@@ -441,6 +441,59 @@ app.post('/api/reset/programming', async (req, res) => {
     }
 });
 
+// ==================== BENCHMARK MATCHING ====================
+// Test du matching des benchmarks
+app.get('/api/benchmark-test', async (req, res) => {
+    try {
+        const benchmarkMatcher = require('./services/benchmark-matcher');
+        const trelloData = await getTrelloData();
+        
+        if (!trelloData || !trelloData.data || !trelloData.data.lanes) {
+            return res.json({ success: false, error: 'No Trello data' });
+        }
+        
+        const results = [];
+        
+        // Parcourir toutes les cartes
+        for (const lane of trelloData.data.lanes) {
+            for (const card of lane.cards || []) {
+                const kpis = benchmarkMatcher.getCardKpis(card);
+                
+                if (kpis.length > 0) {
+                    const cardResult = {
+                        title: card.title,
+                        trackerId: card.trackerId,
+                        kpis: []
+                    };
+                    
+                    for (const kpi of kpis) {
+                        const benchmark = benchmarkMatcher.findBenchmark(kpi.name, card);
+                        cardResult.kpis.push({
+                            name: kpi.name,
+                            type: kpi.type,
+                            benchmark: benchmark,
+                            matched: !!benchmark
+                        });
+                    }
+                    
+                    results.push(cardResult);
+                }
+            }
+        }
+        
+        res.json({
+            success: true,
+            totalCards: results.length,
+            matched: results.filter(r => r.kpis.some(k => k.matched)).length,
+            unmatched: results.filter(r => r.kpis.every(k => !k.matched)).length,
+            results: results.slice(0, 20) // Limiter à 20 pour la démo
+        });
+    } catch (error) {
+        log('API', `❌ Erreur benchmark test: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ==================== CAMPAIGN COMMENTS ====================
 // Récupérer le nombre de commentaires pour toutes les campagnes
 app.get('/api/comments-count', async (req, res) => {

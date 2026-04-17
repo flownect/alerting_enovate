@@ -1,0 +1,94 @@
+{
+  "_comment": "Benchmarks E-novate 2026 - Objectifs par KPI",
+  "ctr": [
+    { "format": "Habillage", "device": "Desktop", "type": "all", "feature": "all", "min": 0.26, "max": 0.32 },
+    { "format": "Grand Angle", "device": "all", "type": "all", "feature": "all", "min": 0.26, "max": 0.33 },
+    { "format": "Native", "device": "all", "type": "all", "feature": "all", "min": 0.71, "max": 0.82 },
+    { "format": "Pavé", "device": "all", "type": "all", "feature": "all", "min": 0.15, "max": 0.2 },
+    { "format": "Parallaxe", "device": "Mobile", "type": "all", "feature": "all", "min": 0.63, "max": 0.73 },
+    { "format": "Bannière", "device": "all", "type": "all", "feature": "all", "min": 0.17, "max": 0.23 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "all", "min": 4.46, "max": 4.71 },
+    { "format": "Habillage", "device": "Desktop", "type": "Statique", "feature": "all", "min": 0.26, "max": 0.32 },
+    { "format": "Habillage", "device": "Desktop", "type": "Animé", "feature": "all", "min": 0.25, "max": 0.32 },
+    { "format": "Grand Angle", "device": "Mobile", "type": "Animé", "feature": "all", "min": 0.32, "max": 0.39 },
+    { "format": "Pavé", "device": "Mobile", "type": "Animé", "feature": "all", "min": 0.13, "max": 0.18 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "Animé", "feature": "all", "min": 4.56, "max": 4.81 },
+    { "format": "Bannière", "device": "Mobile", "type": "Animé", "feature": "all", "min": 0.16, "max": 0.2 },
+    { "format": "Grand Angle", "device": "Mobile", "type": "Vidéo", "feature": "all", "min": 0.4, "max": 0.48 },
+    { "format": "Grand Angle", "device": "Mobile", "type": "Statique", "feature": "all", "min": 0.21, "max": 0.27 },
+    { "format": "Pavé", "device": "Mobile", "type": "Vidéo", "feature": "all", "min": 0.14, "max": 0.19 },
+    { "format": "Pavé", "device": "Mobile", "type": "Statique", "feature": "all", "min": 0.16, "max": 0.21 },
+    { "format": "Parallaxe", "device": "Mobile", "type": "Statique", "feature": "all", "min": 0.47, "max": 0.56 },
+    { "format": "Bannière", "device": "Mobile", "type": "Vidéo", "feature": "all", "min": 0.29, "max": 0.36 },
+    { "format": "Bannière", "device": "Mobile", "type": "Statique", "feature": "all", "min": 0.2, "max": 0.26 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "Vidéo", "feature": "all", "min": 4.63, "max": 4.87 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "Statique", "feature": "all", "min": 4.31, "max": 4.55 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Configurateur", "min": 5.5, "max": 5.75 },
+    { "format": "Pavé", "device": "Mobile", "type": "all", "feature": "Gaming", "min": 0.02, "max": 0.04 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Gaming", "min": 2.39, "max": 2.58 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Décompte", "min": 4.53, "max": 4.78 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Carrousel", "min": 4.71, "max": 4.96 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Hotspots", "min": 4.64, "max": 4.89 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Demi-fixe", "min": 4.25, "max": 4.5 },
+    { "format": "Pavé", "device": "Mobile", "type": "all", "feature": "3D", "min": 0.12, "max": 0.17 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "3D", "min": 4.76, "max": 5.01 },
+    { "format": "Pavé", "device": "Mobile", "type": "all", "feature": "Grattable", "min": 0.5, "max": 0.59 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Flip", "min": 2.77, "max": 2.97 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Grattable", "min": 4.1, "max": 4.83 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Drag to Reveal", "min": 3.85, "max": 4.1 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Cube", "min": 4.33, "max": 4.59 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Spin 360", "min": 3.86, "max": 4.11 }
+  ],
+  "vcr": [
+    { "format": "Interstitiel", "device": "all", "duration_min": 6, "duration_max": 10, "min": 88.06, "max": 93.17 },
+    { "format": "Interstitiel", "device": "all", "duration_min": 11, "duration_max": 15, "min": 79.18, "max": 85.84 },
+    { "format": "Interstitiel", "device": "all", "duration_min": 16, "duration_max": 20, "min": 71.6, "max": 79.16 },
+    { "format": "Interstitiel", "device": "all", "duration_min": 21, "duration_max": 25, "min": 77.84, "max": 84.68 },
+    { "format": "Interstitiel", "device": "all", "duration_min": 26, "duration_max": 30, "min": 56.26, "max": 65.79 },
+    { "format": "Pavé", "device": "all", "duration_min": 6, "duration_max": 10, "min": 81.01, "max": 87.4 },
+    { "format": "Pavé", "device": "all", "duration_min": 11, "duration_max": 15, "min": 72.25, "max": 79.74 },
+    { "format": "Pavé", "device": "all", "duration_min": 16, "duration_max": 20, "min": 66.14, "max": 74.16 },
+    { "format": "Pavé", "device": "all", "duration_min": 21, "duration_max": 25, "min": 60.93, "max": 69.28 },
+    { "format": "Pavé", "device": "all", "duration_min": 26, "duration_max": 30, "min": 9.5, "max": 15.28 },
+    { "format": "Pré-roll", "device": "all", "duration_min": 11, "duration_max": 15, "min": 81.14, "max": 87.51 },
+    { "format": "Pré-roll", "device": "all", "duration_min": 16, "duration_max": 20, "min": 87.83, "max": 92.99 },
+    { "format": "Pré-roll", "device": "all", "duration_min": 21, "duration_max": 25, "min": 65.69, "max": 73.75 },
+    { "format": "Pré-roll", "device": "all", "duration_min": 26, "duration_max": 30, "min": 49.07, "max": 57.82 },
+    { "format": "Grand Angle", "device": "all", "duration_min": 21, "duration_max": 25, "min": 41.08, "max": 49.81 }
+  ],
+  "sessionsRate": [
+    { "format": "all", "device": "all", "min": 30, "max": 50 }
+  ],
+  "lpVisitsRate": [
+    { "format": "Bannière", "device": "Mobile", "min": 60.76, "max": 66.72 },
+    { "format": "Pavé", "device": "Mobile", "min": 53.77, "max": 59.91 },
+    { "format": "Interstitiel", "device": "Mobile", "min": 63.05, "max": 68.93 },
+    { "format": "all", "device": "Mobile", "min": 63.25, "max": 69.11 }
+  ],
+  "lpInteractionRate": [
+    { "format": "Bannière", "device": "Mobile", "min": 1.78, "max": 3.82 },
+    { "format": "Pavé", "device": "Mobile", "min": 1.84, "max": 3.9 },
+    { "format": "Interstitiel", "device": "Mobile", "min": 5.91, "max": 9.19 },
+    { "format": "all", "device": "Mobile", "min": 5.68, "max": 8.91 }
+  ],
+  "bounceRate": [
+    { "format": "all", "device": "all", "min": 0, "max": 30 }
+  ],
+  "brandSafetyRate": [
+    { "format": "Native", "device": "all", "min": 97.87, "max": 98.05 },
+    { "format": "Pré-roll", "device": "all", "min": 97.86, "max": 98.04 },
+    { "format": "Grand Angle", "device": "all", "min": 99.76, "max": 99.82 },
+    { "format": "Pavé", "device": "all", "min": 99.63, "max": 99.71 },
+    { "format": "Parallaxe", "device": "all", "min": 97.82, "max": 97.99 },
+    { "format": "Bannière", "device": "all", "min": 99.61, "max": 99.68 },
+    { "format": "Interstitiel", "device": "all", "min": 99.35, "max": 99.44 }
+  ],
+  "creaInteractionRate": [
+    { "format": "Interstitiel", "device": "Mobile", "feature": "Configurateur", "min": 4.04, "max": 4.86 },
+    { "format": "Interstitiel", "device": "Mobile", "feature": "Gaming", "min": 3.46, "max": 3.77 },
+    { "format": "Pavé", "device": "Mobile", "feature": "Carrousel", "min": 3.64, "max": 4.41 },
+    { "format": "Interstitiel", "device": "Mobile", "feature": "Carrousel", "min": 4.12, "max": 4.94 },
+    { "format": "Interstitiel", "device": "Mobile", "feature": "3D", "min": 1.84, "max": 2.41 },
+    { "format": "Grand Angle", "device": "Mobile", "feature": "Flip", "min": 3.11, "max": 3.82 }
+  ]
+}
