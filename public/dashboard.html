@@ -551,6 +551,18 @@
             const alerts = [];
 
             for (const card of cards) {
+                // Exclure les campagnes de facturation de TOUTES les alertes
+                const isBillingCampaign = card.name && (
+                    /ne\s*pas\s*prog/i.test(card.name) ||
+                    /pour\s*facturation/i.test(card.name) ||
+                    /à\s*facturer/i.test(card.name) ||
+                    /a\s*facturer/i.test(card.name) ||
+                    /mais\s*pas\s*prog/i.test(card.name)
+                );
+                
+                // Skip cette campagne si c'est une campagne de facturation
+                if (isBillingCampaign) continue;
+                
                 const startDate = parseDate(card.dates?.startingDateFormatted);
                 const endDate = parseDate(card.dates?.endingDateFormatted);
                 // Utiliser getEffectiveTrader pour l'attribution unique
@@ -559,15 +571,7 @@
                 const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
 
                 // Alerte Lancement - Non programmable (J-3 à J0 et après lancement)
-                // Exclure les campagnes de facturation (ne pas prog, pour facturation, etc.)
-                const isBillingCampaign = card.name && (
-                    /ne\s*pas\s*prog/i.test(card.name) ||
-                    /pour\s*facturation/i.test(card.name) ||
-                    /à\s*facturer/i.test(card.name) ||
-                    /a\s*facturer/i.test(card.name)
-                );
-                
-                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null && !isBillingCampaign) {
+                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null) {
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
                     
                     // Campagne déjà lancée (jours négatifs)
