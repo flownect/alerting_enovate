@@ -549,8 +549,15 @@
             const cards = getAllCards();
             const now = today();
             const alerts = [];
+            
+            console.log(`🔍 generateAlerts: ${cards.length} cartes à analyser`);
 
             for (const card of cards) {
+                // Debug: afficher les campagnes qui contiennent "CoSpirit" ou "facturation"
+                if (card.name?.includes('CoSpirit') || card.name?.toLowerCase().includes('facturation')) {
+                    console.log('🔎 Carte trouvée:', card.name);
+                }
+                
                 // Exclure les campagnes de facturation de TOUTES les alertes
                 const isBillingCampaign = card.name && (
                     /ne\s*pas\s*prog/i.test(card.name) ||
