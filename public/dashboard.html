@@ -2523,11 +2523,26 @@ ADX: ${adxLink}`;
                     const campaignId = a.campaign?.campaignId || a.campaign?.briefId?.briefCampaignInfo?.[0];
                     const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
                     
+                    // Extraire lien ADX des commentaires
+                    let adxLink = a.campaign?.adxCampaignUrl;
+                    if (!adxLink && a.campaign?.comments) {
+                        const adxComment = a.campaign.comments.find(c => 
+                            c.content && c.content.includes('hubscale.io/manager/campaigns/view/')
+                        );
+                        if (adxComment) {
+                            adxLink = adxComment.content.trim();
+                        }
+                    }
+                    
                     // Récupérer les 3 derniers commentaires non-ADX
                     const comments = (a.campaign?.comments || [])
                         .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
                         .slice(0, 3)
                         .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    // Calculer jours restants
+                    const endDate = parseDate(a.campaign?.endDate);
+                    const daysLeft = endDate ? Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
                     
                     return {
                         title: a.campaign?.campaignName || 'Sans nom',
@@ -2536,11 +2551,12 @@ ADX: ${adxLink}`;
                         startDate: a.campaign?.startDate,
                         endDate: a.campaign?.endDate,
                         durationProgress: Math.round(a.durationProgress || 0),
+                        daysLeft: daysLeft,
                         deliveryProgress: Math.round(a.deliveryProgress || 0),
                         marginRate: a.marginRate?.toFixed(1),
                         reasons: a.reasons || [],
                         novaLink,
-                        adxLink: a.campaign?.adxCampaignUrl,
+                        adxLink,
                         comments
                     };
                 });

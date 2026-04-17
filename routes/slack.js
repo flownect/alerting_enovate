@@ -28,17 +28,64 @@ function formatAlertForSlack(alert) {
     const trader = alert.trader || 'N/A';
     const commercial = alert.commercial || 'N/A';
     
-    // Infos campagne
-    let details = `*Trader:* ${trader}\n*Commercial:* ${commercial}\n`;
+    // Badges/Étiquettes (timing, types d'alertes)
+    let badges = '';
     
-    // Dates
-    if (alert.startDate && alert.endDate) {
-        details += `*Dates:* ${alert.startDate} → ${alert.endDate}\n`;
+    // Jours restants en premier
+    if (alert.daysLeft !== null && alert.daysLeft !== undefined && alert.daysLeft > 0) {
+        badges += `⏱️ ${alert.daysLeft}j restants\n`;
+    } else if (alert.timing) {
+        badges += `⏱️ ${alert.timing}\n`;
     }
     
+    // Types d'alertes en badges
+    if (alert.reasons && alert.reasons.length > 0) {
+        const types = [];
+        alert.reasons.forEach(r => {
+            if (r.includes('Marge')) types.push('Marge');
+            if (r.includes('diffuse pas')) types.push('Pas de diffusion');
+            if (r.includes('Retard')) types.push('Retard volume');
+            if (r.includes('CTR') || r.includes('VCR') || r.includes('Sessions') || r.includes('Visite LP')) types.push('Performance');
+        });
+        if (types.length > 0) {
+            badges += types.join('\n') + '\n';
+        }
+    } else if (alert.message) {
+        if (alert.message.includes('non programmable')) badges += 'Lancement\n';
+        if (alert.message.includes('sans trader')) badges += 'Trader\n';
+        if (alert.message.includes('non live')) badges += 'Non Live\n';
+    }
+    
+    // Alertes détaillées
+    let alertsText = '';
+    if (alert.reasons && alert.reasons.length > 0) {
+        alertsText = alert.reasons.map(r => {
+            if (r.includes('Marge')) return `💰 ${r}`;
+            if (r.includes('diffuse pas')) return `🚫 ${r}`;
+            if (r.includes('Retard')) return `📉 ${r}`;
+            if (r.includes('CTR') || r.includes('VCR')) return `📊 ${r}`;
+            if (r.includes('Sessions') || r.includes('Visite LP')) return `🔗 ${r}`;
+            return `⚠️ ${r}`;
+        }).join('\n');
+    } else if (alert.message) {
+        alertsText = `⚠️ ${alert.message}`;
+    }
+    
+    // Durée et dates
+    let durationText = '';
     if (alert.durationProgress !== undefined) {
-        details += `*Durée:* ${alert.durationProgress}%\n`;
+        durationText = `*Durée:* ${alert.durationProgress}%`;
+        if (alert.daysLeft !== null && alert.daysLeft !== undefined) {
+            durationText += ` • ${alert.daysLeft}j restants`;
+        }
+        durationText += '\n';
     }
+    if (alert.startDate && alert.endDate) {
+        durationText += `*Dates:* ${alert.startDate} → ${alert.endDate}\n`;
+    }
+    
+    // Infos complémentaires
+    let details = `*Trader:* ${trader}\n*Commercial:* ${commercial}\n`;
     
     if (alert.deliveryProgress !== undefined) {
         details += `*Volume:* ${alert.deliveryProgress}%\n`;
@@ -46,18 +93,6 @@ function formatAlertForSlack(alert) {
     
     if (alert.marginRate) {
         details += `*Marge:* ${alert.marginRate}%\n`;
-    }
-    
-    if (alert.timing) {
-        details += `*Timing:* ${alert.timing}\n`;
-    }
-    
-    // Alertes
-    let alertsText = '';
-    if (alert.reasons && alert.reasons.length > 0) {
-        alertsText = alert.reasons.map(r => `• ${r}`).join('\n');
-    } else if (alert.message) {
-        alertsText = `• ${alert.message}`;
     }
     
     // Commentaires
@@ -80,7 +115,7 @@ function formatAlertForSlack(alert) {
         type: 'section',
         text: {
             type: 'mrkdwn',
-            text: `*${title}*\n${details}\n⚠️ *Alertes:*\n${alertsText}${commentsText}${linksText}`
+            text: `*${title}*\n\n${badges}\n${alertsText}\n\n${durationText}\n${details}${commentsText}${linksText}`
         }
     };
 }
@@ -124,13 +159,16 @@ router.post('/send-alerts', async (req, res) => {
         
         // Section Performance
         if (criticalPerf.length > 0) {
+            blocks.push({ type: 'divider' });
             blocks.push({
-                type: 'section',
+                type: 'header',
                 text: {
-                    type: 'mrkdwn',
-                    text: `*📊 PERFORMANCE (${criticalPerf.length})*`
+                    type: 'plain_text',
+                    text: `📊 ALERTES PERFORMANCE (${criticalPerf.length})`,
+                    emoji: true
                 }
             });
+            blocks.push({ type: 'divider' });
             
             criticalPerf.forEach(alert => {
                 blocks.push(formatAlertForSlack(alert));
@@ -140,13 +178,16 @@ router.post('/send-alerts', async (req, res) => {
         
         // Section Traders
         if (criticalTraders.length > 0) {
+            blocks.push({ type: 'divider' });
             blocks.push({
-                type: 'section',
+                type: 'header',
                 text: {
-                    type: 'mrkdwn',
-                    text: `*👥 TRADERS (${criticalTraders.length})*`
+                    type: 'plain_text',
+                    text: `👥 ALERTES TRADERS (${criticalTraders.length})`,
+                    emoji: true
                 }
             });
+            blocks.push({ type: 'divider' });
             
             criticalTraders.forEach(alert => {
                 blocks.push(formatAlertForSlack(alert));
@@ -154,15 +195,18 @@ router.post('/send-alerts', async (req, res) => {
             });
         }
         
-        // Section Commerce
+        // Section Commerce (CSM)
         if (criticalCommerce.length > 0) {
+            blocks.push({ type: 'divider' });
             blocks.push({
-                type: 'section',
+                type: 'header',
                 text: {
-                    type: 'mrkdwn',
-                    text: `*💼 COMMERCE (${criticalCommerce.length})*`
+                    type: 'plain_text',
+                    text: `💼 ALERTES CSM (${criticalCommerce.length})`,
+                    emoji: true
                 }
             });
+            blocks.push({ type: 'divider' });
             
             criticalCommerce.forEach(alert => {
                 blocks.push(formatAlertForSlack(alert));
