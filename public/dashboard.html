@@ -935,35 +935,62 @@
             
             console.log(`📊 Analyzing ${allCards.length} cards for benchmark alerts`);
             
+            let liveCampaigns = 0;
+            let above30Percent = 0;
+            let matchedCards = 0;
+            let withKpis = 0;
+            
             // Pour chaque campagne ADX
             for (const campaign of campaignStatsData.data) {
                 // Ignorer les campagnes non live
                 if (!campaign.isLive) continue;
+                liveCampaigns++;
                 
                 // Vérifier le % de diffusion (volume)
                 const deliveryPercent = getDeliveryPercent(campaign);
                 
                 // N'afficher les alertes qu'après 30% de diffusion
                 if (deliveryPercent < 30) continue;
+                above30Percent++;
                 
                 // Calculer le % de temps écoulé
                 const timePercent = getTimePercent(campaign);
                 
                 // Trouver la carte Trello correspondante
                 const card = findMatchingCard(campaign, allCards);
-                if (!card) continue;
+                if (!card) {
+                    if (above30Percent <= 5) {
+                        console.log(`⚠️ No card found for campaign: ${campaign.campaignName} (${deliveryPercent.toFixed(0)}% diffusé)`);
+                    }
+                    continue;
+                }
+                matchedCards++;
                 
                 // Récupérer les KPIs de la carte
                 const kpis = getCardKpis(card);
+                if (kpis.length === 0) {
+                    if (matchedCards <= 5) {
+                        console.log(`⚠️ No KPIs for card: ${card.title}`);
+                    }
+                    continue;
+                }
+                withKpis++;
+                
+                if (withKpis <= 5) {
+                    console.log(`✅ Checking KPIs for: ${campaign.campaignName}`, kpis.map(k => k.name));
+                }
                 
                 // Vérifier chaque KPI
                 for (const kpi of kpis) {
                     const alert = checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent);
                     if (alert) {
                         alerts.push(alert);
+                        console.log(`🚨 Alert generated for ${campaign.campaignName}: ${kpi.name}`);
                     }
                 }
             }
+            
+            console.log(`📊 Stats: ${liveCampaigns} live, ${above30Percent} >30%, ${matchedCards} matched, ${withKpis} with KPIs`);
             
             console.log(`✅ Generated ${alerts.length} benchmark alerts`);
             return alerts;
