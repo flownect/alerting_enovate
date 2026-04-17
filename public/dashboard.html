@@ -559,7 +559,15 @@
                 const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
 
                 // Alerte Lancement - Non programmable (J-3 à J0 et après lancement)
-                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null) {
+                // Exclure les campagnes de facturation (ne pas prog, pour facturation, etc.)
+                const isBillingCampaign = card.name && (
+                    /ne\s*pas\s*prog/i.test(card.name) ||
+                    /pour\s*facturation/i.test(card.name) ||
+                    /à\s*facturer/i.test(card.name) ||
+                    /a\s*facturer/i.test(card.name)
+                );
+                
+                if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null && !isBillingCampaign) {
                     const launchDate = card.dates?.startingDateFormatted || 'N/A';
                     
                     // Campagne déjà lancée (jours négatifs)
