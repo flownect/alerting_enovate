@@ -31,6 +31,11 @@ function formatAlertForSlack(alert) {
     // Infos campagne
     let details = `*Trader:* ${trader}\n*Commercial:* ${commercial}\n`;
     
+    // Dates
+    if (alert.startDate && alert.endDate) {
+        details += `*Dates:* ${alert.startDate} → ${alert.endDate}\n`;
+    }
+    
     if (alert.durationProgress !== undefined) {
         details += `*Durée:* ${alert.durationProgress}%\n`;
     }
