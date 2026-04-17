@@ -161,11 +161,10 @@ router.post('/send-alerts', async (req, res) => {
         if (criticalPerf.length > 0) {
             blocks.push({ type: 'divider' });
             blocks.push({
-                type: 'header',
+                type: 'section',
                 text: {
-                    type: 'plain_text',
-                    text: `📊 ALERTES PERFORMANCE (${criticalPerf.length})`,
-                    emoji: true
+                    type: 'mrkdwn',
+                    text: `*📊 ALERTES PERFORMANCE (${criticalPerf.length})*`
                 }
             });
             blocks.push({ type: 'divider' });
@@ -180,11 +179,10 @@ router.post('/send-alerts', async (req, res) => {
         if (criticalTraders.length > 0) {
             blocks.push({ type: 'divider' });
             blocks.push({
-                type: 'header',
+                type: 'section',
                 text: {
-                    type: 'plain_text',
-                    text: `👥 ALERTES TRADERS (${criticalTraders.length})`,
-                    emoji: true
+                    type: 'mrkdwn',
+                    text: `*👥 ALERTES TRADERS (${criticalTraders.length})*`
                 }
             });
             blocks.push({ type: 'divider' });
@@ -199,11 +197,10 @@ router.post('/send-alerts', async (req, res) => {
         if (criticalCommerce.length > 0) {
             blocks.push({ type: 'divider' });
             blocks.push({
-                type: 'header',
+                type: 'section',
                 text: {
-                    type: 'plain_text',
-                    text: `💼 ALERTES CSM (${criticalCommerce.length})`,
-                    emoji: true
+                    type: 'mrkdwn',
+                    text: `*💼 ALERTES CSM (${criticalCommerce.length})*`
                 }
             });
             blocks.push({ type: 'divider' });
