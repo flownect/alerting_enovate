@@ -547,7 +547,15 @@
 
         function generateAlerts() {
             const cards = getAllCards();
-            const now = today();
+            let now = today();
+            
+            // Ajuster pour le weekend si on est vendredi
+            const dayOfWeek = now.getDay();
+            if (dayOfWeek === 5) { // Vendredi
+                now = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
+                console.log('📅 Vendredi détecté: +2 jours ajoutés aux calculs');
+            }
+            
             const alerts = [];
             
             console.log(`🔍 generateAlerts: ${cards.length} cartes à analyser`);
