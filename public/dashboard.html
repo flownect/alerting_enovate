@@ -723,7 +723,7 @@
         }
 
         // ==================== PERFORMANCE ALERTS ====================
-        function generatePerformanceAlerts() {
+        async function generatePerformanceAlerts() {
             if (!campaignStatsData?.data) return [];
             
             // Debug: afficher la structure des données
@@ -890,11 +890,60 @@
                 }
             }
             
+            // Ajouter les alertes basées sur les benchmarks
+            const benchmarkAlerts = await generateBenchmarkAlerts();
+            alerts.push(...benchmarkAlerts);
+            
             // Trier par niveau de criticité
             const order = { critique: 0, alerte: 1, faible: 2 };
             alerts.sort((a, b) => order[a.level] - order[b.level]);
             
             return alerts;
+        }
+
+        // Générer les alertes basées sur les benchmarks
+        async function generateBenchmarkAlerts() {
+            try {
+                const response = await fetch('/api/performance-analysis');
+                const result = await response.json();
+                
+                if (!result.success || !result.alerts) {
+                    return [];
+                }
+                
+                // Convertir les alertes benchmark en format compatible
+                return result.alerts.map(alert => {
+                    // Mapper la sévérité
+                    let level = 'faible';
+                    if (alert.severity === 'critical') level = 'critique';
+                    else if (alert.severity === 'urgent') level = 'alerte';
+                    
+                    // Trouver la campagne correspondante dans campaignStatsData
+                    const campaign = campaignStatsData.data.find(c => 
+                        c.campaignId === alert.campaignId ||
+                        c.adxDisplayId === alert.trackerId ||
+                        c.adxId === alert.trackerId
+                    );
+                    
+                    if (!campaign) return null;
+                    
+                    return {
+                        level,
+                        campaign,
+                        durationProgress: alert.timePercent,
+                        deliveryProgress: alert.deliveryPercent,
+                        marginRate: null,
+                        reasons: [alert.detailedMessage || alert.message],
+                        trader: campaign.traderName || 'N/A',
+                        commercial: campaign.commercialName || 'N/A',
+                        isBenchmarkAlert: true,
+                        benchmarkData: alert
+                    };
+                }).filter(a => a !== null);
+            } catch (error) {
+                console.error('❌ Erreur génération alertes benchmark:', error);
+                return [];
+            }
         }
 
         // ==================== RENDERING ====================
@@ -2170,6 +2219,25 @@
                 `;
             }
             
+            // Alertes benchmark (CTR, VCR, etc.)
+            if (alert.isBenchmarkAlert && alert.benchmarkData) {
+                const kpiName = alert.benchmarkData.kpi;
+                let badgeLabel = kpiName;
+                let badgeColor = 'bg-purple-500';
+                
+                // Mapper les KPIs vers des labels courts
+                if (kpiName.includes('CTR')) badgeLabel = 'CTR';
+                else if (kpiName.includes('VCR') || kpiName.includes('complétion')) badgeLabel = 'VCR';
+                else if (kpiName.includes('session')) badgeLabel = 'Sessions';
+                else if (kpiName.includes('visite LP')) badgeLabel = 'Visite LP';
+                else if (kpiName.includes('rebond')) badgeLabel = 'Rebond';
+                else if (kpiName.includes('Brand')) badgeLabel = 'Brand Safety';
+                
+                if (!categoryBadges.find(b => b.label === badgeLabel)) {
+                    categoryBadges.push({ label: badgeLabel, color: badgeColor });
+                }
+            }
+            
             // Autres raisons
             if (alert.reasons && alert.reasons.length > 0) {
                 alert.reasons.forEach(reason => {
@@ -2179,7 +2247,13 @@
                     let textColor = 'text-gray-700 dark:text-gray-300';
                     let icon = '';
                     
-                    if (reason.toLowerCase().includes('rebond')) {
+                    // Alertes benchmark
+                    if (alert.isBenchmarkAlert) {
+                        alertColor = 'bg-purple-50 dark:bg-purple-900/20';
+                        borderColor = 'border-purple-200 dark:border-purple-800';
+                        textColor = 'text-purple-700 dark:text-purple-300';
+                        icon = '📊';
+                    } else if (reason.toLowerCase().includes('rebond')) {
                         if (!categoryBadges.find(b => b.label === 'Rebond')) {
                             categoryBadges.push({ label: 'Rebond', color: 'bg-orange-500' });
                         }
@@ -2538,7 +2612,7 @@ ADX: ${adxLink}`;
                 
                 if (data.success) {
                     campaignStatsData = data;
-                    allPerformanceAlerts = generatePerformanceAlerts();
+                    allPerformanceAlerts = await generatePerformanceAlerts();
                     renderPerformance();
                     if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
                     return true;
@@ -2578,7 +2652,7 @@ ADX: ${adxLink}`;
             }
             
             if (perfSuccess) {
-                allPerformanceAlerts = generatePerformanceAlerts();
+                allPerformanceAlerts = await generatePerformanceAlerts();
                 renderPerformance();
             }
 
@@ -2697,9 +2771,9 @@ ADX: ${adxLink}`;
             }
             
             // Charger Performance en parallèle (sans bloquer l'affichage)
-            fetchCampaignStats().then(perfSuccess => {
+            fetchCampaignStats().then(async perfSuccess => {
                 if (perfSuccess) {
-                    allPerformanceAlerts = generatePerformanceAlerts();
+                    allPerformanceAlerts = await generatePerformanceAlerts();
                     renderPerformance();
                 }
             });
