@@ -2524,16 +2524,9 @@ ADX: ${adxLink}`;
                     const briefId = a.campaign?.briefId?.briefCampaignInfo?.[0];
                     const novaLink = briefId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
                     
-                    // ADX : chercher dans les commentaires
-                    let adxLink = null;
-                    if (a.campaign?.comments) {
-                        const adxComment = a.campaign.comments.find(c => 
-                            c.content && c.content.includes('https://enovate.hubscale.io/manager/campaigns/view/')
-                        );
-                        if (adxComment) {
-                            adxLink = adxComment.content.trim();
-                        }
-                    }
+                    // ADX : construire l'URL avec adxId
+                    const adxId = a.campaign?.adxId;
+                    const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
                     
                     // Récupérer les 3 derniers commentaires non-ADX
                     const comments = (a.campaign?.comments || [])
