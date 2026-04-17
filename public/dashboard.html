@@ -77,10 +77,6 @@
                     <div id="critical-counter" onclick="showCriticalAlerts()" class="hidden bg-red-600 text-white px-3 py-1 rounded-full font-bold text-sm animate-pulse cursor-pointer hover:bg-red-700 transition">
                         0 CRITIQUE
                     </div>
-                    <!-- Bouton Slack -->
-                    <button onclick="sendAlertsToSlack()" id="slack-button" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition flex items-center gap-2">
-                        📤 Envoyer sur Slack
-                    </button>
                     <!-- Status APIs -->
                     <div class="flex items-center gap-3 text-xs">
                         <div class="flex items-center gap-1" title="API Trello (Alertes)">
@@ -116,6 +112,13 @@
             <h3 class="font-bold text-gray-900 dark:text-white">Paramètres</h3>
         </div>
         <div class="p-4 space-y-4">
+            <!-- Slack -->
+            <div>
+                <button onclick="sendAlertsToSlack()" id="slack-button-menu" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">
+                    📤 Envoyer alertes sur Slack
+                </button>
+            </div>
+            
             <!-- Stats de programmation -->
             <div>
                 <button onclick="showProgrammingStats()" class="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">
@@ -2500,17 +2503,81 @@ ADX: ${adxLink}`;
         
         // Fonction pour envoyer les alertes critiques sur Slack
         async function sendAlertsToSlack() {
-            const btn = document.getElementById('slack-button');
+            const btn = document.getElementById('slack-button-menu');
             const originalText = btn.innerHTML;
             
             try {
                 btn.innerHTML = '⏳ Envoi...';
                 btn.disabled = true;
                 
-                // Filtrer les alertes critiques
-                const criticalPerf = allPerformanceAlerts.filter(a => a.level === 'critique');
-                const criticalTraders = allAlerts.filter(a => a.card?.isProgrammable && a.criticality === 'critical');
-                const criticalCommerce = allAlerts.filter(a => !a.card?.isProgrammable && a.criticality === 'critical');
+                // Filtrer les alertes critiques et envoyer UNIQUEMENT les données essentielles
+                const criticalPerf = allPerformanceAlerts.filter(a => a.level === 'critique').map(a => {
+                    const campaignId = a.campaign?.campaignId || a.campaign?.briefId?.briefCampaignInfo?.[0];
+                    const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
+                    
+                    // Récupérer les 3 derniers commentaires non-ADX
+                    const comments = (a.campaign?.comments || [])
+                        .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    return {
+                        title: a.campaign?.campaignName || 'Sans nom',
+                        trader: a.trader || 'N/A',
+                        commercial: a.commercial || 'N/A',
+                        durationProgress: Math.round(a.durationProgress || 0),
+                        deliveryProgress: Math.round(a.deliveryProgress || 0),
+                        marginRate: a.marginRate?.toFixed(1),
+                        reasons: a.reasons || [],
+                        novaLink,
+                        adxLink: a.campaign?.adxCampaignUrl,
+                        comments
+                    };
+                });
+                
+                const criticalTraders = allAlerts.filter(a => a.card?.isProgrammable && a.criticality === 'critical').map(a => {
+                    const campaignId = a.card?.campaignId;
+                    const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
+                    
+                    // Récupérer les 3 derniers commentaires non-ADX
+                    const comments = (a.card?.comments || [])
+                        .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    return {
+                        title: a.card?.title || 'Sans nom',
+                        trader: a.card?.trader || 'N/A',
+                        commercial: a.card?.commercial || 'N/A',
+                        timing: a.timing,
+                        message: a.message,
+                        novaLink,
+                        adxLink: a.card?.adxCampaignUrl,
+                        comments
+                    };
+                });
+                
+                const criticalCommerce = allAlerts.filter(a => !a.card?.isProgrammable && a.criticality === 'critical').map(a => {
+                    const campaignId = a.card?.campaignId;
+                    const novaLink = campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}` : null;
+                    
+                    // Récupérer les 3 derniers commentaires non-ADX
+                    const comments = (a.card?.comments || [])
+                        .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
+                        .slice(0, 3)
+                        .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+                    
+                    return {
+                        title: a.card?.title || 'Sans nom',
+                        trader: a.card?.trader || 'N/A',
+                        commercial: a.card?.commercial || 'N/A',
+                        timing: a.timing,
+                        message: a.message,
+                        novaLink,
+                        adxLink: a.card?.adxCampaignUrl,
+                        comments
+                    };
+                });
                 
                 const totalCritical = criticalPerf.length + criticalTraders.length + criticalCommerce.length;
                 

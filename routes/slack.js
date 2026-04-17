@@ -22,41 +22,29 @@ async function sendSlackMessage(blocks) {
     return response;
 }
 
-// Formater une alerte pour Slack
-function formatAlertForSlack(alert, perfData) {
-    const card = alert.card || alert.campaign;
-    const title = card.title || card.campaignName || 'Sans nom';
+// Formater une alerte pour Slack (données déjà nettoyées côté client)
+function formatAlertForSlack(alert) {
+    const title = alert.title || 'Sans nom';
     const trader = alert.trader || 'N/A';
-    const commercial = alert.commercial || card.commercial || 'N/A';
-    
-    // Liens
-    const novaLink = card.campaignId || card.briefId?.briefCampaignInfo?.[0] 
-        ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId || card.briefId.briefCampaignInfo[0]}`
-        : null;
-    
-    let adxLink = null;
-    if (card.adxCampaignUrl) {
-        adxLink = card.adxCampaignUrl;
-    } else if (card.comments && Array.isArray(card.comments)) {
-        const adxComment = card.comments.find(c => 
-            c.content && c.content.includes('hubscale.io/manager/campaigns/view/')
-        );
-        if (adxComment) adxLink = adxComment.content.trim();
-    }
+    const commercial = alert.commercial || 'N/A';
     
     // Infos campagne
     let details = `*Trader:* ${trader}\n*Commercial:* ${commercial}\n`;
     
     if (alert.durationProgress !== undefined) {
-        details += `*Durée:* ${Math.round(alert.durationProgress)}%\n`;
+        details += `*Durée:* ${alert.durationProgress}%\n`;
     }
     
     if (alert.deliveryProgress !== undefined) {
-        details += `*Volume:* ${Math.round(alert.deliveryProgress)}%\n`;
+        details += `*Volume:* ${alert.deliveryProgress}%\n`;
     }
     
-    if (alert.marginRate !== null && alert.marginRate !== undefined) {
-        details += `*Marge:* ${alert.marginRate.toFixed(1)}%\n`;
+    if (alert.marginRate) {
+        details += `*Marge:* ${alert.marginRate}%\n`;
+    }
+    
+    if (alert.timing) {
+        details += `*Timing:* ${alert.timing}\n`;
     }
     
     // Alertes
@@ -69,24 +57,18 @@ function formatAlertForSlack(alert, perfData) {
     
     // Commentaires
     let commentsText = '';
-    if (card.comments && Array.isArray(card.comments)) {
-        const recentComments = card.comments
-            .filter(c => !c.isAdx && c.content && !c.content.includes('hubscale.io'))
-            .slice(0, 3);
-        
-        if (recentComments.length > 0) {
-            commentsText = '\n*💬 Commentaires récents:*\n' + 
-                recentComments.map(c => `• ${c.content} (${c.author?.name || 'Anonyme'})`).join('\n');
-        }
+    if (alert.comments && alert.comments.length > 0) {
+        commentsText = '\n*💬 Commentaires récents:*\n' + 
+            alert.comments.map(c => `• ${c}`).join('\n');
     }
     
     // Liens
     let linksText = '';
-    if (novaLink || adxLink) {
+    if (alert.novaLink || alert.adxLink) {
         linksText = '\n';
-        if (novaLink) linksText += `<${novaLink}|Nova>`;
-        if (novaLink && adxLink) linksText += ' | ';
-        if (adxLink) linksText += `<${adxLink}|ADX>`;
+        if (alert.novaLink) linksText += `<${alert.novaLink}|Nova>`;
+        if (alert.novaLink && alert.adxLink) linksText += ' | ';
+        if (alert.adxLink) linksText += `<${alert.adxLink}|ADX>`;
     }
     
     return {
@@ -104,10 +86,10 @@ router.post('/send-alerts', async (req, res) => {
     try {
         const { performanceAlerts, tradersAlerts, commerceAlerts } = req.body;
         
-        // Filtrer seulement les critiques
-        const criticalPerf = (performanceAlerts || []).filter(a => a.level === 'critique');
-        const criticalTraders = (tradersAlerts || []).filter(a => a.criticality === 'critical');
-        const criticalCommerce = (commerceAlerts || []).filter(a => a.criticality === 'critical');
+        // Les données sont déjà filtrées et nettoyées côté client
+        const criticalPerf = performanceAlerts || [];
+        const criticalTraders = tradersAlerts || [];
+        const criticalCommerce = commerceAlerts || [];
         
         const totalCritical = criticalPerf.length + criticalTraders.length + criticalCommerce.length;
         
