@@ -1016,20 +1016,60 @@
         }
         
         function findMatchingCard(campaign, cards) {
-            return cards.find(c => 
-                c.campaignId === campaign.campaignId ||
-                c.briefId?.briefCampaignInfo?.[0] === campaign.briefId?.briefCampaignInfo?.[0] ||
-                (c.trackerId && (campaign.adxDisplayId === c.trackerId || campaign.adxId === c.trackerId))
-            );
+            if (!campaign) return null;
+            
+            return cards.find(c => {
+                if (!c) return false;
+                
+                // Match par campaignId
+                if (c.campaignId && campaign.campaignId && c.campaignId === campaign.campaignId) {
+                    return true;
+                }
+                
+                // Match par briefId
+                if (c.briefId?.briefCampaignInfo?.[0] && campaign.briefId?.briefCampaignInfo?.[0] &&
+                    c.briefId.briefCampaignInfo[0] === campaign.briefId.briefCampaignInfo[0]) {
+                    return true;
+                }
+                
+                // Match par trackerId
+                if (c.trackerId && (campaign.adxDisplayId === c.trackerId || campaign.adxId === c.trackerId)) {
+                    return true;
+                }
+                
+                return false;
+            });
         }
         
         function getCardKpis(card) {
             const kpis = [];
-            if (card.subdivisions && card.subdivisions.length > 0) {
-                const sub = card.subdivisions[0];
-                if (sub.kpi) kpis.push({ name: sub.kpi, type: 'primary' });
-                if (sub.secondaryKpi) kpis.push({ name: sub.secondaryKpi, type: 'secondary' });
+            
+            if (!card.subdivisions || card.subdivisions.length === 0) {
+                return kpis;
             }
+            
+            // Parcourir toutes les subdivisions
+            for (const sub of card.subdivisions) {
+                // KPI principal
+                if (sub.kpi && sub.kpi.trim()) {
+                    kpis.push({ name: sub.kpi.trim(), type: 'primary' });
+                }
+                
+                // KPI secondaire
+                if (sub.secondaryKpi && sub.secondaryKpi.trim()) {
+                    kpis.push({ name: sub.secondaryKpi.trim(), type: 'secondary' });
+                }
+                
+                // Autres KPIs (si présents dans la structure)
+                if (sub.otherKpis && Array.isArray(sub.otherKpis)) {
+                    for (const otherKpi of sub.otherKpis) {
+                        if (otherKpi && otherKpi.trim()) {
+                            kpis.push({ name: otherKpi.trim(), type: 'other' });
+                        }
+                    }
+                }
+            }
+            
             return kpis;
         }
         
@@ -1062,9 +1102,14 @@
             const severity = calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue);
             
             // Mapper vers niveau d'alerte
+            // Si KPI autre (ni primary ni secondary), forcer au niveau le plus bas
             let level = 'faible';
-            if (severity === 'critical') level = 'critique';
-            else if (severity === 'urgent') level = 'alerte';
+            if (kpi.type === 'other') {
+                level = 'faible'; // Toujours faible pour les KPIs "autres"
+            } else {
+                if (severity === 'critical') level = 'critique';
+                else if (severity === 'urgent') level = 'alerte';
+            }
             
             const message = isRebond 
                 ? `${kpi.name}: ${currentValue.toFixed(1)}% (max: ${benchmark.max}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`
