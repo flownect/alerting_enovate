@@ -2,6 +2,28 @@ const cron = require('node-cron');
 const fetch = require('node-fetch');
 const { generateTradersCommerceAlerts, generatePerformanceAlerts } = require('../routes/alerts');
 
+// Fonction pour envoyer directement sur Slack
+async function sendToSlack(blocks) {
+    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    
+    if (!webhookUrl) {
+        throw new Error('SLACK_WEBHOOK_URL non configurée');
+    }
+    
+    const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocks })
+    });
+    
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Erreur Slack ${response.status}: ${text}`);
+    }
+    
+    return response;
+}
+
 // Variables d'environnement
 const NOVA_API_KEY = process.env.NOVA_API_KEY;
 const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://dashboard.e-novate.fr';
@@ -170,27 +192,68 @@ async function sendDailyAlerts() {
             commentsDashboard: []
         }));
         
-        const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-        log(`Envoi vers Slack: ${formattedPerformance.length} Performance, ${formattedTraders.length} Traders, ${formattedCommerce.length} Commerce`);
+        const totalCritical = formattedPerformance.length + formattedTraders.length + formattedCommerce.length;
+        log(`Envoi vers Slack: ${totalCritical} alertes (${formattedPerformance.length} Performance, ${formattedTraders.length} Traders, ${formattedCommerce.length} Commerce)`);
         
-        const response = await fetch(`${baseUrl}/api/slack/send-alerts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                performanceAlerts: formattedPerformance,
-                tradersAlerts: formattedTraders,
-                commerceAlerts: formattedCommerce
-            })
-        });
-        
-        const result = await response.json();
-        log(`Réponse Slack: ${JSON.stringify(result)}`);
-        
-        if (result.success) {
-            log(`✅ ${result.message}`);
-        } else {
-            log(`❌ Erreur: ${result.error}`);
+        if (totalCritical === 0) {
+            log('✅ Aucune alerte critique à envoyer');
+            return;
         }
+        
+        // Construire les blocks Slack (version simplifiée)
+        const blocks = [
+            {
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: `🚨 Alertes Critiques - ${new Date().toLocaleDateString('fr-FR')}`,
+                    emoji: true
+                }
+            },
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${formattedPerformance.length} | 👥 Traders: ${formattedTraders.length} | 💼 CSM: ${formattedCommerce.length}`
+                }
+            },
+            { type: 'divider' }
+        ];
+        
+        // Ajouter les alertes Traders
+        if (formattedTraders.length > 0) {
+            blocks.push({
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `*👥 ALERTES TRADERS (${formattedTraders.length})*`
+                }
+            });
+            
+            formattedTraders.slice(0, 10).forEach(alert => {
+                blocks.push({
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `*${alert.title}*\n${alert.timing}\n${alert.message}`
+                    }
+                });
+            });
+            
+            if (formattedTraders.length > 10) {
+                blocks.push({
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `_... et ${formattedTraders.length - 10} autres alertes Traders_`
+                    }
+                });
+            }
+        }
+        
+        // Envoyer directement sur Slack
+        await sendToSlack(blocks);
+        log(`✅ Alertes envoyées sur Slack avec succès`);
         
     } catch (error) {
         log(`❌ Erreur envoi alertes: ${error.message}`);
