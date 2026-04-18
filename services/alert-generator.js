@@ -1,6 +1,24 @@
 // ⚠️ ATTENTION : Ce fichier est une COPIE de la logique du dashboard (dashboard.html lignes 433-743)
 // Si tu modifies les règles d'alertes dans le dashboard, tu DOIS synchroniser ce fichier manuellement !
 
+// ==================== BENCHMARK CONSTANTS ====================
+
+const BENCHMARKS = {
+    'CTR': { min: 0.17, max: 0.23 },
+    'CTR (%)': { min: 0.17, max: 0.23 },
+    'Taux de complétion vidéo': { min: 70, max: 85 },
+    'Complétion vidéo': { min: 70, max: 85 },
+    'VCR': { min: 70, max: 85 },
+    'Taux de session': { min: 30, max: 50 },
+    'Sessions': { min: 30, max: 50 },
+    'Taux de visite LP': { min: 60, max: 67 },
+    'Visites en Magasin / Taux de Visite LP': { min: 60, max: 67 },
+    'Visite LP': { min: 60, max: 67 },
+    'Taux de rebond': { min: 0, max: 30 },
+    'Rebond': { min: 0, max: 30 },
+    'Brand Safety': { min: 97, max: 99 }
+};
+
 // ==================== HELPERS (copiés du dashboard) ====================
 
 function parseDate(dateStr) {
@@ -383,17 +401,293 @@ function generatePerformanceAlerts(campaignStatsData) {
     
     // Trier par niveau de criticité
     const order = { critique: 0, alerte: 1, faible: 2 };
-    alerts.sort((a, b) => order[a.level] - order[b.level]);
-    
     return alerts;
 }
 
-module.exports = {
-    generateAlerts,
-    generatePerformanceAlerts,
-    parseDate,
-    getDaysDiff,
-    today,
-    hasTag,
-    getEffectiveTrader
+function getDeliveryPercent(campaign) {
+    const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
+    if (impressionsObjective <= 0) return 0;
+    
+    const impressionsActual = campaign.data?.impressions?.value2 || 0;
+    return (impressionsActual / impressionsObjective) * 100;
+}
+
+function getTimePercent(campaign) {
+    const startDate = parseDate(campaign.vStartDate);
+    const endDate = parseDate(campaign.vEndDate);
+    if (!startDate || !endDate) return 0;
+    
+    let now = new Date();
+    
+    // Si vendredi, ajouter 2 jours
+    const dayOfWeek = now.getDay();
+    if (dayOfWeek === 5) {
+        now = new Date(now.getTime() + (2 * 24 * 60 * 60 * 1000));
+    }
+    
+    if (now < startDate) return 0;
+    if (now > endDate) return 100;
+    
+    const totalDuration = endDate - startDate;
+    const elapsed = now - startDate;
+    return (elapsed / totalDuration) * 100;
+}
+
+function findMatchingCard(campaign, cards) {
+    if (!campaign) return null;
+    
+    return cards.find(c => {
+        if (!c) return false;
+        
+        // Match par campaignId
+        if (c.campaignId && campaign.briefId?.briefCampaignInfo?.[0] &&
+            c.campaignId === campaign.briefId.briefCampaignInfo[0]) {
+            return true;
+        }
+        
+        if (c.campaignId && campaign.campaignId && c.campaignId === campaign.campaignId) {
+            return true;
+        }
+        
+        // Match par briefId
+        if (c.briefId?.briefCampaignInfo?.[0] && campaign.briefId?.briefCampaignInfo?.[0] &&
+            c.briefId.briefCampaignInfo[0] === campaign.briefId.briefCampaignInfo[0]) {
+            return true;
+        }
+        
+        // Match par trackerId
+        if (c.trackerId && (campaign.adxDisplayId === c.trackerId || campaign.adxId === c.trackerId)) {
+            return true;
+        }
+        
+        return false;
+    });
+}
+
+function getCardKpis(card) {
+    const kpis = [];
+    
+    if (!card.subdivisions || card.subdivisions.length === 0) {
+        return kpis;
+    }
+    
+    for (const sub of card.subdivisions) {
+        if (sub.kpi && sub.kpi.trim()) {
+            kpis.push({ name: sub.kpi.trim(), type: 'primary' });
+        }
+        
+        if (sub.secondaryKpi && sub.secondaryKpi.trim()) {
+            kpis.push({ name: sub.secondaryKpi.trim(), type: 'secondary' });
+        }
+        
+        if (sub.otherKpis && Array.isArray(sub.otherKpis)) {
+            for (const otherKpi of sub.otherKpis) {
+                if (otherKpi && otherKpi.trim()) {
+                    kpis.push({ name: otherKpi.trim(), type: 'other' });
+                }
+            }
+        }
+    }
+    
+    return kpis;
+}
+
+function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
+    const normalizedName = normalizeKpiName(kpi.name);
+    if (!normalizedName) return null;
+    
+    const benchmark = BENCHMARKS[normalizedName];
+    if (!benchmark) return null;
+    
+    const adxField = mapKpiToAdxField(normalizedName);
+    if (!adxField) return null;
+    
+    const currentValue = campaign.data?.[adxField]?.value2;
+    if (currentValue === null || currentValue === undefined) return null;
+    
+    const belowMin = currentValue < benchmark.min;
+    const isRebond = kpi.name.toLowerCase().includes('rebond');
+    const aboveMax = isRebond && currentValue > benchmark.max;
+    
+    if (!belowMin && !aboveMax) return null;
+    
+    const gap = belowMin ? (benchmark.min - currentValue) : (currentValue - benchmark.max);
+    const severity = calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue);
+    
+    let level = 'faible';
+    
+    if (deliveryPercent >= 20 && deliveryPercent < 30) {
+        level = 'faible';
+    } else if (kpi.type === 'other') {
+        level = 'faible';
+    } else {
+        if (severity === 'critical') level = 'critique';
+        else if (severity === 'urgent') level = 'alerte';
+    }
+    
+    const message = isRebond 
+        ? `${kpi.name}: ${currentValue.toFixed(1)}% (max: ${benchmark.max}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`
+        : `${kpi.name}: ${currentValue.toFixed(2)}% (min: ${benchmark.min}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`;
+    
+    return {
+        level,
+        campaign,
+        durationProgress: timePercent,
+        deliveryProgress: deliveryPercent,
+        marginRate: null,
+        reasons: [message],
+        trader: campaign.traderName || 'N/A',
+        commercial: campaign.commercialName || 'N/A',
+        isBenchmarkAlert: true,
+        benchmarkData: {
+            kpi: kpi.name,
+            kpiType: kpi.type,
+            currentValue,
+            benchmark,
+            gap,
+            severity
+        }
+    };
+}
+
+function mapKpiToAdxField(kpiName) {
+    const mapping = {
+        'CTR': 'ctr',
+        'CTR (%)': 'ctr',
+        'Taux de complétion vidéo': 'vcr',
+        'Complétion vidéo': 'vcr',
+        'VCR': 'vcr',
+        'Taux de session': 'sessionsRate',
+        'Sessions': 'sessionsRate',
+        'Taux de visite LP': 'lpVisitsRate',
+        'Visites en Magasin / Taux de Visite LP': 'lpVisitsRate',
+        'Taux de rebond': 'bounceRate',
+        'Brand Safety': 'brandSafetyRate'
+    };
+    return mapping[kpiName] || null;
+}
+
+function calculateMixedSeverity(gap, benchmark, deliveryPercent, timePercent, currentValue) {
+    const gapPercent = (gap / benchmark.min) * 100;
+    
+    // Si < 10% du temps restant et pas à l'objectif → Critique
+    if (timePercent > 90 && gap > 0) {
+        return 'critical';
+    }
+    
+    let baseScore = 0;
+    if (gapPercent > 20) baseScore = 3;
+    else if (gapPercent > 10) baseScore = 2;
+    else baseScore = 1;
+    
+    let timeBonus = 0;
+    if (timePercent > 75) timeBonus = 1;
+    else if (timePercent > 50) timeBonus = 0.5;
+    
+    let deliveryBonus = 0;
+    if (deliveryPercent > 70) deliveryBonus = 0.5;
+    
+    const finalScore = baseScore + timeBonus + deliveryBonus;
+    
+    if (finalScore >= 4) return 'critical';
+    if (finalScore >= 2.5) return 'urgent';
+    return 'attention';
+}
+
+// ==================== BENCHMARK ALERTS GENERATION ====================
+
+function normalizeKpiName(kpiName) {
+    if (!kpiName) return '';
+    const normalized = kpiName.trim().toLowerCase();
+    
+    // IGNORER ces KPIs
+    if (normalized.includes('visite') && normalized.includes('magasin')) return null;
+    if (normalized.includes('conditionné')) return null;
+    if (normalized.includes('attention publicitaire')) return null;
+    if (normalized.includes('interaction format')) return null;
+    if (normalized === 'leads') return null;
+    if (normalized === 'reach') return null;
+    if (normalized === 'visibilité') return null;
+    
+    // Mapping
+    if (normalized === 'ctr') return 'CTR';
+    if (normalized.includes('complétion') || normalized.includes('vcr')) return 'VCR';
+    if (normalized.includes('session')) return 'Taux de session';
+    if (normalized === 'taux de visite lp') return 'Taux de visite LP';
+    if (normalized.includes('rebond') && normalized.includes('temps passé') && !normalized.includes('conditionné')) return 'Taux de rebond';
+    if (normalized.includes('brand') || normalized.includes('safety')) return 'Brand Safety';
+    
+    return null;
+}
+
+function generateBenchmarkAlerts(campaignStatsData, trelloData) {
+    console.log('🔍 Generating benchmark alerts...');
+    
+    if (!campaignStatsData?.data || !trelloData?.data?.lanes) {
+        console.log('ℹ️ No data available for benchmark analysis');
+        return [];
+    }
+    
+    const alerts = [];
+    
+    // Récupérer toutes les cartes Trello
+    const allCards = [];
+    for (const lane of trelloData.data.lanes) {
+        allCards.push(...(lane.cards || []));
+    }
+    
+    console.log(`📊 Analyzing ${allCards.length} cards for benchmark alerts`);
+    
+    let liveCampaigns = 0;
+    let above20Percent = 0;
+    let matchedCards = 0;
+    let withKpis = 0;
+    
+    // Pour chaque campagne ADX
+    for (const campaign of campaignStatsData.data) {
+        if (!campaign.isLive) continue;
+        liveCampaigns++;
+        
+        const deliveryPercent = getDeliveryPercent(campaign);
+        
+        // N'afficher les alertes qu'après 20% de diffusion
+        if (deliveryPercent < 20) continue;
+        above20Percent++;
+        
+        const timePercent = getTimePercent(campaign);
+        
+        // Trouver la carte Trello correspondante
+        const card = findMatchingCard(campaign, allCards);
+        if (!card) continue;
+        matchedCards++;
+        
+        // Récupérer les KPIs de la carte
+        const kpis = getCardKpis(card);
+        if (kpis.length === 0) continue;
+        withKpis++;
+        
+        // Vérifier chaque KPI
+        for (const kpi of kpis) {
+            const alert = checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent);
+            if (alert) {
+                alerts.push(alert);
+                console.log(`🚨 Benchmark alert: ${campaign.campaignName}: ${kpi.name}`);
+            }
+        }
+    }
+    
+    console.log(`📊 Benchmark stats: ${liveCampaigns} live, ${above20Percent} >20%, ${matchedCards} matched, ${withKpis} with KPIs`);
+    console.log(`✅ Generated ${alerts.length} benchmark alerts`);
+    return alerts;
+}
+
+module.exports = { 
+    generateAlerts, 
+    generatePerformanceAlerts, 
+    generateBenchmarkAlerts,
+    parseDate, 
+    getDaysDiff, 
+    today, 
+    hasTag, 
+    getEffectiveTrader 
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { generateAlerts, generatePerformanceAlerts } = require('../services/alert-generator');
+const { generateAlerts, generatePerformanceAlerts, generateBenchmarkAlerts } = require('../services/alert-generator');
 
 // GET /api/alerts
 // Retourne toutes les alertes (Traders, Commerce, Performance)
@@ -36,7 +36,13 @@ router.get('/', async (req, res) => {
         const allTradersCommerceAlerts = generateAlerts(trelloData);
         
         // Générer les alertes Performance
-        const allPerformanceAlerts = generatePerformanceAlerts(statsData);
+        const performanceAlerts = generatePerformanceAlerts(statsData);
+        
+        // Générer les alertes Benchmarks
+        const benchmarkAlerts = generateBenchmarkAlerts(statsData, trelloData);
+        
+        // Fusionner Performance + Benchmarks
+        const allPerformanceAlerts = [...performanceAlerts, ...benchmarkAlerts];
         
         res.json({
             success: true,
