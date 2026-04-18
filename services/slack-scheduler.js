@@ -62,49 +62,32 @@ function log(message) {
 // Fonction pour récupérer les alertes critiques
 async function getCriticalAlerts() {
     try {
-        // Récupérer les données Trello
-        log('Récupération données Trello...');
-        const trelloRawData = await fetchTrelloData();
-        const trelloData = { data: trelloRawData };
-        log(`Trello: ${trelloRawData?.lanes?.length || 0} lanes récupérées`);
+        // Appeler l'API centralisée /api/alerts
+        log('Récupération des alertes depuis /api/alerts...');
+        const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
         
-        // Récupérer les données Campaign Stats
-        log('Récupération données Campaign Stats...');
-        let statsData = { data: [] };
-        
-        try {
-            const rawStatsData = await fetchCampaignStats();
-            // L'API retourne directement un tableau, pas { data: [...] }
-            statsData = { data: Array.isArray(rawStatsData) ? rawStatsData : [] };
-            log(`Campaign Stats: ${statsData.data.length} campagnes récupérées`);
-        } catch (error) {
-            log(`⚠️ Erreur Campaign Stats: ${error.message} - Continuer sans données Performance`);
+        if (!response.ok) {
+            throw new Error(`API alerts error: ${response.status}`);
         }
         
-        // Générer les alertes Traders/Commerce (même logique que le dashboard)
-        log('Génération alertes Traders/Commerce...');
-        const allTradersCommerceAlerts = generateAlerts(trelloData);
-        log(`Traders/Commerce: ${allTradersCommerceAlerts.length} alertes générées`);
+        const alertsData = await response.json();
+        
+        if (!alertsData.success) {
+            throw new Error('API alerts returned success=false');
+        }
+        
+        log(`✅ Alertes récupérées: ${alertsData.data.tradersCommerceAlerts.length} Traders/Commerce, ${alertsData.data.performanceAlerts.length} Performance`);
         
         // Filtrer les alertes critiques
-        const tradersAlerts = allTradersCommerceAlerts.filter(a => 
-            a.card?.isProgrammable && a.criticality === 'critical'
+        const tradersAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
+            a.type === 'launch' && a.criticality === 'critical'
         );
-        const commerceAlerts = allTradersCommerceAlerts.filter(a => 
-            !a.card?.isProgrammable && a.criticality === 'critical'
+        const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
+            a.type === 'commerce' && a.criticality === 'critical'
         );
-        
-        // Générer les alertes Performance (même logique que le dashboard)
-        log('Génération alertes Performance...');
-        const allPerformanceAlerts = generatePerformanceAlerts(statsData);
-        log(`Performance: ${allPerformanceAlerts.length} alertes générées`);
-        
-        // Filtrer les alertes critiques
-        const performanceAlerts = allPerformanceAlerts.filter(a => a.level === 'critique');
+        const performanceAlerts = alertsData.data.performanceAlerts.filter(a => a.level === 'critique');
         
         log(`Filtrage: ${performanceAlerts.length} Performance critiques, ${tradersAlerts.length} Traders critiques, ${commerceAlerts.length} Commerce critiques`);
-        
-        log(`Alertes critiques: ${performanceAlerts.length} Performance, ${tradersAlerts.length} Traders, ${commerceAlerts.length} Commerce`);
         
         return {
             performanceAlerts,
