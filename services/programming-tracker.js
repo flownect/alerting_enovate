@@ -107,7 +107,7 @@ class ProgrammingTracker {
                             if (startDate) {
                                 const daysBeforeStart = this.getDaysDiff(now, startDate);
                                 
-                                newProgrammations.push({
+                                campaigns.push({
                                     campaign_id: card.campaignId,
                                     campaign_name: card.name,
                                     csm_name: card.accountManager || card.commercial || null,
@@ -130,7 +130,7 @@ class ProgrammingTracker {
         }
 
         console.log(`📊 Cartes analysées: ${totalCards} total, ${programmableCards} programmables, ${programmedCards} programmées, ${newlyProgrammed} nouvelles`);
-        return newProgrammations;
+        return campaigns;
     }
 
     /**
