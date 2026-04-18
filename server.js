@@ -416,6 +416,24 @@ app.post('/api/programming-reset', sessionAuth, async (req, res) => {
 });
 
 // ==================== DEBUG PROGRAMMING ====================
+// Endpoint pour lancer le tracking manuellement
+app.post('/api/debug/track-now', sessionAuth, async (req, res) => {
+    try {
+        const result = await trackProgramming();
+        res.json({
+            success: true,
+            result,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur tracking manuel: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Debug endpoint pour voir les données brutes
 app.get('/api/debug/programming', async (req, res) => {
     if (!process.env.DATABASE_URL) {
