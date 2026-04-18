@@ -4,8 +4,33 @@ const { generateTradersCommerceAlerts, generatePerformanceAlerts } = require('..
 
 // Variables d'environnement
 const NOVA_API_KEY = process.env.NOVA_API_KEY;
-const NOVA_PREPROD_URL = process.env.NOVA_PREPROD_URL || 'https://preprod.dashboard.e-novate.fr';
 const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://dashboard.e-novate.fr';
+
+// Fonction helper pour récupérer les données Trello
+async function fetchTrelloData() {
+    const url = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+    const response = await fetch(url, { timeout: 120000 });
+    
+    if (!response.ok) {
+        throw new Error(`Trello API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data; // Retourne { lanes: [...] }
+}
+
+// Fonction helper pour récupérer les données Campaign Stats
+async function fetchCampaignStats() {
+    const url = `${NOVA_PROD_URL}/api/campaign-stats/analysis?api_key=${NOVA_API_KEY}`;
+    const response = await fetch(url, { timeout: 120000 });
+    
+    if (!response.ok) {
+        throw new Error(`Campaign Stats API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data; // Retourne { data: [...] }
+}
 
 // Logger
 function log(message) {
@@ -15,38 +40,22 @@ function log(message) {
 // Fonction pour récupérer les alertes critiques
 async function getCriticalAlerts() {
     try {
-        // Utiliser l'URL de l'environnement ou localhost
-        const baseUrl = process.env.APP_URL || 'http://localhost:3000';
-        
-        // Récupérer les données Trello directement depuis l'API Nova (PROD)
+        // Récupérer les données Trello
         log('Récupération données Trello...');
-        const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
-        const trelloResponse = await fetch(trelloUrl, {
-            timeout: 120000 // 2 minutes
-        });
-        
-        if (!trelloResponse.ok) {
-            throw new Error(`Trello API error: ${trelloResponse.status} ${trelloResponse.statusText}`);
-        }
-        
-        const trelloRawData = await trelloResponse.json();
-        // Adapter la structure pour correspondre à ce qu'attend generateTradersCommerceAlerts
+        const trelloRawData = await fetchTrelloData();
         const trelloData = { data: trelloRawData };
         log(`Trello: ${trelloRawData?.lanes?.length || 0} lanes récupérées`);
         
-        // Récupérer les données Campaign Stats directement depuis l'API Nova (PROD)
+        // Récupérer les données Campaign Stats
         log('Récupération données Campaign Stats...');
-        const statsUrl = `${NOVA_PROD_URL}/api/campaign-stats?api_key=${NOVA_API_KEY}&cache=1`;
-        const statsResponse = await fetch(statsUrl, {
-            timeout: 120000 // 2 minutes
-        });
+        let statsData = { data: [] };
         
-        if (!statsResponse.ok) {
-            throw new Error(`Campaign Stats API error: ${statsResponse.status} ${statsResponse.statusText}`);
+        try {
+            statsData = await fetchCampaignStats();
+            log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
+        } catch (error) {
+            log(`⚠️ Erreur Campaign Stats: ${error.message} - Continuer sans données Performance`);
         }
-        
-        const statsData = await statsResponse.json();
-        log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
         
         // Générer les alertes Traders/Commerce
         log('Génération alertes Traders/Commerce...');
