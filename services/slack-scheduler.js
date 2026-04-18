@@ -15,14 +15,30 @@ async function getCriticalAlerts() {
         
         // Récupérer les données Trello
         log('Récupération données Trello...');
-        const trelloResponse = await fetch(`${baseUrl}/api/trello/cards`);
+        const trelloResponse = await fetch(`${baseUrl}/api/trello/cards`, {
+            timeout: 120000 // 2 minutes
+        });
+        
+        if (!trelloResponse.ok) {
+            throw new Error(`Trello API error: ${trelloResponse.status} ${trelloResponse.statusText}`);
+        }
+        
         const trelloData = await trelloResponse.json();
+        log(`Trello structure: ${JSON.stringify(Object.keys(trelloData || {}))}`);
         log(`Trello: ${trelloData?.data?.lanes?.length || 0} lanes récupérées`);
         
         // Récupérer les données Campaign Stats
         log('Récupération données Campaign Stats...');
-        const statsResponse = await fetch(`${baseUrl}/api/campaign-stats`);
+        const statsResponse = await fetch(`${baseUrl}/api/campaign-stats`, {
+            timeout: 120000 // 2 minutes
+        });
+        
+        if (!statsResponse.ok) {
+            throw new Error(`Campaign Stats API error: ${statsResponse.status} ${statsResponse.statusText}`);
+        }
+        
         const statsData = await statsResponse.json();
+        log(`Stats structure: ${JSON.stringify(Object.keys(statsData || {}))}`);
         log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
         
         // Générer les alertes Traders/Commerce
