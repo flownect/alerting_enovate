@@ -366,6 +366,7 @@ function generatePerformanceAlerts(campaignStatsData) {
         }
         
         if (level && reasons.length > 0) {
+            console.log(`[PERF ALERT] ${campaign.campaignName} - Level: ${level} - Reasons: ${reasons.join(', ')}`);
             alerts.push({
                 level,
                 campaign,
