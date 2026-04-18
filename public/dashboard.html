@@ -2112,7 +2112,8 @@
                             </div>
                             `}
                             
-                            <!-- Volume avec jauge -->
+                            <!-- Volume avec jauge (masquer si N/A) -->
+                            ${perfDataResult.volumeType !== 'N/A' ? `
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Volume</div>
                                 <div class="text-gray-600 dark:text-gray-400 mb-2">
@@ -2127,6 +2128,7 @@
                                     }" style="width: ${Math.min(perfDataResult.volumeProgress, 100)}%"></div>
                                 </div>
                             </div>
+                            ` : ''}
                             
                             <!-- Durée avec jauge -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
@@ -2802,6 +2804,11 @@ ADX: ${adxLink}`;
             // Récupérer perfData (pour les liens et la fonction copier)
             const perfData = campaign; // Dans les alertes de performance, campaign EST déjà perfData
             
+            // Déterminer le type de volume (Impressions ou Clics)
+            const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall || 0);
+            const clicksObjective = parseFloat(campaign.objectives?.clicks?.overall || 0);
+            const volumeType = impressionsObjective > 0 ? 'Impressions' : clicksObjective > 0 ? 'Clics' : 'N/A';
+            
             // Calcul durée et progression
             const percent = Math.round(alert.durationProgress || 0);
             
@@ -3009,9 +3016,37 @@ ADX: ${adxLink}`;
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Account Manager</div>
                                 <div class="text-gray-600 dark:text-gray-400">N/A</div>
                             </div>
+                            
+                            <!-- Volume avec jauge -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Volume</div>
+                                <div class="text-gray-600 dark:text-gray-400 mb-2">
+                                    ${Math.round(alert.deliveryProgress || 0)}% • ${volumeType}
+                                </div>
+                                <!-- Jauge volume -->
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all ${
+                                        alert.deliveryProgress >= 100 ? 'bg-green-500' :
+                                        alert.deliveryProgress >= 75 ? 'bg-blue-500' :
+                                        alert.deliveryProgress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                    }" style="width: ${Math.min(alert.deliveryProgress || 0, 100)}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Durée avec jauge -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
-                                <div class="text-gray-600 dark:text-gray-400">${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}</div>
+                                <div class="text-gray-600 dark:text-gray-400 mb-2">
+                                    ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
+                                </div>
+                                <!-- Jauge durée -->
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all ${
+                                        duration.percent >= 100 ? 'bg-gray-500' :
+                                        duration.percent >= 75 ? 'bg-orange-500' :
+                                        duration.percent >= 50 ? 'bg-blue-500' : 'bg-green-500'
+                                    }" style="width: ${Math.min(duration.percent, 100)}%"></div>
+                                </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">${campaign.vStartDate || 'N/A'} → ${campaign.vEndDate || 'N/A'}</div>
                             </div>
                         </div>
