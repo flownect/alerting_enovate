@@ -2,6 +2,11 @@ const cron = require('node-cron');
 const fetch = require('node-fetch');
 const { generateTradersCommerceAlerts, generatePerformanceAlerts } = require('../routes/alerts');
 
+// Variables d'environnement
+const NOVA_API_KEY = process.env.NOVA_API_KEY;
+const NOVA_PREPROD_URL = process.env.NOVA_PREPROD_URL || 'https://preprod.dashboard.e-novate.fr';
+const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://dashboard.e-novate.fr';
+
 // Logger
 function log(message) {
     console.log(`[${new Date().toISOString()}] [SLACK-SCHEDULER] ${message}`);
@@ -13,9 +18,10 @@ async function getCriticalAlerts() {
         // Utiliser l'URL de l'environnement ou localhost
         const baseUrl = process.env.APP_URL || 'http://localhost:3000';
         
-        // Récupérer les données Trello
+        // Récupérer les données Trello directement depuis l'API Nova
         log('Récupération données Trello...');
-        const trelloResponse = await fetch(`${baseUrl}/api/trello`, {
+        const trelloUrl = `${NOVA_PREPROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+        const trelloResponse = await fetch(trelloUrl, {
             timeout: 120000 // 2 minutes
         });
         
@@ -23,13 +29,15 @@ async function getCriticalAlerts() {
             throw new Error(`Trello API error: ${trelloResponse.status} ${trelloResponse.statusText}`);
         }
         
-        const trelloData = await trelloResponse.json();
-        log(`Trello structure: ${JSON.stringify(Object.keys(trelloData || {}))}`);
-        log(`Trello: ${trelloData?.data?.lanes?.length || 0} lanes récupérées`);
+        const trelloRawData = await trelloResponse.json();
+        // Adapter la structure pour correspondre à ce qu'attend generateTradersCommerceAlerts
+        const trelloData = { data: trelloRawData };
+        log(`Trello: ${trelloRawData?.lanes?.length || 0} lanes récupérées`);
         
-        // Récupérer les données Campaign Stats
+        // Récupérer les données Campaign Stats directement depuis l'API Nova
         log('Récupération données Campaign Stats...');
-        const statsResponse = await fetch(`${baseUrl}/api/campaign-stats`, {
+        const statsUrl = `${NOVA_PREPROD_URL}/api/campaign-stats?api_key=${NOVA_API_KEY}&cache=1`;
+        const statsResponse = await fetch(statsUrl, {
             timeout: 120000 // 2 minutes
         });
         
@@ -38,7 +46,6 @@ async function getCriticalAlerts() {
         }
         
         const statsData = await statsResponse.json();
-        log(`Stats structure: ${JSON.stringify(Object.keys(statsData || {}))}`);
         log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
         
         // Générer les alertes Traders/Commerce
