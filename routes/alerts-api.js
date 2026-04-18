@@ -78,9 +78,26 @@ router.get('/', async (req, res) => {
         // Ajouter les commentaires aux alertes Performance
         for (const alert of allPerformanceAlerts) {
             const campaignId = alert.campaign?.campaignId;
+            const campaignName = alert.campaign?.campaignName;
+            
+            // Commentaires Dashboard (base locale)
             if (campaignId && commentsMap[campaignId]) {
                 alert.commentsDashboard = commentsMap[campaignId];
             }
+            
+            // Commentaires Nova et ADX (de Campaign Stats API)
+            const allComments = alert.campaign?.comments || [];
+            
+            // Séparer les commentaires par type
+            alert.commentsNova = allComments
+                .filter(c => c.isAdx && c.content)
+                .slice(0, 3)
+                .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
+            
+            alert.commentsPlateforme = allComments
+                .filter(c => !c.isAdx && c.cardId === null && c.content)
+                .slice(0, 3)
+                .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
         }
         
         res.json({
