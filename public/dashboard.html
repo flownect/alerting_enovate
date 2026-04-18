@@ -2120,8 +2120,8 @@
                                     ${perfDataResult.volumeProgress}% • ${perfDataResult.volumeType}
                                 </div>
                                 <!-- Jauge volume -->
-                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                                    <div class="h-2 rounded-full transition-all ${
+                                <div class="w-1/2 bg-gray-200 dark:bg-gray-600 rounded-full h-1">
+                                    <div class="h-1 rounded-full transition-all ${
                                         perfDataResult.volumeProgress >= 100 ? 'bg-green-500' :
                                         perfDataResult.volumeProgress >= 75 ? 'bg-blue-500' :
                                         perfDataResult.volumeProgress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
@@ -2137,7 +2137,7 @@
                                     ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
                                 </div>
                                 <!-- Jauge durée -->
-                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                <div class="w-1/2 bg-gray-200 dark:bg-gray-600 rounded-full h-1">
                                     <div class="h-2 rounded-full transition-all ${
                                         duration.percent >= 100 ? 'bg-gray-500' :
                                         duration.percent >= 75 ? 'bg-orange-500' :
@@ -3024,8 +3024,8 @@ ADX: ${adxLink}`;
                                     ${Math.round(alert.deliveryProgress || 0)}% • ${volumeType}
                                 </div>
                                 <!-- Jauge volume -->
-                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                                    <div class="h-2 rounded-full transition-all ${
+                                <div class="w-1/2 bg-gray-200 dark:bg-gray-600 rounded-full h-1">
+                                    <div class="h-1 rounded-full transition-all ${
                                         alert.deliveryProgress >= 100 ? 'bg-green-500' :
                                         alert.deliveryProgress >= 75 ? 'bg-blue-500' :
                                         alert.deliveryProgress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
@@ -3040,8 +3040,8 @@ ADX: ${adxLink}`;
                                     ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
                                 </div>
                                 <!-- Jauge durée -->
-                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                                    <div class="h-2 rounded-full transition-all ${
+                                <div class="w-1/2 bg-gray-200 dark:bg-gray-600 rounded-full h-1">
+                                    <div class="h-1 rounded-full transition-all ${
                                         duration.percent >= 100 ? 'bg-gray-500' :
                                         duration.percent >= 75 ? 'bg-orange-500' :
                                         duration.percent >= 50 ? 'bg-blue-500' : 'bg-green-500'
