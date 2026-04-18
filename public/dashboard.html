@@ -2781,10 +2781,7 @@ ADX: ${adxLink}`;
                 }
             }
             
-            // Charger les données de performance si nécessaire
-            if (tab === 'performance' && !campaignStatsData) {
-                fetchCampaignStats();
-            }
+            // Les données Performance sont déjà chargées via /api/alerts
         }
         
         // Filtrer les alertes de performance
