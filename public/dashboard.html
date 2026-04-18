@@ -3351,24 +3351,24 @@ ADX: ${adxLink}`;
             btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
 
             // Rafraîchir Trello et Performance en parallèle
-            const [trelloSuccess, perfSuccess] = await Promise.all([
+            const [trelloSuccess, alertsData] = await Promise.all([
                 fetchData(),
-                fetchCampaignStats()
+                fetch('/api/alerts?env=prod').then(r => r.json())
             ]);
             
-            if (trelloSuccess) {
-                allAlerts = generateAlerts();
-                renderPoles();
-                renderTraders();
-                renderAlerts();
-                renderLaunches();
-                updateGlobalStats();
+            // Appliquer les alertes de l'API
+            if (alertsData.success) {
+                allAlerts = alertsData.data.tradersCommerceAlerts;
+                allPerformanceAlerts = alertsData.data.performanceAlerts;
             }
             
-            if (perfSuccess) {
-                allPerformanceAlerts = await generatePerformanceAlerts();
-                renderPerformance();
-            }
+            // Render tout
+            renderPoles();
+            renderTraders();
+            renderAlerts();
+            renderLaunches();
+            updateGlobalStats();
+            renderPerformance();
 
             btn.disabled = false;
             btn.innerHTML = `
@@ -3469,28 +3469,28 @@ ADX: ${adxLink}`;
             // Charger le nombre de commentaires
             loadCommentsCount();
             
-            // Charger Trello d'abord, puis afficher le dashboard
-            const trelloSuccess = await fetchData();
+            // Charger Trello ET les alertes en parallèle
+            const [trelloSuccess, alertsData] = await Promise.all([
+                fetchData(),
+                fetch('/api/alerts?env=prod').then(r => r.json())
+            ]);
+            
+            // Appliquer les alertes de l'API
+            if (alertsData.success) {
+                allAlerts = alertsData.data.tradersCommerceAlerts;
+                allPerformanceAlerts = alertsData.data.performanceAlerts;
+            }
             
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             
-            if (trelloSuccess) {
-                allAlerts = generateAlerts();
-                renderPoles();
-                renderTraders();
-                renderAlerts();
-                renderLaunches();
-                updateGlobalStats();
-            }
-            
-            // Charger Performance en parallèle (sans bloquer l'affichage)
-            fetchCampaignStats().then(async perfSuccess => {
-                if (perfSuccess) {
-                    allPerformanceAlerts = await generatePerformanceAlerts();
-                    renderPerformance();
-                }
-            });
+            // Render tout
+            renderPoles();
+            renderTraders();
+            renderAlerts();
+            renderLaunches();
+            updateGlobalStats();
+            renderPerformance();
 
             // Auto-refresh every hour (between 7h and 20h)
             setInterval(() => {
