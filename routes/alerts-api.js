@@ -44,6 +44,45 @@ router.get('/', async (req, res) => {
         // Fusionner Performance + Benchmarks
         const allPerformanceAlerts = [...performanceAlerts, ...benchmarkAlerts];
         
+        // Récupérer les commentaires de la base de données
+        let commentsMap = {};
+        if (process.env.DATABASE_URL) {
+            try {
+                const { Client } = require('pg');
+                const client = new Client({
+                    connectionString: process.env.DATABASE_URL,
+                    ssl: { rejectUnauthorized: false }
+                });
+                await client.connect();
+                
+                const result = await client.query(`
+                    SELECT campaign_id, campaign_name, text, author, created_at
+                    FROM comments
+                    ORDER BY created_at DESC
+                `);
+                
+                await client.end();
+                
+                // Grouper par campaignId
+                for (const row of result.rows) {
+                    if (!commentsMap[row.campaign_id]) {
+                        commentsMap[row.campaign_id] = [];
+                    }
+                    commentsMap[row.campaign_id].push(`${row.text} (${row.author})`);
+                }
+            } catch (error) {
+                console.error('Erreur récupération commentaires:', error);
+            }
+        }
+        
+        // Ajouter les commentaires aux alertes Performance
+        for (const alert of allPerformanceAlerts) {
+            const campaignId = alert.campaign?.campaignId;
+            if (campaignId && commentsMap[campaignId]) {
+                alert.commentsDashboard = commentsMap[campaignId];
+            }
+        }
+        
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
