@@ -35,7 +35,16 @@ async function generateTradersCommerceAlerts(trelloData) {
         nowForCriticality.setDate(nowForCriticality.getDate() + 2);
     }
     
-    for (const card of trelloData) {
+    // Extraire les cartes de la structure Trello
+    const cards = [];
+    const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
+    for (const lane of lanes) {
+        if (lane.cards) {
+            cards.push(...lane.cards);
+        }
+    }
+    
+    for (const card of cards) {
         // Exclure les campagnes de facturation
         const cardName = card.title || card.name || '';
         const isBillingCampaign = cardName && (
