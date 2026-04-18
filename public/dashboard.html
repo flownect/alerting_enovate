@@ -3447,29 +3447,28 @@ ADX: ${adxLink}`;
             // Charger le nombre de commentaires
             loadCommentsCount();
             
-            // Charger Trello d'abord pour afficher rapidement
-            await fetchData();
+            // Charger Trello ET les alertes en parallèle
+            const [trelloSuccess, alertsData] = await Promise.all([
+                fetchData(),
+                fetch('/api/alerts?env=prod').then(r => r.json())
+            ]);
+            
+            // Appliquer les alertes de l'API
+            if (alertsData.success) {
+                allAlerts = alertsData.data.tradersCommerceAlerts;
+                allPerformanceAlerts = alertsData.data.performanceAlerts;
+            }
             
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             
-            // Charger les alertes depuis l'API centralisée (en arrière-plan)
-            fetch('/api/alerts?env=prod')
-                .then(r => r.json())
-                .then(alertsData => {
-                    if (alertsData.success) {
-                        allAlerts = alertsData.data.tradersCommerceAlerts;
-                        allPerformanceAlerts = alertsData.data.performanceAlerts;
-                        
-                        // Re-render avec les alertes
-                        renderPoles();
-                        renderTraders();
-                        renderAlerts();
-                        renderLaunches();
-                        updateGlobalStats();
-                        renderPerformance();
-                    }
-                });
+            // Render une seule fois avec les bonnes données
+            renderPoles();
+            renderTraders();
+            renderAlerts();
+            renderLaunches();
+            updateGlobalStats();
+            renderPerformance();
 
             // Auto-refresh every hour (between 7h and 20h)
             setInterval(() => {
