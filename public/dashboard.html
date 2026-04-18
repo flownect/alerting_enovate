@@ -552,13 +552,7 @@
             return stats;
         }
 
-        // ==================== ALERTES ====================
-        // NOTE: La génération d'alertes a été déplacée côté serveur dans /api/alerts
-        // Les fonctions generateAlerts() et generatePerformanceAlerts() ne sont plus utilisées
-        // Voir services/alert-generator.js pour la logique
-        
-        // ANCIENNE FONCTION - NE PLUS UTILISER
-        function generateAlerts_DEPRECATED() {
+        function generateAlerts() {
             const cards = getAllCards();
             const now = today(); // Date actuelle
             
@@ -3317,7 +3311,7 @@ ADX: ${adxLink}`;
         }
         
         async function fetchCampaignStats() {
-            const env = 'prod';
+            const env = 'prod'; // Toujours en production
             const loadingEl = document.getElementById('stats-loading');
             const statusEl = document.getElementById('stats-status');
             const perfLoadingEl = document.getElementById('perf-loading');
@@ -3356,6 +3350,7 @@ ADX: ${adxLink}`;
             btn.disabled = true;
             btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
 
+            // Rafraîchir Trello et Performance en parallèle
             const [trelloSuccess, perfSuccess] = await Promise.all([
                 fetchData(),
                 fetchCampaignStats()
@@ -3474,7 +3469,7 @@ ADX: ${adxLink}`;
             // Charger le nombre de commentaires
             loadCommentsCount();
             
-            // Charger Trello d'abord
+            // Charger Trello d'abord, puis afficher le dashboard
             const trelloSuccess = await fetchData();
             
             document.getElementById('loading-state').classList.add('hidden');
@@ -3489,7 +3484,7 @@ ADX: ${adxLink}`;
                 updateGlobalStats();
             }
             
-            // Charger Performance en parallèle
+            // Charger Performance en parallèle (sans bloquer l'affichage)
             fetchCampaignStats().then(async perfSuccess => {
                 if (perfSuccess) {
                     allPerformanceAlerts = await generatePerformanceAlerts();
