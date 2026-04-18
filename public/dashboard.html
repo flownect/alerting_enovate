@@ -3351,7 +3351,7 @@ ADX: ${adxLink}`;
             btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
 
             // Utiliser l'API centralisée pour les alertes
-            const alertsResponse = await fetch(`/api/alerts?env=${env}`);
+            const alertsResponse = await fetch('/api/alerts?env=prod');
             const alertsData = await alertsResponse.json();
             
             if (alertsData.success) {
@@ -3471,7 +3471,7 @@ ADX: ${adxLink}`;
             loadCommentsCount();
             
             // Charger les alertes depuis l'API centralisée
-            const alertsResponse = await fetch(`/api/alerts?env=${env}`);
+            const alertsResponse = await fetch('/api/alerts?env=prod');
             const alertsData = await alertsResponse.json();
             
             if (alertsData.success) {
