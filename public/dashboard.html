@@ -3331,6 +3331,14 @@ ADX: ${adxLink}`;
             btn.disabled = true;
             btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
 
+            // Afficher les loaders
+            const statsLoadingEl = document.getElementById('stats-loading');
+            const perfLoadingEl = document.getElementById('perf-loading');
+            const statsStatusEl = document.getElementById('stats-status');
+            if (statsLoadingEl) statsLoadingEl.classList.remove('hidden');
+            if (perfLoadingEl) perfLoadingEl.classList.remove('hidden');
+            if (statsStatusEl) statsStatusEl.textContent = '📈 Stats: chargement...';
+
             // Rafraîchir Trello et Performance en parallèle
             const [trelloSuccess, alertsData] = await Promise.all([
                 fetchData(),
@@ -3341,7 +3349,14 @@ ADX: ${adxLink}`;
             if (alertsData.success) {
                 allAlerts = alertsData.data.tradersCommerceAlerts;
                 allPerformanceAlerts = alertsData.data.performanceAlerts;
+                if (statsStatusEl) statsStatusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
+            } else {
+                if (statsStatusEl) statsStatusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
             }
+            
+            // Cacher les loaders
+            if (statsLoadingEl) statsLoadingEl.classList.add('hidden');
+            if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
             
             // Render tout
             renderPoles();
@@ -3450,6 +3465,14 @@ ADX: ${adxLink}`;
             // Charger le nombre de commentaires
             loadCommentsCount();
             
+            // Afficher les loaders
+            const statsLoadingEl = document.getElementById('stats-loading');
+            const perfLoadingEl = document.getElementById('perf-loading');
+            const statsStatusEl = document.getElementById('stats-status');
+            if (statsLoadingEl) statsLoadingEl.classList.remove('hidden');
+            if (perfLoadingEl) perfLoadingEl.classList.remove('hidden');
+            if (statsStatusEl) statsStatusEl.textContent = '📈 Stats: chargement...';
+            
             // Charger Trello ET les alertes en parallèle
             const [trelloSuccess, alertsData] = await Promise.all([
                 fetchData(),
@@ -3460,7 +3483,14 @@ ADX: ${adxLink}`;
             if (alertsData.success) {
                 allAlerts = alertsData.data.tradersCommerceAlerts;
                 allPerformanceAlerts = alertsData.data.performanceAlerts;
+                if (statsStatusEl) statsStatusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
+            } else {
+                if (statsStatusEl) statsStatusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
             }
+            
+            // Cacher les loaders
+            if (statsLoadingEl) statsLoadingEl.classList.add('hidden');
+            if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
             
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
