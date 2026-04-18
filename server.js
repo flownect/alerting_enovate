@@ -379,6 +379,42 @@ app.get('/api/programming-stats', async (req, res) => {
     }
 });
 
+// Endpoint pour vider la table de programmation (RESET)
+app.post('/api/programming-reset', sessionAuth, async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        
+        await client.connect();
+        const result = await client.query('DELETE FROM campaign_programming');
+        await client.end();
+        
+        log('API', `✅ Base vidée: ${result.rowCount} lignes supprimées`);
+        
+        res.json({
+            success: true,
+            message: `${result.rowCount} programmations supprimées`,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur reset: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== DEBUG PROGRAMMING ====================
 // Debug endpoint pour voir les données brutes
 app.get('/api/debug/programming', async (req, res) => {
