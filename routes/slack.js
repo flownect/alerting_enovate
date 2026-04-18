@@ -140,105 +140,110 @@ function formatAlertForSlack(alert) {
     };
 }
 
+// Fonction pour envoyer les alertes sur Slack (utilisable en interne)
+async function sendAlertsToSlackWebhook(data) {
+    const { performanceAlerts, tradersAlerts, commerceAlerts } = data;
+    
+    // Les données sont déjà filtrées et nettoyées côté client
+    const criticalPerf = performanceAlerts || [];
+    const criticalTraders = tradersAlerts || [];
+    const criticalCommerce = commerceAlerts || [];
+    
+    const totalCritical = criticalPerf.length + criticalTraders.length + criticalCommerce.length;
+    
+    if (totalCritical === 0) {
+        return { success: true, message: 'Aucune alerte critique à envoyer' };
+    }
+    
+    // Construire le message Slack
+    const blocks = [
+        {
+            type: 'header',
+            text: {
+                type: 'plain_text',
+                text: `🚨 Alertes Critiques - ${new Date().toLocaleDateString('fr-FR')}`,
+                emoji: true
+            }
+        },
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${criticalPerf.length} | 👥 Traders: ${criticalTraders.length} | 💼 CSM: ${criticalCommerce.length}`
+            }
+        },
+        { type: 'divider' }
+    ];
+    
+    // Section Performance
+    if (criticalPerf.length > 0) {
+        blocks.push({ type: 'divider' });
+        blocks.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*📊 ALERTES PERFORMANCE (${criticalPerf.length})*`
+            }
+        });
+        blocks.push({ type: 'divider' });
+        
+        criticalPerf.forEach(alert => {
+            blocks.push(formatAlertForSlack(alert));
+            blocks.push({ type: 'divider' });
+        });
+    }
+    
+    // Section Traders
+    if (criticalTraders.length > 0) {
+        blocks.push({ type: 'divider' });
+        blocks.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*👥 ALERTES TRADERS (${criticalTraders.length})*`
+            }
+        });
+        blocks.push({ type: 'divider' });
+        
+        criticalTraders.forEach(alert => {
+            blocks.push(formatAlertForSlack(alert));
+            blocks.push({ type: 'divider' });
+        });
+    }
+    
+    // Section Commerce (CSM)
+    if (criticalCommerce.length > 0) {
+        blocks.push({ type: 'divider' });
+        blocks.push({
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `*💼 ALERTES CSM (${criticalCommerce.length})*`
+            }
+        });
+        blocks.push({ type: 'divider' });
+        
+        criticalCommerce.forEach(alert => {
+            blocks.push(formatAlertForSlack(alert));
+            blocks.push({ type: 'divider' });
+        });
+    }
+    
+    // Envoyer sur Slack
+    await sendSlackMessage(blocks);
+    
+    return { 
+        success: true, 
+        message: `${totalCritical} alerte${totalCritical > 1 ? 's' : ''} envoyée${totalCritical > 1 ? 's' : ''} sur Slack` 
+    };
+}
+
 // POST /api/slack/send-alerts
 // Envoyer les alertes critiques sur Slack
 router.post('/send-alerts', async (req, res) => {
     try {
-        const { performanceAlerts, tradersAlerts, commerceAlerts } = req.body;
-        
-        // Les données sont déjà filtrées et nettoyées côté client
-        const criticalPerf = performanceAlerts || [];
-        const criticalTraders = tradersAlerts || [];
-        const criticalCommerce = commerceAlerts || [];
-        
-        const totalCritical = criticalPerf.length + criticalTraders.length + criticalCommerce.length;
-        
-        if (totalCritical === 0) {
-            return res.json({ success: true, message: 'Aucune alerte critique à envoyer' });
-        }
-        
-        // Construire le message Slack
-        const blocks = [
-            {
-                type: 'header',
-                text: {
-                    type: 'plain_text',
-                    text: `🚨 Alertes Critiques - ${new Date().toLocaleDateString('fr-FR')}`,
-                    emoji: true
-                }
-            },
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${criticalPerf.length} | 👥 Traders: ${criticalTraders.length} | 💼 CSM: ${criticalCommerce.length}`
-                }
-            },
-            { type: 'divider' }
-        ];
-        
-        // Section Performance
-        if (criticalPerf.length > 0) {
-            blocks.push({ type: 'divider' });
-            blocks.push({
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*📊 ALERTES PERFORMANCE (${criticalPerf.length})*`
-                }
-            });
-            blocks.push({ type: 'divider' });
-            
-            criticalPerf.forEach(alert => {
-                blocks.push(formatAlertForSlack(alert));
-                blocks.push({ type: 'divider' });
-            });
-        }
-        
-        // Section Traders
-        if (criticalTraders.length > 0) {
-            blocks.push({ type: 'divider' });
-            blocks.push({
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*👥 ALERTES TRADERS (${criticalTraders.length})*`
-                }
-            });
-            blocks.push({ type: 'divider' });
-            
-            criticalTraders.forEach(alert => {
-                blocks.push(formatAlertForSlack(alert));
-                blocks.push({ type: 'divider' });
-            });
-        }
-        
-        // Section Commerce (CSM)
-        if (criticalCommerce.length > 0) {
-            blocks.push({ type: 'divider' });
-            blocks.push({
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*💼 ALERTES CSM (${criticalCommerce.length})*`
-                }
-            });
-            blocks.push({ type: 'divider' });
-            
-            criticalCommerce.forEach(alert => {
-                blocks.push(formatAlertForSlack(alert));
-                blocks.push({ type: 'divider' });
-            });
-        }
-        
-        // Envoyer sur Slack
-        await sendSlackMessage(blocks);
-        
-        res.json({ 
-            success: true, 
-            message: `${totalCritical} alerte${totalCritical > 1 ? 's' : ''} envoyée${totalCritical > 1 ? 's' : ''} sur Slack` 
-        });
-        
+        const result = await sendAlertsToSlackWebhook(req.body);
+        res.json(result);
     } catch (error) {
         console.error('Erreur envoi Slack:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -246,3 +251,4 @@ router.post('/send-alerts', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.sendAlertsToSlackWebhook = sendAlertsToSlackWebhook;

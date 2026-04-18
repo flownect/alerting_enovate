@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
-const { generateTradersCommerceAlerts, generatePerformanceAlerts } = require('../routes/alerts');
+const { generateAlerts } = require('./alert-generator');
 
 // Fonction pour envoyer directement sur Slack
 async function sendToSlack(blocks) {
@@ -80,9 +80,9 @@ async function getCriticalAlerts() {
             log(`⚠️ Erreur Campaign Stats: ${error.message} - Continuer sans données Performance`);
         }
         
-        // Générer les alertes Traders/Commerce
+        // Générer les alertes Traders/Commerce (même logique que le dashboard)
         log('Génération alertes Traders/Commerce...');
-        const allTradersCommerceAlerts = await generateTradersCommerceAlerts(trelloData);
+        const allTradersCommerceAlerts = generateAlerts(trelloData);
         log(`Traders/Commerce: ${allTradersCommerceAlerts.length} alertes générées`);
         
         // Filtrer les alertes critiques
@@ -93,13 +93,9 @@ async function getCriticalAlerts() {
             !a.card?.isProgrammable && a.criticality === 'critical'
         );
         
-        // Générer les alertes Performance
-        log('Génération alertes Performance...');
-        const allPerformanceAlerts = await generatePerformanceAlerts(statsData);
-        log(`Performance: ${allPerformanceAlerts.length} alertes générées`);
+        // TODO: Générer les alertes Performance (quand Campaign Stats sera plus rapide)
+        const performanceAlerts = [];
         
-        // Filtrer les alertes critiques
-        const performanceAlerts = allPerformanceAlerts.filter(a => a.level === 'critique');
         log(`Filtrage: ${performanceAlerts.length} Performance critiques, ${tradersAlerts.length} Traders critiques, ${commerceAlerts.length} Commerce critiques`);
         
         log(`Alertes critiques: ${performanceAlerts.length} Performance, ${tradersAlerts.length} Traders, ${commerceAlerts.length} Commerce`);
@@ -200,59 +196,16 @@ async function sendDailyAlerts() {
             return;
         }
         
-        // Construire les blocks Slack (version simplifiée)
-        const blocks = [
-            {
-                type: 'header',
-                text: {
-                    type: 'plain_text',
-                    text: `🚨 Alertes Critiques - ${new Date().toLocaleDateString('fr-FR')}`,
-                    emoji: true
-                }
-            },
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${formattedPerformance.length} | 👥 Traders: ${formattedTraders.length} | 💼 CSM: ${formattedCommerce.length}`
-                }
-            },
-            { type: 'divider' }
-        ];
+        // Importer la fonction d'envoi Slack depuis routes/slack.js
+        const { sendAlertsToSlackWebhook } = require('../routes/slack');
         
-        // Ajouter les alertes Traders
-        if (formattedTraders.length > 0) {
-            blocks.push({
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*👥 ALERTES TRADERS (${formattedTraders.length})*`
-                }
-            });
-            
-            formattedTraders.slice(0, 10).forEach(alert => {
-                blocks.push({
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `*${alert.title}*\n${alert.timing}\n${alert.message}`
-                    }
-                });
-            });
-            
-            if (formattedTraders.length > 10) {
-                blocks.push({
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `_... et ${formattedTraders.length - 10} autres alertes Traders_`
-                    }
-                });
-            }
-        }
+        // Utiliser la même fonction que le dashboard
+        await sendAlertsToSlackWebhook({
+            performanceAlerts: formattedPerformance,
+            tradersAlerts: formattedTraders,
+            commerceAlerts: formattedCommerce
+        });
         
-        // Envoyer directement sur Slack
-        await sendToSlack(blocks);
         log(`✅ Alertes envoyées sur Slack avec succès`);
         
     } catch (error) {
