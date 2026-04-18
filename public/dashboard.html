@@ -743,7 +743,14 @@
         }
 
         // ==================== PERFORMANCE ALERTS ====================
+        // DEPRECATED - Remplacé par /api/alerts
         async function generatePerformanceAlerts() {
+            console.warn('⚠️ generatePerformanceAlerts() est déprécié, utiliser /api/alerts');
+            return [];
+        }
+        
+        // DEPRECATED - Version originale conservée pour référence
+        async function generatePerformanceAlerts_OLD() {
             if (!campaignStatsData?.data) return [];
             
             // Debug: afficher la structure des données
@@ -987,8 +994,14 @@
             return null; // Ignorer si pas de match
         }
         
-        // Générer les alertes basées sur les benchmarks (utilise les données déjà chargées)
+        // DEPRECATED - Remplacé par /api/alerts
         function generateBenchmarkAlerts() {
+            console.warn('⚠️ generateBenchmarkAlerts() est déprécié, utiliser /api/alerts');
+            return [];
+        }
+        
+        // DEPRECATED - Version originale conservée pour référence
+        function generateBenchmarkAlerts_OLD() {
             console.log('🔍 Generating benchmark alerts from loaded data...');
             
             if (!campaignStatsData?.data || !trelloData?.data?.lanes) {
@@ -3310,39 +3323,10 @@ ADX: ${adxLink}`;
             }
         }
         
+        // DEPRECATED - Remplacé par /api/alerts
         async function fetchCampaignStats() {
-            const env = 'prod'; // Toujours en production
-            const loadingEl = document.getElementById('stats-loading');
-            const statusEl = document.getElementById('stats-status');
-            const perfLoadingEl = document.getElementById('perf-loading');
-            
-            if (loadingEl) loadingEl.classList.remove('hidden');
-            if (perfLoadingEl) perfLoadingEl.classList.remove('hidden');
-            if (statusEl) statusEl.textContent = '📈 Stats: chargement...';
-            
-            try {
-                const response = await fetch(`/api/campaign-stats/analysis?env=${env}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    campaignStatsData = data;
-                    allPerformanceAlerts = await generatePerformanceAlerts();
-                    renderPerformance();
-                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
-                    return true;
-                } else {
-                    console.error('Campaign Stats API Error:', data.error);
-                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
-                    return false;
-                }
-            } catch (error) {
-                console.error('Campaign Stats Fetch Error:', error);
-                if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
-                return false;
-            } finally {
-                if (loadingEl) loadingEl.classList.add('hidden');
-                if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
-            }
+            console.warn('⚠️ fetchCampaignStats() est déprécié, utiliser /api/alerts');
+            return false;
         }
 
         async function refreshData() {
