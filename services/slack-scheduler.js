@@ -18,9 +18,9 @@ async function getCriticalAlerts() {
         // Utiliser l'URL de l'environnement ou localhost
         const baseUrl = process.env.APP_URL || 'http://localhost:3000';
         
-        // Récupérer les données Trello directement depuis l'API Nova
+        // Récupérer les données Trello directement depuis l'API Nova (PROD)
         log('Récupération données Trello...');
-        const trelloUrl = `${NOVA_PREPROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+        const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
         const trelloResponse = await fetch(trelloUrl, {
             timeout: 120000 // 2 minutes
         });
@@ -34,9 +34,9 @@ async function getCriticalAlerts() {
         const trelloData = { data: trelloRawData };
         log(`Trello: ${trelloRawData?.lanes?.length || 0} lanes récupérées`);
         
-        // Récupérer les données Campaign Stats directement depuis l'API Nova
+        // Récupérer les données Campaign Stats directement depuis l'API Nova (PROD)
         log('Récupération données Campaign Stats...');
-        const statsUrl = `${NOVA_PREPROD_URL}/api/campaign-stats?api_key=${NOVA_API_KEY}&cache=1`;
+        const statsUrl = `${NOVA_PROD_URL}/api/campaign-stats?api_key=${NOVA_API_KEY}&cache=1`;
         const statsResponse = await fetch(statsUrl, {
             timeout: 120000 // 2 minutes
         });
