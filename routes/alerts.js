@@ -171,7 +171,10 @@ async function generatePerformanceAlerts(campaignStatsData) {
         nowForComparison.setDate(nowForComparison.getDate() + 2);
     }
     
-    for (const campaign of campaignStatsData.data) {
+    // Extraire les données de campagne de la structure API
+    const campaigns = campaignStatsData?.data || [];
+    
+    for (const campaign of campaigns) {
         // Ignorer les campagnes non live
         if (!campaign.isLive) continue;
         
