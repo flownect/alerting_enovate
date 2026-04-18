@@ -15,7 +15,7 @@ async function getCriticalAlerts() {
         
         // Récupérer les données Trello
         log('Récupération données Trello...');
-        const trelloResponse = await fetch(`${baseUrl}/api/trello/cards`, {
+        const trelloResponse = await fetch(`${baseUrl}/api/trello`, {
             timeout: 120000 // 2 minutes
         });
         
