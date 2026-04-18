@@ -552,7 +552,13 @@
             return stats;
         }
 
-        function generateAlerts() {
+        // ==================== ALERTES ====================
+        // NOTE: La génération d'alertes a été déplacée côté serveur dans /api/alerts
+        // Les fonctions generateAlerts() et generatePerformanceAlerts() ne sont plus utilisées
+        // Voir services/alert-generator.js pour la logique
+        
+        // ANCIENNE FONCTION - NE PLUS UTILISER
+        function generateAlerts_DEPRECATED() {
             const cards = getAllCards();
             const now = today(); // Date actuelle
             
