@@ -3316,10 +3316,39 @@ ADX: ${adxLink}`;
             }
         }
         
-        // DEPRECATED - Ne plus utiliser, remplacé par /api/alerts
         async function fetchCampaignStats() {
-            console.warn('⚠️ fetchCampaignStats() est déprécié, utiliser /api/alerts à la place');
-            return false;
+            const env = 'prod';
+            const loadingEl = document.getElementById('stats-loading');
+            const statusEl = document.getElementById('stats-status');
+            const perfLoadingEl = document.getElementById('perf-loading');
+            
+            if (loadingEl) loadingEl.classList.remove('hidden');
+            if (perfLoadingEl) perfLoadingEl.classList.remove('hidden');
+            if (statusEl) statusEl.textContent = '📈 Stats: chargement...';
+            
+            try {
+                const response = await fetch(`/api/campaign-stats/analysis?env=${env}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    campaignStatsData = data;
+                    allPerformanceAlerts = await generatePerformanceAlerts();
+                    renderPerformance();
+                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
+                    return true;
+                } else {
+                    console.error('Campaign Stats API Error:', data.error);
+                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
+                    return false;
+                }
+            } catch (error) {
+                console.error('Campaign Stats Fetch Error:', error);
+                if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
+                return false;
+            } finally {
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
+            }
         }
 
         async function refreshData() {
@@ -3327,24 +3356,22 @@ ADX: ${adxLink}`;
             btn.disabled = true;
             btn.innerHTML = '<span class="loader"></span><span>Chargement...</span>';
 
-            // Utiliser l'API centralisée pour les alertes
-            const alertsResponse = await fetch('/api/alerts?env=prod');
-            const alertsData = await alertsResponse.json();
+            const [trelloSuccess, perfSuccess] = await Promise.all([
+                fetchData(),
+                fetchCampaignStats()
+            ]);
             
-            if (alertsData.success) {
-                // Récupérer les alertes depuis l'API
-                allAlerts = alertsData.data.tradersCommerceAlerts;
-                allPerformanceAlerts = alertsData.data.performanceAlerts;
-                
-                // Rafraîchir les données Trello pour l'affichage
-                await fetchData();
-                
-                // Render
+            if (trelloSuccess) {
+                allAlerts = generateAlerts();
                 renderPoles();
                 renderTraders();
                 renderAlerts();
                 renderLaunches();
                 updateGlobalStats();
+            }
+            
+            if (perfSuccess) {
+                allPerformanceAlerts = await generatePerformanceAlerts();
                 renderPerformance();
             }
 
@@ -3447,28 +3474,28 @@ ADX: ${adxLink}`;
             // Charger le nombre de commentaires
             loadCommentsCount();
             
-            // Charger Trello ET les alertes en parallèle
-            const [trelloSuccess, alertsData] = await Promise.all([
-                fetchData(),
-                fetch('/api/alerts?env=prod').then(r => r.json())
-            ]);
-            
-            // Appliquer les alertes de l'API
-            if (alertsData.success) {
-                allAlerts = alertsData.data.tradersCommerceAlerts;
-                allPerformanceAlerts = alertsData.data.performanceAlerts;
-            }
+            // Charger Trello d'abord
+            const trelloSuccess = await fetchData();
             
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
             
-            // Render une seule fois avec les bonnes données
-            renderPoles();
-            renderTraders();
-            renderAlerts();
-            renderLaunches();
-            updateGlobalStats();
-            renderPerformance();
+            if (trelloSuccess) {
+                allAlerts = generateAlerts();
+                renderPoles();
+                renderTraders();
+                renderAlerts();
+                renderLaunches();
+                updateGlobalStats();
+            }
+            
+            // Charger Performance en parallèle
+            fetchCampaignStats().then(async perfSuccess => {
+                if (perfSuccess) {
+                    allPerformanceAlerts = await generatePerformanceAlerts();
+                    renderPerformance();
+                }
+            });
 
             // Auto-refresh every hour (between 7h and 20h)
             setInterval(() => {
