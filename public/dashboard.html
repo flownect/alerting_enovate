@@ -1877,7 +1877,7 @@
         
         // ==================== HELPERS POUR NOUVEAU DESIGN ====================
         function getCampaignPerformanceData(card) {
-            if (!campaignStatsData?.data) return null;
+            if (!campaignStatsData?.data) return { volumeProgress: 0, volumeType: 'N/A', perfData: null };
             
             // Extraire l'ID entre crochets du titre (format: [12345] Nom_Campagne)
             let extractedId = null;
@@ -1915,7 +1915,27 @@
                 );
             }
             
-            return perfData;
+            // Calculer le volume progress
+            let volumeProgress = 0;
+            let volumeType = 'N/A';
+            
+            if (perfData) {
+                // Vérifier si c'est une campagne impressions ou clics
+                const impressionsObjective = parseFloat(perfData.objectives?.impressions?.overall || 0);
+                const clicksObjective = parseFloat(perfData.objectives?.clicks?.overall || 0);
+                
+                if (impressionsObjective > 0) {
+                    const impressionsCurrent = perfData.data?.impressions?.value2 || 0;
+                    volumeProgress = Math.round((impressionsCurrent / impressionsObjective) * 100);
+                    volumeType = 'Impressions';
+                } else if (clicksObjective > 0) {
+                    const clicksCurrent = perfData.data?.clicks?.value2 || 0;
+                    volumeProgress = Math.round((clicksCurrent / clicksObjective) * 100);
+                    volumeType = 'Clics';
+                }
+            }
+            
+            return { volumeProgress, volumeType, perfData };
         }
         
         function calculateProgressPercentage(current, objective) {
@@ -1945,7 +1965,8 @@
         
         function renderCampaignCardNew(alert, container) {
             const card = alert.card;
-            const perfData = getCampaignPerformanceData(card);
+            const perfDataResult = getCampaignPerformanceData(card);
+            const perfData = perfDataResult.perfData;
             const trader = getEffectiveTrader(card.trader);
             
             // Générer un ID unique pour cette alerte (sans tirets pour JavaScript)
@@ -2090,10 +2111,36 @@
                                 <div class="text-gray-600 dark:text-gray-400">${card.accountManager || 'N/A'}</div>
                             </div>
                             `}
+                            
+                            <!-- Volume avec jauge -->
+                            <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Volume</div>
+                                <div class="text-gray-600 dark:text-gray-400 mb-2">
+                                    ${perfDataResult.volumeProgress}% • ${perfDataResult.volumeType}
+                                </div>
+                                <!-- Jauge volume -->
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all ${
+                                        perfDataResult.volumeProgress >= 100 ? 'bg-green-500' :
+                                        perfDataResult.volumeProgress >= 75 ? 'bg-blue-500' :
+                                        perfDataResult.volumeProgress >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                    }" style="width: ${Math.min(perfDataResult.volumeProgress, 100)}%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Durée avec jauge -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
                                 <div class="font-semibold text-gray-700 dark:text-gray-300 mb-1">Durée</div>
-                                <div class="text-gray-600 dark:text-gray-400">
+                                <div class="text-gray-600 dark:text-gray-400 mb-2">
                                     ${duration.isFinished ? 'Terminée' : `${duration.percent}% • ${duration.daysLeft}j restants`}
+                                </div>
+                                <!-- Jauge durée -->
+                                <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all ${
+                                        duration.percent >= 100 ? 'bg-gray-500' :
+                                        duration.percent >= 75 ? 'bg-orange-500' :
+                                        duration.percent >= 50 ? 'bg-blue-500' : 'bg-green-500'
+                                    }" style="width: ${Math.min(duration.percent, 100)}%"></div>
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-gray-500 mt-1">${card.dates?.startingDateFormatted || 'N/A'} → ${card.dates?.endingDateFormatted || 'N/A'}</div>
                             </div>
@@ -2266,7 +2313,8 @@ ADX: ${adxLink}`;
                 const alertId = `alert-${Math.random().toString(36).substr(2, 9)}`;
                 
                 // Récupérer ADX ID
-                const perfData = getCampaignPerformanceData(card);
+                const perfDataResult = getCampaignPerformanceData(card);
+                const perfData = perfDataResult.perfData;
                 const adxId = perfData ? (perfData.adxDisplayId || perfData.adxId) : null;
 
                 const div = document.createElement('div');
