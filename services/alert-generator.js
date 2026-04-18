@@ -529,6 +529,15 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         ? `${kpi.name}: ${currentValue.toFixed(1)}% (max: ${benchmark.max}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`
         : `${kpi.name}: ${currentValue.toFixed(2)}% (min: ${benchmark.min}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`;
     
+    // Calculer daysLeft pour Slack
+    const startDate = parseDate(campaign.vStartDate);
+    const endDate = parseDate(campaign.vEndDate);
+    let daysLeft = null;
+    if (endDate) {
+        const now = new Date();
+        daysLeft = getDaysDiff(now, endDate);
+    }
+    
     return {
         level,
         campaign,
@@ -538,6 +547,9 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         reasons: [message],
         trader: campaign.traderName || 'N/A',
         commercial: campaign.commercialName || 'N/A',
+        startDate: campaign.vStartDate,
+        endDate: campaign.vEndDate,
+        daysLeft,
         isBenchmarkAlert: true,
         benchmarkData: {
             kpi: kpi.name,
