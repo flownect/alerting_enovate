@@ -22,7 +22,7 @@ async function fetchTrelloData() {
 // Fonction helper pour récupérer les données Campaign Stats
 async function fetchCampaignStats() {
     const url = `${NOVA_PROD_URL}/api/campaign-stats/analysis?api_key=${NOVA_API_KEY}`;
-    const response = await fetch(url, { timeout: 120000 });
+    const response = await fetch(url, { timeout: 300000 }); // 5 minutes
     
     if (!response.ok) {
         throw new Error(`Campaign Stats API error: ${response.status}`);
@@ -52,6 +52,7 @@ async function getCriticalAlerts() {
         
         try {
             statsData = await fetchCampaignStats();
+            log(`Campaign Stats structure: ${JSON.stringify(Object.keys(statsData || {}))}`);
             log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
         } catch (error) {
             log(`⚠️ Erreur Campaign Stats: ${error.message} - Continuer sans données Performance`);
