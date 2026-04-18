@@ -17,15 +17,18 @@ async function getCriticalAlerts() {
         log('Récupération données Trello...');
         const trelloResponse = await fetch(`${baseUrl}/api/trello/cards`);
         const trelloData = await trelloResponse.json();
+        log(`Trello: ${trelloData?.data?.lanes?.length || 0} lanes récupérées`);
         
         // Récupérer les données Campaign Stats
         log('Récupération données Campaign Stats...');
         const statsResponse = await fetch(`${baseUrl}/api/campaign-stats`);
         const statsData = await statsResponse.json();
+        log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
         
         // Générer les alertes Traders/Commerce
         log('Génération alertes Traders/Commerce...');
         const allTradersCommerceAlerts = await generateTradersCommerceAlerts(trelloData);
+        log(`Traders/Commerce: ${allTradersCommerceAlerts.length} alertes générées`);
         
         // Filtrer les alertes critiques
         const tradersAlerts = allTradersCommerceAlerts.filter(a => 
@@ -38,9 +41,11 @@ async function getCriticalAlerts() {
         // Générer les alertes Performance
         log('Génération alertes Performance...');
         const allPerformanceAlerts = await generatePerformanceAlerts(statsData);
+        log(`Performance: ${allPerformanceAlerts.length} alertes générées`);
         
         // Filtrer les alertes critiques
         const performanceAlerts = allPerformanceAlerts.filter(a => a.level === 'critique');
+        log(`Filtrage: ${performanceAlerts.length} Performance critiques, ${tradersAlerts.length} Traders critiques, ${commerceAlerts.length} Commerce critiques`);
         
         log(`Alertes critiques: ${performanceAlerts.length} Performance, ${tradersAlerts.length} Traders, ${commerceAlerts.length} Commerce`);
         
@@ -133,6 +138,8 @@ async function sendDailyAlerts() {
         }));
         
         const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+        log(`Envoi vers Slack: ${formattedPerformance.length} Performance, ${formattedTraders.length} Traders, ${formattedCommerce.length} Commerce`);
+        
         const response = await fetch(`${baseUrl}/api/slack/send-alerts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -144,6 +151,7 @@ async function sendDailyAlerts() {
         });
         
         const result = await response.json();
+        log(`Réponse Slack: ${JSON.stringify(result)}`);
         
         if (result.success) {
             log(`✅ ${result.message}`);
