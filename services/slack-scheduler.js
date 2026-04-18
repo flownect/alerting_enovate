@@ -73,9 +73,10 @@ async function getCriticalAlerts() {
         let statsData = { data: [] };
         
         try {
-            statsData = await fetchCampaignStats();
-            log(`Campaign Stats structure: ${JSON.stringify(Object.keys(statsData || {}))}`);
-            log(`Campaign Stats: ${statsData?.data?.length || 0} campagnes récupérées`);
+            const rawStatsData = await fetchCampaignStats();
+            // L'API retourne directement un tableau, pas { data: [...] }
+            statsData = { data: Array.isArray(rawStatsData) ? rawStatsData : [] };
+            log(`Campaign Stats: ${statsData.data.length} campagnes récupérées`);
         } catch (error) {
             log(`⚠️ Erreur Campaign Stats: ${error.message} - Continuer sans données Performance`);
         }
@@ -95,7 +96,6 @@ async function getCriticalAlerts() {
         
         // Générer les alertes Performance (même logique que le dashboard)
         log('Génération alertes Performance...');
-        log(`Stats data pour Performance: ${JSON.stringify(Object.keys(statsData || {}))}, data length: ${statsData?.data?.length || 0}`);
         const allPerformanceAlerts = generatePerformanceAlerts(statsData);
         log(`Performance: ${allPerformanceAlerts.length} alertes générées`);
         
