@@ -3316,39 +3316,10 @@ ADX: ${adxLink}`;
             }
         }
         
+        // DEPRECATED - Ne plus utiliser, remplacé par /api/alerts
         async function fetchCampaignStats() {
-            const env = 'prod'; // Toujours en production
-            const loadingEl = document.getElementById('stats-loading');
-            const statusEl = document.getElementById('stats-status');
-            const perfLoadingEl = document.getElementById('perf-loading');
-            
-            if (loadingEl) loadingEl.classList.remove('hidden');
-            if (perfLoadingEl) perfLoadingEl.classList.remove('hidden');
-            if (statusEl) statusEl.textContent = '📈 Stats: chargement...';
-            
-            try {
-                const response = await fetch(`/api/campaign-stats/analysis?env=${env}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    campaignStatsData = data;
-                    allPerformanceAlerts = await generatePerformanceAlerts();
-                    renderPerformance();
-                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-green-500">${formatTime()}</span>`;
-                    return true;
-                } else {
-                    console.error('Campaign Stats API Error:', data.error);
-                    if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
-                    return false;
-                }
-            } catch (error) {
-                console.error('Campaign Stats Fetch Error:', error);
-                if (statusEl) statusEl.innerHTML = `📈 Stats: <span class="text-red-500">Erreur</span>`;
-                return false;
-            } finally {
-                if (loadingEl) loadingEl.classList.add('hidden');
-                if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
-            }
+            console.warn('⚠️ fetchCampaignStats() est déprécié, utiliser /api/alerts à la place');
+            return false;
         }
 
         async function refreshData() {
