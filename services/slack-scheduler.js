@@ -95,6 +95,7 @@ async function getCriticalAlerts() {
         
         // Générer les alertes Performance (même logique que le dashboard)
         log('Génération alertes Performance...');
+        log(`Stats data pour Performance: ${JSON.stringify(Object.keys(statsData || {}))}, data length: ${statsData?.data?.length || 0}`);
         const allPerformanceAlerts = generatePerformanceAlerts(statsData);
         log(`Performance: ${allPerformanceAlerts.length} alertes générées`);
         
