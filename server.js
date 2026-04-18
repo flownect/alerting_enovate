@@ -62,6 +62,7 @@ const PORT = process.env.PORT || 3000;
 
 // Routes
 const slackRouter = require('./routes/slack');
+const alertsRouter = require('./routes/alerts-api');
 const { sendDailyAlerts } = require('./services/slack-scheduler');
 
 // Middleware
@@ -71,6 +72,7 @@ app.use(cookieParser());
 
 // API Routes
 app.use('/api/slack', slackRouter);
+app.use('/api/alerts', alertsRouter);
 
 // Route pour tester manuellement l'envoi des alertes
 app.post('/api/test-slack-alerts', sessionAuth, async (req, res) => {
