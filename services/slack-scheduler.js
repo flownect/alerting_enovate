@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
-const { generateAlerts } = require('./alert-generator');
+const { generateAlerts, generatePerformanceAlerts } = require('./alert-generator');
 
 // Fonction pour envoyer directement sur Slack
 async function sendToSlack(blocks) {
@@ -93,8 +93,13 @@ async function getCriticalAlerts() {
             !a.card?.isProgrammable && a.criticality === 'critical'
         );
         
-        // TODO: Générer les alertes Performance (quand Campaign Stats sera plus rapide)
-        const performanceAlerts = [];
+        // Générer les alertes Performance (même logique que le dashboard)
+        log('Génération alertes Performance...');
+        const allPerformanceAlerts = generatePerformanceAlerts(statsData);
+        log(`Performance: ${allPerformanceAlerts.length} alertes générées`);
+        
+        // Filtrer les alertes critiques
+        const performanceAlerts = allPerformanceAlerts.filter(a => a.level === 'critique');
         
         log(`Filtrage: ${performanceAlerts.length} Performance critiques, ${tradersAlerts.length} Traders critiques, ${commerceAlerts.length} Commerce critiques`);
         

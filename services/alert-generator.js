@@ -224,8 +224,172 @@ function generateAlerts(trelloData) {
     return alerts;
 }
 
+// ==================== GÉNÉRATION ALERTES PERFORMANCE (copié du dashboard) ====================
+
+function generatePerformanceAlerts(campaignStatsData) {
+    if (!campaignStatsData?.data) return [];
+    
+    const alerts = [];
+    const now = today();
+    
+    // Calculer une date ajustée pour la comparaison durée/volume (si vendredi, +2 jours)
+    const nowForComparison = new Date(now);
+    const isFriday = now.getDay() === 5;
+    if (isFriday) {
+        nowForComparison.setDate(nowForComparison.getDate() + 2);
+    }
+    
+    for (const campaign of campaignStatsData.data) {
+        // Ignorer les campagnes non live
+        if (!campaign.isLive) continue;
+        
+        // Calculer la durée de campagne
+        const startDate = parseDate(campaign.vStartDate);
+        const endDate = parseDate(campaign.vEndDate);
+        if (!startDate || !endDate) continue;
+        
+        const totalDays = getDaysDiff(startDate, endDate);
+        const elapsedDaysReal = getDaysDiff(startDate, now);
+        const elapsedDaysForComparison = getDaysDiff(startDate, nowForComparison);
+        if (totalDays <= 0 || elapsedDaysReal < 0) continue;
+        
+        const durationProgress = Math.min((elapsedDaysReal / totalDays) * 100, 100);
+        const durationProgressForComparison = Math.min((elapsedDaysForComparison / totalDays) * 100, 100);
+        
+        // Calculer le % de diffusion (impressions)
+        const impressionsObjective = parseFloat(campaign.objectives?.impressions?.overall) || 0;
+        let deliveryProgressPercent = 0;
+        if (impressionsObjective > 0) {
+            const impressionsActual = campaign.data?.impressions?.value2 || 0;
+            deliveryProgressPercent = (impressionsActual / impressionsObjective) * 100;
+        }
+        
+        // Vérifier si la campagne ne diffuse pas
+        const impressionsData = campaign.data?.impressions;
+        const todayImpressions = impressionsData?.value1 || 0;
+        const campaignStartDate = parseDate(campaign.vStartDate);
+        const hasStarted = campaignStartDate && campaignStartDate < now;
+        const isNotDelivering = (todayImpressions === 0 && hasStarted);
+        
+        // RÈGLE GLOBALE : Aucune alerte avant 20% de diffusion (sauf campagne ne diffuse pas)
+        if (deliveryProgressPercent < 20 && !isNotDelivering) continue;
+        
+        // Mapping objectifs
+        const OBJECTIVE_MAP = {
+            impressions:     { dataField: 'impressions',     label: 'Impressions' },
+            clicks:          { dataField: 'clicks',          label: 'Clics' },
+            conversions:     { dataField: 'conversions',     label: 'Conversions' },
+            evVideoComplete: { dataField: 'evVideoComplete', label: 'Complétions vidéo' },
+            evUser1:         { dataField: 'evUser4',         label: 'Sessions (evUser1)' },
+            evUser2:         { dataField: 'evUser5',         label: 'Visites LP (evUser2)' }
+        };
+        
+        // Calculer la progression pour chaque objectif
+        const objectiveGaps = [];
+        let mainDeliveryProgress = null;
+        
+        for (const [objKey, mapping] of Object.entries(OBJECTIVE_MAP)) {
+            const overall = parseFloat(campaign.objectives?.[objKey]?.overall) || 0;
+            if (overall <= 0) continue;
+            
+            const actual = campaign.data?.[mapping.dataField]?.value2 || 0;
+            const progress = (actual / overall) * 100;
+            const gap = durationProgress - progress;
+            
+            if (objKey === 'impressions') mainDeliveryProgress = progress;
+            
+            objectiveGaps.push({
+                key: objKey,
+                label: mapping.label,
+                actual,
+                overall,
+                progress,
+                gap
+            });
+        }
+        
+        const deliveryProgress = mainDeliveryProgress;
+        
+        // Récupérer la marge
+        const marginRate = campaign.data?.marginRate?.value2 || null;
+        const TARGET_MARGIN = 72;
+        const expectedMargin = Math.min((durationProgress / 70) * TARGET_MARGIN, TARGET_MARGIN);
+        const marginGap = marginRate !== null ? expectedMargin - marginRate : null;
+        
+        let level = null;
+        let reasons = [];
+        
+        // CRITIQUE - Campagne ne diffuse pas
+        if (isNotDelivering) {
+            level = 'critique';
+            reasons.push(`Campagne ne diffuse pas (0 impressions aujourd'hui)`);
+        }
+        
+        // Alertes objectifs à partir de 50% durée
+        if (durationProgressForComparison >= 50) {
+            let gapThreshold, durationLevel;
+            if (durationProgressForComparison > 90) {
+                gapThreshold = 10;
+                durationLevel = 'critique';
+            } else if (durationProgressForComparison > 70) {
+                gapThreshold = 15;
+                durationLevel = 'alerte';
+            } else {
+                gapThreshold = 20;
+                durationLevel = 'alerte';
+            }
+            
+            for (const obj of objectiveGaps) {
+                if (obj.gap > gapThreshold) {
+                    reasons.push(`${obj.label}: ${obj.progress.toFixed(0)}% livré vs ${durationProgressForComparison.toFixed(0)}% durée (obj: ${Math.round(obj.overall).toLocaleString('fr-FR')})`);
+                    if (level !== 'critique') level = durationLevel;
+                }
+            }
+            
+            // Marge
+            if (durationProgressForComparison > 90) {
+                if (marginRate !== null && marginRate < 72) {
+                    reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
+                    if (level !== 'critique') level = 'critique';
+                }
+            } else if (durationProgressForComparison > 70) {
+                if (marginRate !== null && marginRate < 72) {
+                    reasons.push(`Marge ${marginRate.toFixed(0)}% (objectif 72%)`);
+                    if (level !== 'critique') level = 'alerte';
+                }
+            } else {
+                if (marginGap !== null && marginGap > 10) {
+                    reasons.push(`Marge ${marginRate.toFixed(0)}% (attendu ~${expectedMargin.toFixed(0)}%)`);
+                    if (level !== 'critique') level = 'alerte';
+                }
+            }
+        }
+        
+        if (level && reasons.length > 0) {
+            alerts.push({
+                level,
+                campaign,
+                durationProgress,
+                durationProgressForComparison,
+                deliveryProgress,
+                marginRate,
+                reasons,
+                trader: campaign.traderName || 'N/A',
+                commercial: campaign.commercialName || 'N/A'
+            });
+        }
+    }
+    
+    // Trier par niveau de criticité
+    const order = { critique: 0, alerte: 1, faible: 2 };
+    alerts.sort((a, b) => order[a.level] - order[b.level]);
+    
+    return alerts;
+}
+
 module.exports = {
     generateAlerts,
+    generatePerformanceAlerts,
     parseDate,
     getDaysDiff,
     today,
