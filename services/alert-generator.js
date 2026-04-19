@@ -550,13 +550,21 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         : `${kpi.name}: ${currentValue.toFixed(2)}% (min: ${benchmark.min}%) • ${deliveryPercent.toFixed(0)}% diffusé • ${timePercent.toFixed(0)}% du temps`;
     
     // Calculer daysLeft pour Slack
-    const startDate = parseDate(campaign.vStartDate);
-    const endDate = parseDate(campaign.vEndDate);
+    const startDateObj = parseDate(campaign.vStartDate);
+    const endDateObj = parseDate(campaign.vEndDate);
     let daysLeft = null;
-    if (endDate) {
+    if (endDateObj) {
         const now = new Date();
-        daysLeft = getDaysDiff(now, endDate);
+        daysLeft = getDaysDiff(now, endDateObj);
     }
+    
+    // Formater les dates pour affichage
+    const formatDate = (dateStr) => {
+        if (!dateStr) return null;
+        const date = parseDate(dateStr);
+        if (!date) return null;
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
     
     // Construire les liens Nova et ADX
     const briefId = campaign.briefId?.briefCampaignInfo?.[0];
@@ -573,8 +581,8 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         reasons: [message],
         trader: campaign.traderName || 'N/A',
         commercial: campaign.commercialName || 'N/A',
-        startDate: campaign.vStartDate,
-        endDate: campaign.vEndDate,
+        startDate: formatDate(campaign.vStartDate),
+        endDate: formatDate(campaign.vEndDate),
         daysLeft,
         novaLink,
         adxLink,

@@ -49,6 +49,7 @@ router.get('/', async (req, res) => {
         let commentsByNameMap = {};
         if (process.env.DATABASE_URL) {
             try {
+                console.log('[ALERTS-API] Récupération commentaires...');
                 const { Pool } = require('pg');
                 const pool = new Pool({
                     connectionString: process.env.DATABASE_URL,
@@ -62,6 +63,8 @@ router.get('/', async (req, res) => {
                     FROM campaign_comments
                     ORDER BY created_at DESC
                 `);
+                
+                console.log(`[ALERTS-API] ${result.rows.length} commentaires trouvés`);
                 
                 await pool.end();
                 
@@ -85,8 +88,10 @@ router.get('/', async (req, res) => {
                         commentsByNameMap[row.campaign_name].push(comment);
                     }
                 }
+                
+                console.log(`[ALERTS-API] Commentaires groupés: ${Object.keys(commentsByNameMap).length} par nom`);
             } catch (error) {
-                console.error('Erreur récupération commentaires:', error);
+                console.error('[ALERTS-API] Erreur récupération commentaires:', error.message);
             }
         }
         
