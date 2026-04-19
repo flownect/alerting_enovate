@@ -57,8 +57,8 @@ router.get('/', async (req, res) => {
                 await client.connect();
                 
                 const result = await client.query(`
-                    SELECT campaign_id, campaign_name, text, author, created_at
-                    FROM comments
+                    SELECT campaign_id, campaign_name, comment_text, author, created_at
+                    FROM campaign_comments
                     ORDER BY created_at DESC
                 `);
                 
@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
                 
                 // Grouper par campaignId ET par campaignName
                 for (const row of result.rows) {
-                    const comment = `${row.text} (${row.author})`;
+                    const comment = `${row.comment_text} (${row.author || 'Anonyme'})`;
                     
                     // Par ID
                     if (row.campaign_id) {
