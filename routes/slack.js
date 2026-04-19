@@ -81,19 +81,9 @@ function formatAlertForSlack(alert) {
         durationText += '\n';
     }
     
-    // Formater les dates
-    const formatDate = (dateStr) => {
-        if (!dateStr) return null;
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return null;
-        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-    
-    const formattedStartDate = formatDate(alert.startDate);
-    const formattedEndDate = formatDate(alert.endDate);
-    
-    if (formattedStartDate && formattedEndDate) {
-        durationText += `*Dates:* ${formattedStartDate} → ${formattedEndDate}\n`;
+    // Afficher les dates (déjà formatées par l'API)
+    if (alert.startDate && alert.endDate) {
+        durationText += `*Dates:* ${alert.startDate} → ${alert.endDate}\n`;
     }
     
     // Infos complémentaires
