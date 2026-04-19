@@ -385,6 +385,21 @@ function generatePerformanceAlerts(campaignStatsData) {
         
         if (level && reasons.length > 0) {
             console.log(`[PERF ALERT] ${campaign.campaignName} - Level: ${level} - Reasons: ${reasons.join(', ')}`);
+            
+            // Construire les liens Nova et ADX
+            const briefId = campaign.briefId?.briefCampaignInfo?.[0];
+            const novaLink = briefId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
+            const adxId = campaign.adxId;
+            const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
+            
+            // Calculer daysLeft
+            const endDate = parseDate(campaign.vEndDate);
+            let daysLeft = null;
+            if (endDate) {
+                const now = new Date();
+                daysLeft = getDaysDiff(now, endDate);
+            }
+            
             alerts.push({
                 level,
                 campaign,
@@ -394,7 +409,12 @@ function generatePerformanceAlerts(campaignStatsData) {
                 marginRate,
                 reasons,
                 trader: campaign.traderName || 'N/A',
-                commercial: campaign.commercialName || 'N/A'
+                commercial: campaign.commercialName || 'N/A',
+                startDate: campaign.vStartDate,
+                endDate: campaign.vEndDate,
+                daysLeft,
+                novaLink,
+                adxLink
             });
         }
     }
@@ -538,6 +558,12 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         daysLeft = getDaysDiff(now, endDate);
     }
     
+    // Construire les liens Nova et ADX
+    const briefId = campaign.briefId?.briefCampaignInfo?.[0];
+    const novaLink = briefId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
+    const adxId = campaign.adxId;
+    const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
+    
     return {
         level,
         campaign,
@@ -550,6 +576,8 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         startDate: campaign.vStartDate,
         endDate: campaign.vEndDate,
         daysLeft,
+        novaLink,
+        adxLink,
         isBenchmarkAlert: true,
         benchmarkData: {
             kpi: kpi.name,

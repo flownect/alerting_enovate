@@ -74,14 +74,26 @@ function formatAlertForSlack(alert) {
     // Durée et dates
     let durationText = '';
     if (alert.durationProgress !== undefined) {
-        durationText = `*Durée:* ${alert.durationProgress}%`;
-        if (alert.daysLeft !== null && alert.daysLeft !== undefined) {
+        durationText = `*Durée:* ${Math.round(alert.durationProgress)}%`;
+        if (alert.daysLeft !== null && alert.daysLeft !== undefined && !isNaN(alert.daysLeft)) {
             durationText += ` • ${alert.daysLeft}j restants`;
         }
         durationText += '\n';
     }
-    if (alert.startDate && alert.endDate) {
-        durationText += `*Dates:* ${alert.startDate} → ${alert.endDate}\n`;
+    
+    // Formater les dates
+    const formatDate = (dateStr) => {
+        if (!dateStr) return null;
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return null;
+        return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+    
+    const formattedStartDate = formatDate(alert.startDate);
+    const formattedEndDate = formatDate(alert.endDate);
+    
+    if (formattedStartDate && formattedEndDate) {
+        durationText += `*Dates:* ${formattedStartDate} → ${formattedEndDate}\n`;
     }
     
     // Infos complémentaires
