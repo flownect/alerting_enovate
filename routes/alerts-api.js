@@ -49,20 +49,21 @@ router.get('/', async (req, res) => {
         let commentsByNameMap = {};
         if (process.env.DATABASE_URL) {
             try {
-                const { Client } = require('pg');
-                const client = new Client({
+                const { Pool } = require('pg');
+                const pool = new Pool({
                     connectionString: process.env.DATABASE_URL,
-                    ssl: { rejectUnauthorized: false }
+                    ssl: { rejectUnauthorized: false },
+                    max: 1,
+                    connectionTimeoutMillis: 5000
                 });
-                await client.connect();
                 
-                const result = await client.query(`
+                const result = await pool.query(`
                     SELECT campaign_id, campaign_name, comment_text, author, created_at
                     FROM campaign_comments
                     ORDER BY created_at DESC
                 `);
                 
-                await client.end();
+                await pool.end();
                 
                 // Grouper par campaignId ET par campaignName
                 for (const row of result.rows) {
