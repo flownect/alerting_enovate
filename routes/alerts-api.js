@@ -45,7 +45,8 @@ router.get('/', async (req, res) => {
         const allPerformanceAlerts = [...performanceAlerts, ...benchmarkAlerts];
         
         // Récupérer les commentaires de la base de données
-        let commentsMap = {};
+        let commentsByIdMap = {};
+        let commentsByNameMap = {};
         if (process.env.DATABASE_URL) {
             try {
                 const { Client } = require('pg');
@@ -63,12 +64,25 @@ router.get('/', async (req, res) => {
                 
                 await client.end();
                 
-                // Grouper par campaignId
+                // Grouper par campaignId ET par campaignName
                 for (const row of result.rows) {
-                    if (!commentsMap[row.campaign_id]) {
-                        commentsMap[row.campaign_id] = [];
+                    const comment = `${row.text} (${row.author})`;
+                    
+                    // Par ID
+                    if (row.campaign_id) {
+                        if (!commentsByIdMap[row.campaign_id]) {
+                            commentsByIdMap[row.campaign_id] = [];
+                        }
+                        commentsByIdMap[row.campaign_id].push(comment);
                     }
-                    commentsMap[row.campaign_id].push(`${row.text} (${row.author})`);
+                    
+                    // Par nom
+                    if (row.campaign_name) {
+                        if (!commentsByNameMap[row.campaign_name]) {
+                            commentsByNameMap[row.campaign_name] = [];
+                        }
+                        commentsByNameMap[row.campaign_name].push(comment);
+                    }
                 }
             } catch (error) {
                 console.error('Erreur récupération commentaires:', error);
@@ -80,9 +94,11 @@ router.get('/', async (req, res) => {
             const campaignId = alert.campaign?.campaignId;
             const campaignName = alert.campaign?.campaignName;
             
-            // Commentaires Dashboard (base locale)
-            if (campaignId && commentsMap[campaignId]) {
-                alert.commentsDashboard = commentsMap[campaignId];
+            // Commentaires Dashboard (base locale) - chercher par ID ou par nom
+            if (campaignId && commentsByIdMap[campaignId]) {
+                alert.commentsDashboard = commentsByIdMap[campaignId];
+            } else if (campaignName && commentsByNameMap[campaignName]) {
+                alert.commentsDashboard = commentsByNameMap[campaignName];
             }
             
             // Commentaires Nova et ADX (de Campaign Stats API)
