@@ -158,12 +158,27 @@ async function sendAlertsToSlackWebhook(data) {
     }
     
     // Construire le message Slack
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('fr-FR', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    
     const blocks = [
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n*📅 ${dateStr.toUpperCase()}*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+            }
+        },
         {
             type: 'header',
             text: {
                 type: 'plain_text',
-                text: `🚨 Alertes Critiques - ${new Date().toLocaleDateString('fr-FR')}`,
+                text: `🚨 Alertes Critiques`,
                 emoji: true
             }
         },

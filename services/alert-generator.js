@@ -392,13 +392,22 @@ function generatePerformanceAlerts(campaignStatsData) {
             const adxId = campaign.adxId;
             const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
             
-            // Calculer daysLeft
-            const endDate = parseDate(campaign.vEndDate);
+            // Calculer daysLeft et formater les dates
+            const startDateObj = parseDate(campaign.vStartDate);
+            const endDateObj = parseDate(campaign.vEndDate);
             let daysLeft = null;
-            if (endDate) {
+            if (endDateObj) {
                 const now = new Date();
-                daysLeft = getDaysDiff(now, endDate);
+                daysLeft = getDaysDiff(now, endDateObj);
             }
+            
+            // Formater les dates pour affichage
+            const formatDate = (dateStr) => {
+                if (!dateStr) return null;
+                const date = parseDate(dateStr);
+                if (!date) return null;
+                return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            };
             
             alerts.push({
                 level,
@@ -410,8 +419,8 @@ function generatePerformanceAlerts(campaignStatsData) {
                 reasons,
                 trader: campaign.traderName || 'N/A',
                 commercial: campaign.commercialName || 'N/A',
-                startDate: campaign.vStartDate,
-                endDate: campaign.vEndDate,
+                startDate: formatDate(campaign.vStartDate),
+                endDate: formatDate(campaign.vEndDate),
                 daysLeft,
                 novaLink,
                 adxLink
