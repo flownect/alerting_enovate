@@ -115,33 +115,24 @@ async function sendDailyAlerts() {
         
         const alerts = await getCriticalAlerts();
         
-        // Formater les alertes Performance pour Slack
-        const formattedPerformance = alerts.performanceAlerts.map(a => {
-            const endDate = a.campaign?.vEndDate ? new Date(a.campaign.vEndDate) : null;
-            const daysLeft = endDate ? Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
-            
-            return {
-                title: a.campaign?.campaignName || 'Sans nom',
-                trader: a.trader || 'N/A',
-                commercial: a.commercial || 'N/A',
-                startDate: formatDateForSlack(a.campaign?.vStartDate),
-                endDate: formatDateForSlack(a.campaign?.vEndDate),
-                durationProgress: Math.round(a.durationProgress || 0),
-                daysLeft: daysLeft,
-                deliveryProgress: Math.round(a.deliveryProgress || 0),
-                marginRate: a.marginRate?.toFixed(1),
-                reasons: a.reasons || [],
-                novaLink: a.campaign?.briefId?.briefCampaignInfo?.[0] 
-                    ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.campaign.briefId.briefCampaignInfo[0]}` 
-                    : null,
-                adxLink: a.campaign?.adxId 
-                    ? `https://enovate.hubscale.io/manager/campaigns/view/${a.campaign.adxId}` 
-                    : null,
-                commentsNova: [],
-                commentsDashboard: [],
-                commentsPlateforme: []
-            };
-        });
+        // Utiliser directement les alertes de l'API (déjà formatées)
+        const formattedPerformance = alerts.performanceAlerts.map(a => ({
+            title: a.campaign?.campaignName || 'Sans nom',
+            trader: a.trader || 'N/A',
+            commercial: a.commercial || 'N/A',
+            startDate: a.startDate,  // Déjà formaté par l'API
+            endDate: a.endDate,      // Déjà formaté par l'API
+            durationProgress: Math.round(a.durationProgress || 0),
+            daysLeft: a.daysLeft,    // Déjà calculé par l'API
+            deliveryProgress: Math.round(a.deliveryProgress || 0),
+            marginRate: a.marginRate?.toFixed(1),
+            reasons: a.reasons || [],
+            novaLink: a.novaLink,    // Déjà construit par l'API
+            adxLink: a.adxLink,      // Déjà construit par l'API
+            commentsNova: a.commentsNova || [],
+            commentsDashboard: a.commentsDashboard || [],
+            commentsPlateforme: a.commentsPlateforme || []
+        }));
         
         // Formater les alertes Traders pour Slack
         const formattedTraders = alerts.tradersAlerts.map(a => ({
