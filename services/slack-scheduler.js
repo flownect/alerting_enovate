@@ -148,7 +148,7 @@ async function sendDailyAlerts() {
                 : null,
             adxLink: a.card?.adxCampaignUrl,
             commentsNova: [],
-            commentsDashboard: []
+            commentsDashboard: a.commentsDashboard || []
         }));
         
         // Formater les alertes Commerce pour Slack
@@ -165,7 +165,7 @@ async function sendDailyAlerts() {
                 : null,
             adxLink: a.card?.adxCampaignUrl,
             commentsNova: [],
-            commentsDashboard: []
+            commentsDashboard: a.commentsDashboard || []
         }));
         
         const totalCritical = formattedPerformance.length + formattedTraders.length + formattedCommerce.length;

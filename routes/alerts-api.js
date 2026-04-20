@@ -122,6 +122,16 @@ router.get('/', async (req, res) => {
                 .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
         }
         
+        // Ajouter les commentaires aux alertes Traders/Commerce
+        for (const alert of allTradersCommerceAlerts) {
+            const campaignName = alert.card?.title;
+            
+            // Commentaires Dashboard (base locale) - chercher par nom
+            if (campaignName && commentsByNameMap[campaignName]) {
+                alert.commentsDashboard = commentsByNameMap[campaignName];
+            }
+        }
+        
         res.json({
             success: true,
             timestamp: new Date().toISOString(),
