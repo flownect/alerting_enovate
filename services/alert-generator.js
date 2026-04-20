@@ -164,6 +164,17 @@ function generateAlerts(trelloData) {
         
         // Alerter dès J0 (jour du lancement)
         if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
+            // Exception: le lundi, pour les campagnes qui ont démarré le weekend, si elles ont livré aujourd'hui, ne pas alerter
+            const isMonday = now.getDay() === 1;
+            const startDate = parseDate(card.dates?.startingDateFormatted);
+            const startedOnWeekend = startDate && (startDate.getDay() === 0 || startDate.getDay() === 6);
+            const hasDeliveredToday = card.performanceData?.todayImpressions > 0;
+            
+            if (isMonday && startedOnWeekend && hasDeliveredToday) {
+                // Pas d'alerte si la campagne a démarré le weekend et livre le lundi
+                continue;
+            }
+            
             const daysLate = Math.abs(daysToStart);
             let timing = daysLate === 0 ? 'J0' : `J+${daysLate}`;
             const launchDate = card.dates?.startingDateFormatted || 'N/A';
