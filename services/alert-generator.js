@@ -164,16 +164,18 @@ function generateAlerts(trelloData) {
         
         // Alerter dès J0 (jour du lancement)
         if ((card.isProgrammable || isProgrammed) && !isActuallyLive && daysToStart !== null && daysToStart <= 0) {
-            // Exception: le lundi, pour les campagnes qui ont démarré le weekend, si elles ont livré aujourd'hui, ne pas alerter
+            // Exception UNIQUEMENT le lundi: si la campagne a démarré le weekend/lundi ET a livré, ne pas alerter
             const isMonday = now.getDay() === 1;
             const startDate = parseDate(card.dates?.startingDateFormatted);
-            const startedOnWeekend = startDate && (startDate.getDay() === 0 || startDate.getDay() === 6);
+            const startedOnWeekendOrMonday = startDate && (startDate.getDay() === 0 || startDate.getDay() === 6 || startDate.getDay() === 1);
             const hasDeliveredToday = card.performanceData?.todayImpressions > 0;
             
-            if (isMonday && startedOnWeekend && hasDeliveredToday) {
-                // Pas d'alerte si la campagne a démarré le weekend et livre le lundi
+            if (isMonday && startedOnWeekendOrMonday && hasDeliveredToday) {
+                // Pas d'alerte le lundi si la campagne a démarré le weekend/lundi et livre
                 continue;
             }
+            
+            // Mardi et après: toujours alerter si encore en Programmé, même avec du volume
             
             const daysLate = Math.abs(daysToStart);
             let timing = daysLate === 0 ? 'J0' : `J+${daysLate}`;
