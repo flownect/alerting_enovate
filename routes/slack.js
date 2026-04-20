@@ -83,7 +83,10 @@ function formatAlertForSlack(alert) {
     
     // Afficher les dates (déjà formatées par l'API)
     if (alert.startDate && alert.endDate) {
+        console.log(`[SLACK] Dates pour ${alert.title || 'N/A'}: ${alert.startDate} → ${alert.endDate}`);
         durationText += `*Dates:* ${alert.startDate} → ${alert.endDate}\n`;
+    } else {
+        console.log(`[SLACK] Dates manquantes pour ${alert.title || 'N/A'}: startDate=${alert.startDate}, endDate=${alert.endDate}`);
     }
     
     // Infos complémentaires
