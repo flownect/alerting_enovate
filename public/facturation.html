@@ -46,16 +46,28 @@
             </div>
         </div>
 
-        <!-- Tabs -->
-        <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
-            <nav class="flex gap-4">
-                <button onclick="switchTab('pour')" id="tab-pour" class="tab-button active px-4 py-2 font-medium border-b-2 transition-colors">
-                    Pour Facturation (<span id="count-pour">0</span>)
-                </button>
-                <button onclick="switchTab('pas')" id="tab-pas" class="tab-button px-4 py-2 font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors">
-                    A ne pas facturer (<span id="count-pas">0</span>)
-                </button>
-            </nav>
+        <!-- Tabs and Sort -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
+                <nav class="flex gap-4">
+                    <button onclick="switchTab('pour')" id="tab-pour" class="tab-button active px-4 py-2 font-medium border-b-2 transition-colors">
+                        Pour Facturation (<span id="count-pour">0</span>)
+                    </button>
+                    <button onclick="switchTab('pas')" id="tab-pas" class="tab-button px-4 py-2 font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors">
+                        A ne pas facturer (<span id="count-pas">0</span>)
+                    </button>
+                </nav>
+                
+                <!-- Sort dropdown -->
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600 dark:text-gray-400">Trier par:</label>
+                    <select id="sort-select" onchange="applySortAndFilter()" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm">
+                        <option value="name">Nom</option>
+                        <option value="startDate">Date de début</option>
+                        <option value="endDate">Date de fin</option>
+                    </select>
+                </div>
+            </div>
         </div>
 
         <!-- Loading -->
@@ -238,11 +250,39 @@
             }
         }
 
+        function sortCampaigns(campaigns, sortBy) {
+            const sorted = [...campaigns];
+            
+            if (sortBy === 'startDate') {
+                sorted.sort((a, b) => {
+                    const dateA = new Date(a.dates?.startingDate || a.startDate || 0);
+                    const dateB = new Date(b.dates?.startingDate || b.startDate || 0);
+                    return dateB - dateA; // Plus récent en premier
+                });
+            } else if (sortBy === 'endDate') {
+                sorted.sort((a, b) => {
+                    const dateA = new Date(a.dates?.endingDate || a.endDate || 0);
+                    const dateB = new Date(b.dates?.endingDate || b.endDate || 0);
+                    return dateB - dateA; // Plus récent en premier
+                });
+            } else {
+                // Par nom (par défaut)
+                sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            }
+            
+            return sorted;
+        }
+
+        function applySortAndFilter() {
+            filterCampaigns();
+        }
+
         function filterCampaigns() {
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const sortBy = document.getElementById('sort-select').value;
             
             // Filtrer les campagnes "Pour Facturation"
-            const filteredPour = campaignsPour.filter(campaign => {
+            let filteredPour = campaignsPour.filter(campaign => {
                 const searchableText = [
                     campaign.title,
                     campaign.trader,
@@ -255,7 +295,7 @@
             });
             
             // Filtrer les campagnes "A ne pas facturer"
-            const filteredPas = campaignsPas.filter(campaign => {
+            let filteredPas = campaignsPas.filter(campaign => {
                 const searchableText = [
                     campaign.title,
                     campaign.trader,
@@ -267,7 +307,11 @@
                 return searchableText.includes(searchTerm);
             });
             
-            // Re-render avec les résultats filtrés
+            // Trier
+            filteredPour = sortCampaigns(filteredPour, sortBy);
+            filteredPas = sortCampaigns(filteredPas, sortBy);
+            
+            // Re-render avec les résultats filtrés et triés
             renderCampaigns('pour', filteredPour);
             renderCampaigns('pas', filteredPas);
             
@@ -303,6 +347,12 @@
             const novaUrl = campaign.novaCampaignUrl || '';
             const adxUrl = campaign.adxCampaignUrl || '';
             const adxCampaignName = campaign.adxCampaignName || null;
+            
+            // Debug: Logger les URLs
+            if (!novaUrl) {
+                console.log(`⚠️ Pas de lien Nova pour: ${title}`);
+                console.log('  Données campagne:', campaign);
+            }
 
             div.innerHTML = `
                 <div class="flex items-start justify-between mb-4">
