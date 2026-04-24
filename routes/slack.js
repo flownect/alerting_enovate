@@ -1,6 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
+// Échapper les caractères spéciaux pour Slack
+function escapeSlackText(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 // Fonction pour envoyer un message sur Slack
 async function sendSlackMessage(blocks) {
     const webhookUrl = process.env.SLACK_WEBHOOK_URL;
@@ -11,6 +20,13 @@ async function sendSlackMessage(blocks) {
     
     const payload = { blocks };
     console.log('[SLACK] Envoi de', blocks.length, 'blocs');
+    
+    // Valider les blocs avant envoi
+    blocks.forEach((block, i) => {
+        if (block.text?.text && block.text.text.length > 3000) {
+            console.warn(`[SLACK] ⚠️ Bloc ${i} trop long: ${block.text.text.length} caractères`);
+        }
+    });
     
     const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -109,27 +125,27 @@ function formatAlertForSlack(alert) {
     let commentsDashboardText = '';
     if (alert.commentsDashboard && alert.commentsDashboard.length > 0) {
         commentsDashboardText = '\n*💬 Commentaires Dashboard:*\n' + 
-            alert.commentsDashboard.map(c => `• ${c}`).join('\n');
+            alert.commentsDashboard.map(c => `• ${escapeSlackText(c)}`).join('\n');
     }
     
     // Commentaires Nova
     let commentsNovaText = '';
     if (alert.commentsNova && alert.commentsNova.length > 0) {
         commentsNovaText = '\n*💬 Commentaires Nova:*\n' + 
-            alert.commentsNova.map(c => `• ${c}`).join('\n');
+            alert.commentsNova.map(c => `• ${escapeSlackText(c)}`).join('\n');
     }
     
     // Commentaires ADX
     let commentsADXText = '';
     if (alert.commentsPlateforme && alert.commentsPlateforme.length > 0) {
         commentsADXText = '\n*💬 Commentaires ADX:*\n' + 
-            alert.commentsPlateforme.map(c => `• ${c}`).join('\n');
+            alert.commentsPlateforme.map(c => `• ${escapeSlackText(c)}`).join('\n');
     }
     
     // Fallback pour les alertes Traders/Commerce qui n'ont qu'un seul type
     if (!commentsNovaText && !commentsDashboardText && !commentsADXText && alert.comments && alert.comments.length > 0) {
         commentsDashboardText = '\n*💬 Commentaires:*\n' + 
-            alert.comments.map(c => `• ${c}`).join('\n');
+            alert.comments.map(c => `• ${escapeSlackText(c)}`).join('\n');
     }
     
     // Liens
