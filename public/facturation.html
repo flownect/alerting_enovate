@@ -58,14 +58,25 @@
                 if (!response.ok) throw new Error('Erreur chargement des données');
 
                 const data = await response.json();
-                console.log('Data structure:', data);
+                console.log('Data keys:', Object.keys(data));
+                console.log('Full data:', JSON.stringify(data, null, 2).substring(0, 500));
                 
-                // Les données Trello sont directement dans data, pas dans data.trello
-                const trelloData = data;
+                // Vérifier si les données sont dans data.trello ou directement dans data
+                let trelloData;
+                if (data.trello) {
+                    trelloData = data.trello;
+                    console.log('Trello data found in data.trello');
+                } else if (data.data) {
+                    trelloData = data;
+                    console.log('Trello data found in data.data');
+                } else {
+                    console.error('Structure complète:', data);
+                    throw new Error('Données Trello invalides - structure inconnue');
+                }
 
-                if (!trelloData || !trelloData.data || !trelloData.data.lanes) {
-                    console.error('Structure Trello:', trelloData);
-                    throw new Error('Données Trello invalides');
+                if (!trelloData.data || !trelloData.data.lanes) {
+                    console.error('Lanes manquantes. Structure:', trelloData);
+                    throw new Error('Données Trello invalides - lanes manquantes');
                 }
 
                 const allCards = trelloData.data.lanes.flatMap(lane => lane.cards || []);
