@@ -185,6 +185,8 @@
 
             if (adxIds.length === 0) return;
 
+            console.log(`🔍 Envoi de ${adxIds.length} IDs ADX:`, adxIds);
+
             try {
                 const response = await fetch('/api/adx/campaigns/names', {
                     method: 'POST',
@@ -195,6 +197,7 @@
                 
                 if (data.success) {
                     console.log('✅ Noms ADX récupérés:', data.campaigns);
+                    console.log('Nombre de noms ADX:', Object.keys(data.campaigns).length);
                     campaigns.forEach(campaign => {
                         const match = campaign.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
                         if (match) {

@@ -90,8 +90,11 @@ async function getCampaignName(campaignId) {
  */
 async function getCampaignNames(campaignIds) {
     if (!ADX_API_URL || !ADX_API_KEY || !campaignIds || campaignIds.length === 0) {
+        console.log('[ADX API] Credentials ou IDs manquants');
         return {};
     }
+    
+    console.log(`[ADX API] 🔍 Récupération de ${campaignIds.length} campagnes:`, campaignIds);
     
     try {
         // Appel groupé pour toutes les campagnes
@@ -107,6 +110,8 @@ async function getCampaignNames(campaignIds) {
             filters: { campaign: campaignIds }
         };
         
+        console.log('[ADX API] 📤 Body:', JSON.stringify(body, null, 2));
+        
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -117,11 +122,12 @@ async function getCampaignNames(campaignIds) {
         });
 
         if (!response.ok) {
-            console.error(`[ADX API] Erreur récupération campagnes: ${response.status}`);
+            console.error(`[ADX API] ❌ Erreur ${response.status}: ${response.statusText}`);
             return {};
         }
 
         const result = await response.json();
+        console.log('[ADX API] 📦 Réponse brute:', JSON.stringify(result).substring(0, 500));
         
         // Extraire les données
         let data = [];
@@ -133,17 +139,21 @@ async function getCampaignNames(campaignIds) {
             data = result.data;
         }
         
+        console.log(`[ADX API] 📊 ${data.length} records extraits`);
+        
         // Construire le map {campaignId: campaignName}
         const results = {};
         for (const record of data) {
             if (record.campaignId && record.campaignName) {
                 results[record.campaignId] = record.campaignName;
+                console.log(`[ADX API] ✅ ${record.campaignId} → ${record.campaignName}`);
             }
         }
         
+        console.log(`[ADX API] ✅ ${Object.keys(results).length} noms récupérés`);
         return results;
     } catch (error) {
-        console.error(`[ADX API] Erreur récupération noms campagnes:`, error.message);
+        console.error(`[ADX API] ❌ Erreur récupération noms campagnes:`, error.message);
         return {};
     }
 }
