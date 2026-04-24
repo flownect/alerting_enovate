@@ -55,21 +55,15 @@
         async function loadCampaigns() {
             try {
                 const response = await fetch('/api/alerts?env=prod');
+                if (!response.ok) throw new Error('Erreur chargement des données');
+
                 const data = await response.json();
+                const trelloData = data.trello;
 
-                if (!data.success) {
-                    throw new Error('Erreur lors du chargement des données');
+                if (!trelloData || !trelloData.data || !trelloData.data.lanes) {
+                    throw new Error('Données Trello invalides');
                 }
 
-                // Récupérer toutes les cartes Trello
-                const trelloResponse = await fetch('/api/trello?env=prod');
-                const trelloData = await trelloResponse.json();
-
-                if (!trelloData.success) {
-                    throw new Error('Erreur lors du chargement des données Trello');
-                }
-
-                // Filtrer les campagnes de facturation
                 const allCards = trelloData.data.lanes.flatMap(lane => lane.cards || []);
                 allCampaigns = allCards.filter(card => {
                     const title = card.title?.toLowerCase() || '';
@@ -79,8 +73,40 @@
                            title.includes('pour facturation');
                 });
 
+                // Récupérer tous les IDs ADX et charger les noms en une fois
+                const adxIds = allCampaigns
+                    .map(c => {
+                        const match = c.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
+                        return match ? parseInt(match[1]) : null;
+                    })
+                    .filter(id => id !== null);
+
+                // Enrichir les campagnes avec les noms ADX
+                if (adxIds.length > 0) {
+                    try {
+                        const adxResponse = await fetch('/api/adx/campaigns/names', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ campaignIds: adxIds })
+                        });
+                        const adxData = await adxResponse.json();
+                        if (adxData.success) {
+                            // Ajouter le nom ADX directement dans chaque campagne
+                            allCampaigns.forEach(campaign => {
+                                const match = campaign.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
+                                if (match) {
+                                    const adxId = parseInt(match[1]);
+                                    campaign.adxCampaignName = adxData.campaigns[adxId] || null;
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Erreur récupération noms ADX:', error);
+                    }
+                }
+
                 document.getElementById('campaign-count').textContent = allCampaigns.length;
-                await renderCampaigns();
+                renderCampaigns();
 
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('campaigns-container').classList.remove('hidden');
@@ -93,44 +119,18 @@
             }
         }
 
-        async function renderCampaigns() {
+        function renderCampaigns() {
             const container = document.getElementById('campaigns-container');
             container.innerHTML = '';
 
-            // Récupérer tous les IDs ADX en une seule fois
-            const adxIds = allCampaigns
-                .map(c => {
-                    const match = c.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
-                    return match ? parseInt(match[1]) : null;
-                })
-                .filter(id => id !== null);
-
-            // Appel groupé pour récupérer tous les noms ADX
-            let adxNames = {};
-            if (adxIds.length > 0) {
-                try {
-                    const response = await fetch('/api/adx/campaigns/names', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ campaignIds: adxIds })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        adxNames = data.campaigns;
-                    }
-                } catch (error) {
-                    console.error('Erreur récupération noms ADX:', error);
-                }
-            }
-
-            // Créer les cartes avec les noms ADX pré-chargés
+            // Les noms ADX sont déjà dans campaign.adxCampaignName
             for (const campaign of allCampaigns) {
-                const card = await createCampaignCard(campaign, adxNames);
+                const card = createCampaignCard(campaign);
                 container.appendChild(card);
             }
         }
 
-        async function createCampaignCard(campaign, adxNames = {}) {
+        function createCampaignCard(campaign) {
             const div = document.createElement('div');
             div.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow';
 
@@ -141,17 +141,7 @@
             const endDate = campaign.dates?.endingDateFormatted || 'N/A';
             const campaignId = campaign.campaignId || '';
             const adxUrl = campaign.adxCampaignUrl || '';
-            
-            // Extraire l'ID ADX depuis l'URL et récupérer le nom depuis le cache
-            let adxId = null;
-            let adxCampaignName = null;
-            if (adxUrl) {
-                const match = adxUrl.match(/\/campaigns\/view\/(\d+)/);
-                if (match) {
-                    adxId = parseInt(match[1]);
-                    adxCampaignName = adxNames[adxId] || null;
-                }
-            }
+            const adxCampaignName = campaign.adxCampaignName || null;
 
             div.innerHTML = `
                 <div class="flex items-start justify-between mb-4">
