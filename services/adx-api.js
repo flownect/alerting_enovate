@@ -39,6 +39,11 @@ async function getCampaignById(campaignId) {
  * @returns {Promise<string|null>} - Nom de la campagne ou null
  */
 async function getCampaignName(campaignId) {
+    // Ne pas tenter si les credentials ne sont pas configurés
+    if (!ADX_API_URL || !ADX_API_TOKEN) {
+        return null;
+    }
+    
     try {
         const campaign = await getCampaignById(campaignId);
         return campaign.name || campaign.title || null;
