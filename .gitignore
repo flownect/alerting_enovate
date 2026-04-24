@@ -22,3 +22,6 @@ build/
 
 # Example JSON files (too large)
 exemple_json/
+
+# Reference files (not used in production)
+_reference/
