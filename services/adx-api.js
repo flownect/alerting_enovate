@@ -133,6 +133,8 @@ async function getCampaignNames(campaignIds) {
         let data = [];
         if (Array.isArray(result)) {
             data = result;
+        } else if (result.response?.data?.rows && Array.isArray(result.response.data.rows)) {
+            data = result.response.data.rows;
         } else if (result.response?.data && Array.isArray(result.response.data)) {
             data = result.response.data;
         } else if (result.data && Array.isArray(result.data)) {
