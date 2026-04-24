@@ -6,6 +6,12 @@
     <title>Campagnes de Facturation - E-NOVATE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .tab-button.active {
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900">
     <!-- Header -->
@@ -20,15 +26,24 @@
                         📋 Campagnes de Facturation
                     </h1>
                 </div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">
-                    <span id="campaign-count">0</span> campagnes
-                </div>
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Tabs -->
+        <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+            <nav class="flex gap-4">
+                <button onclick="switchTab('pour')" id="tab-pour" class="tab-button active px-4 py-2 font-medium border-b-2 transition-colors">
+                    Pour Facturation (<span id="count-pour">0</span>)
+                </button>
+                <button onclick="switchTab('pas')" id="tab-pas" class="tab-button px-4 py-2 font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors">
+                    A ne pas facturer (<span id="count-pas">0</span>)
+                </button>
+            </nav>
+        </div>
+
         <!-- Loading -->
         <div id="loading" class="text-center py-12">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -43,99 +58,76 @@
             </div>
         </div>
 
-        <!-- Campaigns List -->
-        <div id="campaigns-container" class="hidden space-y-4">
-            <!-- Les cartes seront insérées ici -->
-        </div>
+        <!-- Campaigns Containers -->
+        <div id="campaigns-pour" class="hidden space-y-4"></div>
+        <div id="campaigns-pas" class="hidden space-y-4"></div>
     </main>
 
     <script>
-        let allCampaigns = [];
+        let campaignsPour = [];
+        let campaignsPas = [];
+        let currentTab = 'pour';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active', 'border-blue-600', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            activeBtn.classList.add('active', 'border-blue-600', 'text-blue-600');
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+            
+            // Show/hide containers
+            document.getElementById('campaigns-pour').classList.toggle('hidden', tab !== 'pour');
+            document.getElementById('campaigns-pas').classList.toggle('hidden', tab !== 'pas');
+        }
 
         async function loadCampaigns() {
             try {
-                const response = await fetch('/api/alerts?env=prod');
-                if (!response.ok) throw new Error('Erreur chargement des données');
-
-                const data = await response.json();
-                
-                // L'API /api/alerts retourne { success, timestamp, data: { tradersCommerceAlerts, trello } }
-                if (!data.success || !data.data) {
-                    throw new Error('Réponse API invalide');
-                }
-                
-                // Accéder directement aux données Trello depuis l'API alerts
-                const apiData = data.data;
-                console.log('API data keys:', Object.keys(apiData));
-                
-                // On doit récupérer les cartes Trello depuis l'API Trello directement
+                // Récupérer les données Trello
                 const trelloResponse = await fetch('/api/trello?env=prod');
                 if (!trelloResponse.ok) throw new Error('Erreur chargement Trello');
                 
                 const trelloData = await trelloResponse.json();
-                console.log('Trello keys:', Object.keys(trelloData));
 
                 if (!trelloData.data || !trelloData.data.lanes) {
-                    console.error('Structure Trello:', trelloData);
                     throw new Error('Données Trello invalides');
                 }
 
                 const allCards = trelloData.data.lanes.flatMap(lane => lane.cards || []);
-                allCampaigns = allCards.filter(card => {
+                
+                // Séparer les campagnes
+                campaignsPour = allCards.filter(card => {
                     const title = card.title?.toLowerCase() || '';
                     return title.includes('pour facturation');
                 });
+                
+                campaignsPas = allCards.filter(card => {
+                    const title = card.title?.toLowerCase() || '';
+                    return title.includes('ne pas facturer') || title.includes('a ne pas facturer');
+                });
 
-                // Récupérer tous les IDs ADX et charger les noms en une fois
-                const adxIds = allCampaigns
-                    .map(c => {
-                        const match = c.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
-                        return match ? parseInt(match[1]) : null;
-                    })
-                    .filter(id => id !== null);
+                console.log(`📋 ${campaignsPour.length} campagnes "Pour Facturation"`);
+                console.log(`📋 ${campaignsPas.length} campagnes "A ne pas facturer"`);
 
-                // Enrichir les campagnes avec les noms ADX
-                if (adxIds.length > 0) {
-                    console.log('🔍 Récupération noms ADX pour IDs:', adxIds);
-                    try {
-                        const adxResponse = await fetch('/api/adx/campaigns/names', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ campaignIds: adxIds })
-                        });
-                        const adxData = await adxResponse.json();
-                        console.log('📦 Réponse ADX:', adxData);
-                        
-                        if (adxData.success) {
-                            console.log('✅ Noms ADX récupérés:', adxData.campaigns);
-                            // Ajouter le nom ADX directement dans chaque campagne
-                            allCampaigns.forEach(campaign => {
-                                const match = campaign.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
-                                if (match) {
-                                    const adxId = parseInt(match[1]);
-                                    campaign.adxCampaignName = adxData.campaigns[adxId] || null;
-                                    if (campaign.adxCampaignName) {
-                                        console.log(`✅ ${campaign.title} → ADX: ${campaign.adxCampaignName}`);
-                                    } else {
-                                        console.log(`⚠️ ${campaign.title} → Pas de nom ADX pour ID ${adxId}`);
-                                    }
-                                }
-                            });
-                        } else {
-                            console.error('❌ Échec récupération ADX:', adxData);
-                        }
-                    } catch (error) {
-                        console.error('❌ Erreur récupération noms ADX:', error);
-                    }
-                } else {
-                    console.log('ℹ️ Aucun ID ADX à récupérer');
-                }
+                // Récupérer les noms ADX pour toutes les campagnes
+                await enrichWithADXNames(campaignsPour);
+                await enrichWithADXNames(campaignsPas);
 
-                document.getElementById('campaign-count').textContent = allCampaigns.length;
-                renderCampaigns();
+                // Mettre à jour les compteurs
+                document.getElementById('count-pour').textContent = campaignsPour.length;
+                document.getElementById('count-pas').textContent = campaignsPas.length;
+
+                // Rendre les campagnes
+                renderCampaigns('pour', campaignsPour);
+                renderCampaigns('pas', campaignsPas);
 
                 document.getElementById('loading').classList.add('hidden');
-                document.getElementById('campaigns-container').classList.remove('hidden');
+                document.getElementById('campaigns-pour').classList.remove('hidden');
 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -145,15 +137,46 @@
             }
         }
 
-        function renderCampaigns() {
-            const container = document.getElementById('campaigns-container');
+        async function enrichWithADXNames(campaigns) {
+            const adxIds = campaigns
+                .map(c => {
+                    const match = c.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
+                    return match ? parseInt(match[1]) : null;
+                })
+                .filter(id => id !== null);
+
+            if (adxIds.length === 0) return;
+
+            try {
+                const response = await fetch('/api/adx/campaigns/names', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ campaignIds: adxIds })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    campaigns.forEach(campaign => {
+                        const match = campaign.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
+                        if (match) {
+                            const adxId = parseInt(match[1]);
+                            campaign.adxCampaignName = data.campaigns[adxId] || null;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur récupération noms ADX:', error);
+            }
+        }
+
+        function renderCampaigns(type, campaigns) {
+            const container = document.getElementById(`campaigns-${type}`);
             container.innerHTML = '';
 
-            // Les noms ADX sont déjà dans campaign.adxCampaignName
-            for (const campaign of allCampaigns) {
+            campaigns.forEach(campaign => {
                 const card = createCampaignCard(campaign);
                 container.appendChild(card);
-            }
+            });
         }
 
         function createCampaignCard(campaign) {
@@ -165,7 +188,7 @@
             const commercial = campaign.commercial || 'N/A';
             const startDate = campaign.dates?.startingDateFormatted || 'N/A';
             const endDate = campaign.dates?.endingDateFormatted || 'N/A';
-            const campaignId = campaign.campaignId || '';
+            const novaUrl = campaign.novaCampaignUrl || '';
             const adxUrl = campaign.adxCampaignUrl || '';
             const adxCampaignName = campaign.adxCampaignName || null;
 
@@ -205,30 +228,20 @@
                     </div>
                 </div>
 
-                ${campaignId || adxUrl ? `
-                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-2">
-                        ${campaignId ? `
-                            <a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}" 
-                               target="_blank"
-                               class="flex-1 text-center px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm font-medium">
-                                <i class="fas fa-external-link-alt mr-1"></i> Nova
-                            </a>
-                        ` : ''}
-                        ${adxUrl ? `
-                            <a href="${adxUrl}" 
-                               target="_blank"
-                               class="flex-1 text-center px-3 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm font-medium">
-                                <i class="fas fa-external-link-alt mr-1"></i> ADX
-                            </a>
-                        ` : ''}
-                    </div>
-                ` : ''}
+                <div class="mt-4 flex gap-2">
+                    ${novaUrl ? `<a href="${novaUrl}" target="_blank" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded flex items-center gap-2">
+                        <i class="fas fa-external-link-alt"></i> Nova
+                    </a>` : ''}
+                    ${adxUrl ? `<a href="${adxUrl}" target="_blank" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded flex items-center gap-2">
+                        <i class="fas fa-external-link-alt"></i> ADX
+                    </a>` : ''}
+                </div>
             `;
 
             return div;
         }
 
-        // Charger les campagnes au démarrage
+        // Load campaigns on page load
         loadCampaigns();
     </script>
 </body>
