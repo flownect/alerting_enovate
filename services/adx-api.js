@@ -84,21 +84,68 @@ async function getCampaignName(campaignId) {
 }
 
 /**
- * Récupère les noms de plusieurs campagnes ADX
+ * Récupère les noms de plusieurs campagnes ADX en un seul appel
  * @param {number[]} campaignIds - Liste d'IDs de campagnes ADX
  * @returns {Promise<Object>} - Map {campaignId: campaignName}
  */
 async function getCampaignNames(campaignIds) {
-    const results = {};
-    
-    for (const id of campaignIds) {
-        const name = await getCampaignName(id);
-        if (name) {
-            results[id] = name;
-        }
+    if (!ADX_API_URL || !ADX_API_KEY || !campaignIds || campaignIds.length === 0) {
+        return {};
     }
     
-    return results;
+    try {
+        // Appel groupé pour toutes les campagnes
+        const url = `${ADX_API_URL}?api_key=${ADX_API_KEY}&page=1&limit=1000&timezone=Europe%2FLondon&cohort=1`;
+        
+        const body = {
+            dateRange: {
+                dateFrom: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                dateTo: new Date().toISOString().split('T')[0]
+            },
+            breakdownFields: ["campaignId", "campaignName"],
+            statisticFields: ["impressions"],
+            filters: { campaign: campaignIds }
+        };
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            console.error(`[ADX API] Erreur récupération campagnes: ${response.status}`);
+            return {};
+        }
+
+        const result = await response.json();
+        
+        // Extraire les données
+        let data = [];
+        if (Array.isArray(result)) {
+            data = result;
+        } else if (result.response?.data && Array.isArray(result.response.data)) {
+            data = result.response.data;
+        } else if (result.data && Array.isArray(result.data)) {
+            data = result.data;
+        }
+        
+        // Construire le map {campaignId: campaignName}
+        const results = {};
+        for (const record of data) {
+            if (record.campaignId && record.campaignName) {
+                results[record.campaignId] = record.campaignName;
+            }
+        }
+        
+        return results;
+    } catch (error) {
+        console.error(`[ADX API] Erreur récupération noms campagnes:`, error.message);
+        return {};
+    }
 }
 
 module.exports = {

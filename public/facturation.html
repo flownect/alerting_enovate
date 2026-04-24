@@ -97,13 +97,40 @@
             const container = document.getElementById('campaigns-container');
             container.innerHTML = '';
 
+            // Récupérer tous les IDs ADX en une seule fois
+            const adxIds = allCampaigns
+                .map(c => {
+                    const match = c.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
+                    return match ? parseInt(match[1]) : null;
+                })
+                .filter(id => id !== null);
+
+            // Appel groupé pour récupérer tous les noms ADX
+            let adxNames = {};
+            if (adxIds.length > 0) {
+                try {
+                    const response = await fetch('/api/adx/campaigns/names', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ campaignIds: adxIds })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        adxNames = data.campaigns;
+                    }
+                } catch (error) {
+                    console.error('Erreur récupération noms ADX:', error);
+                }
+            }
+
+            // Créer les cartes avec les noms ADX pré-chargés
             for (const campaign of allCampaigns) {
-                const card = await createCampaignCard(campaign);
+                const card = await createCampaignCard(campaign, adxNames);
                 container.appendChild(card);
             }
         }
 
-        async function createCampaignCard(campaign) {
+        async function createCampaignCard(campaign, adxNames = {}) {
             const div = document.createElement('div');
             div.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow';
 
@@ -115,23 +142,14 @@
             const campaignId = campaign.campaignId || '';
             const adxUrl = campaign.adxCampaignUrl || '';
             
-            // Extraire l'ID ADX depuis l'URL
+            // Extraire l'ID ADX depuis l'URL et récupérer le nom depuis le cache
             let adxId = null;
             let adxCampaignName = null;
             if (adxUrl) {
                 const match = adxUrl.match(/\/campaigns\/view\/(\d+)/);
                 if (match) {
                     adxId = parseInt(match[1]);
-                    // Récupérer le nom de la campagne ADX
-                    try {
-                        const response = await fetch(`/api/adx/campaign/${adxId}`);
-                        const data = await response.json();
-                        if (data.success && data.campaignName) {
-                            adxCampaignName = data.campaignName;
-                        }
-                    } catch (error) {
-                        console.error('Erreur récupération nom ADX:', error);
-                    }
+                    adxCampaignName = adxNames[adxId] || null;
                 }
             }
 
