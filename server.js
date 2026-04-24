@@ -888,6 +888,53 @@ app.delete('/api/comments/:commentId', async (req, res) => {
     }
 });
 
+// ==================== NOVA API ====================
+// Récupérer les noms de plusieurs campagnes Nova
+app.post('/api/nova/campaigns/names', async (req, res) => {
+    try {
+        const { campaignIds } = req.body;
+        
+        if (!Array.isArray(campaignIds)) {
+            return res.status(400).json({ success: false, error: 'campaignIds must be an array' });
+        }
+
+        const NOVA_URL = process.env.NOVA_URL_PROD;
+        const NOVA_API_KEY = process.env.NOVA_API_KEY;
+
+        if (!NOVA_URL || !NOVA_API_KEY) {
+            return res.json({ success: true, campaigns: {} });
+        }
+
+        const names = {};
+        
+        // Récupérer les noms en parallèle
+        await Promise.all(campaignIds.map(async (id) => {
+            try {
+                const url = `${NOVA_URL}/campaign/${id}?api_key=${NOVA_API_KEY}`;
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    names[id] = data.campaignName || data.name || null;
+                }
+            } catch (error) {
+                log('NOVA-API', `⚠️ Erreur campagne ${id}: ${error.message}`);
+            }
+        }));
+        
+        res.json({
+            success: true,
+            campaigns: names
+        });
+    } catch (error) {
+        log('NOVA-API', `❌ Erreur récupération campagnes: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== ADX API ====================
 const adxApi = require('./services/adx-api');
 

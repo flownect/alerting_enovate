@@ -114,7 +114,9 @@
                 console.log(`📋 ${campaignsPour.length} campagnes "Pour Facturation"`);
                 console.log(`📋 ${campaignsPas.length} campagnes "A ne pas facturer"`);
 
-                // Récupérer les noms ADX pour toutes les campagnes
+                // Récupérer les noms Nova et ADX pour toutes les campagnes
+                await enrichWithNovaNames(campaignsPour);
+                await enrichWithNovaNames(campaignsPas);
                 await enrichWithADXNames(campaignsPour);
                 await enrichWithADXNames(campaignsPas);
 
@@ -134,6 +136,42 @@
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('error').classList.remove('hidden');
                 document.getElementById('error-message').textContent = error.message;
+            }
+        }
+
+        async function enrichWithNovaNames(campaigns) {
+            const novaIds = campaigns
+                .map(c => {
+                    const match = c.novaCampaignUrl?.match(/\/campaign\/(\d+)/);
+                    return match ? parseInt(match[1]) : null;
+                })
+                .filter(id => id !== null);
+
+            if (novaIds.length === 0) return;
+
+            try {
+                const response = await fetch('/api/nova/campaigns/names', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ campaignIds: novaIds })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ Noms Nova récupérés:', data.campaigns);
+                    campaigns.forEach(campaign => {
+                        const match = campaign.novaCampaignUrl?.match(/\/campaign\/(\d+)/);
+                        if (match) {
+                            const novaId = parseInt(match[1]);
+                            campaign.novaCampaignName = data.campaigns[novaId] || null;
+                            if (campaign.novaCampaignName) {
+                                console.log(`✅ ${campaign.title} → Nova: ${campaign.novaCampaignName}`);
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur récupération noms Nova:', error);
             }
         }
 
@@ -208,18 +246,33 @@
                     </span>
                 </div>
 
-                <div class="space-y-2 text-sm">
+                <!-- Noms Nova et ADX -->
+                <div class="mb-4 space-y-2">
+                    ${campaign.novaCampaignName ? `
+                        <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                            <div class="flex items-start gap-2 text-blue-900 dark:text-blue-300">
+                                <i class="fas fa-tag mt-1"></i>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-xs uppercase tracking-wide mb-1">Nom Nova</div>
+                                    <div class="text-sm">${campaign.novaCampaignName}</div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
                     ${adxCampaignName ? `
-                        <div class="mb-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800">
+                        <div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800">
                             <div class="flex items-start gap-2 text-purple-900 dark:text-purple-300">
                                 <i class="fas fa-tag mt-1"></i>
-                                <div>
+                                <div class="flex-1">
                                     <div class="font-semibold text-xs uppercase tracking-wide mb-1">Nom ADX</div>
                                     <div class="text-sm">${adxCampaignName}</div>
                                 </div>
                             </div>
                         </div>
                     ` : ''}
+                </div>
+
+                <div class="space-y-2 text-sm">
                     <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                         <i class="fas fa-user w-4"></i>
                         <span><strong>Trader:</strong> ${trader}</span>
