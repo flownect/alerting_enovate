@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campagnes de Facturation - E-NOVATE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <a href="/dashboard" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        📋 Campagnes de Facturation
+                    </h1>
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    <span id="campaign-count">0</span> campagnes
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Loading -->
+        <div id="loading" class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p class="mt-4 text-gray-600 dark:text-gray-400">Chargement des campagnes...</p>
+        </div>
+
+        <!-- Error -->
+        <div id="error" class="hidden bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div class="flex items-center gap-2 text-red-800 dark:text-red-400">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="error-message"></span>
+            </div>
+        </div>
+
+        <!-- Campaigns Grid -->
+        <div id="campaigns-container" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Les cartes seront insérées ici -->
+        </div>
+    </main>
+
+    <script>
+        let allCampaigns = [];
+
+        async function loadCampaigns() {
+            try {
+                const response = await fetch('/api/alerts?env=prod');
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error('Erreur lors du chargement des données');
+                }
+
+                // Récupérer toutes les cartes Trello
+                const trelloResponse = await fetch('/api/trello?env=prod');
+                const trelloData = await trelloResponse.json();
+
+                if (!trelloData.success) {
+                    throw new Error('Erreur lors du chargement des données Trello');
+                }
+
+                // Filtrer les campagnes de facturation
+                const allCards = trelloData.data.lanes.flatMap(lane => lane.cards || []);
+                allCampaigns = allCards.filter(card => {
+                    const title = card.title?.toLowerCase() || '';
+                    return title.includes('facturation') || 
+                           title.includes('facturer') || 
+                           title.includes('a facturer') ||
+                           title.includes('pour facturation');
+                });
+
+                document.getElementById('campaign-count').textContent = allCampaigns.length;
+                renderCampaigns();
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('campaigns-container').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
+            }
+        }
+
+        function renderCampaigns() {
+            const container = document.getElementById('campaigns-container');
+            container.innerHTML = '';
+
+            allCampaigns.forEach(campaign => {
+                const card = createCampaignCard(campaign);
+                container.appendChild(card);
+            });
+        }
+
+        function createCampaignCard(campaign) {
+            const div = document.createElement('div');
+            div.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow';
+
+            const title = campaign.title || 'Sans nom';
+            const trader = campaign.trader || 'N/A';
+            const commercial = campaign.commercial || 'N/A';
+            const startDate = campaign.dates?.startingDateFormatted || 'N/A';
+            const endDate = campaign.dates?.endingDateFormatted || 'N/A';
+            const campaignId = campaign.campaignId || '';
+            const adxUrl = campaign.adxCampaignUrl || '';
+
+            div.innerHTML = `
+                <div class="flex items-start justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex-1">
+                        ${title}
+                    </h3>
+                    <span class="ml-2 px-2 py-1 text-xs font-medium rounded bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                        Facturation
+                    </span>
+                </div>
+
+                <div class="space-y-2 text-sm">
+                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                        <i class="fas fa-user w-4"></i>
+                        <span><strong>Trader:</strong> ${trader}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                        <i class="fas fa-briefcase w-4"></i>
+                        <span><strong>Commercial:</strong> ${commercial}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                        <i class="fas fa-calendar w-4"></i>
+                        <span><strong>Dates:</strong> ${startDate} → ${endDate}</span>
+                    </div>
+                </div>
+
+                ${campaignId || adxUrl ? `
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex gap-2">
+                        ${campaignId ? `
+                            <a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaignId}" 
+                               target="_blank"
+                               class="flex-1 text-center px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm font-medium">
+                                <i class="fas fa-external-link-alt mr-1"></i> Nova
+                            </a>
+                        ` : ''}
+                        ${adxUrl ? `
+                            <a href="${adxUrl}" 
+                               target="_blank"
+                               class="flex-1 text-center px-3 py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm font-medium">
+                                <i class="fas fa-external-link-alt mr-1"></i> ADX
+                            </a>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            `;
+
+            return div;
+        }
+
+        // Charger les campagnes au démarrage
+        loadCampaigns();
+    </script>
+</body>
+</html>
