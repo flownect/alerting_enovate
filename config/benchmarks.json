@@ -33,7 +33,7 @@
     { "format": "Pavé", "device": "Mobile", "type": "all", "feature": "3D", "min": 0.12, "max": 0.17 },
     { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "3D", "min": 4.76, "max": 5.01 },
     { "format": "Pavé", "device": "Mobile", "type": "all", "feature": "Grattable", "min": 0.5, "max": 0.59 },
-    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Flip", "min": 2.77, "max": 2.97 },
+    { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Flip", "min": 2.77, "max": 2.97 },   
     { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Grattable", "min": 4.1, "max": 4.83 },
     { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Drag to Reveal", "min": 3.85, "max": 4.1 },
     { "format": "Interstitiel", "device": "Mobile", "type": "all", "feature": "Cube", "min": 4.33, "max": 4.59 },

@@ -125,7 +125,7 @@ async function sendDailyAlerts() {
             durationProgress: Math.round(a.durationProgress || 0),
             daysLeft: a.daysLeft,    // Déjà calculé par l'API
             deliveryProgress: Math.round(a.deliveryProgress || 0),
-            marginRate: a.marginRate?.toFixed(1),
+            marginRate: typeof a.marginRate === 'number' ? a.marginRate.toFixed(1) : a.marginRate,
             reasons: a.reasons || [],
             novaLink: a.novaLink,    // Déjà construit par l'API
             adxLink: a.adxLink,      // Déjà construit par l'API
