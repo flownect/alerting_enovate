@@ -58,25 +58,26 @@
                 if (!response.ok) throw new Error('Erreur chargement des données');
 
                 const data = await response.json();
-                console.log('Data keys:', Object.keys(data));
-                console.log('Full data:', JSON.stringify(data, null, 2).substring(0, 500));
                 
-                // Vérifier si les données sont dans data.trello ou directement dans data
-                let trelloData;
-                if (data.trello) {
-                    trelloData = data.trello;
-                    console.log('Trello data found in data.trello');
-                } else if (data.data) {
-                    trelloData = data;
-                    console.log('Trello data found in data.data');
-                } else {
-                    console.error('Structure complète:', data);
-                    throw new Error('Données Trello invalides - structure inconnue');
+                // L'API /api/alerts retourne { success, timestamp, data: { tradersCommerceAlerts, trello } }
+                if (!data.success || !data.data) {
+                    throw new Error('Réponse API invalide');
                 }
+                
+                // Accéder directement aux données Trello depuis l'API alerts
+                const apiData = data.data;
+                console.log('API data keys:', Object.keys(apiData));
+                
+                // On doit récupérer les cartes Trello depuis l'API Trello directement
+                const trelloResponse = await fetch('/api/trello?env=prod');
+                if (!trelloResponse.ok) throw new Error('Erreur chargement Trello');
+                
+                const trelloData = await trelloResponse.json();
+                console.log('Trello keys:', Object.keys(trelloData));
 
                 if (!trelloData.data || !trelloData.data.lanes) {
-                    console.error('Lanes manquantes. Structure:', trelloData);
-                    throw new Error('Données Trello invalides - lanes manquantes');
+                    console.error('Structure Trello:', trelloData);
+                    throw new Error('Données Trello invalides');
                 }
 
                 const allCards = trelloData.data.lanes.flatMap(lane => lane.cards || []);
