@@ -58,9 +58,13 @@
                 if (!response.ok) throw new Error('Erreur chargement des données');
 
                 const data = await response.json();
-                const trelloData = data.trello;
+                console.log('Data structure:', data);
+                
+                // Les données Trello sont directement dans data, pas dans data.trello
+                const trelloData = data;
 
                 if (!trelloData || !trelloData.data || !trelloData.data.lanes) {
+                    console.error('Structure Trello:', trelloData);
                     throw new Error('Données Trello invalides');
                 }
 
