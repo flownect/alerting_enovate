@@ -17,12 +17,13 @@ async function getCampaignById(campaignId) {
     }
 
     // Appeler l'API de stats avec un breakdownFields minimal pour récupérer le nom
-    const url = `${ADX_API_URL}/statistics/`;
+    // L'api_key est passée en query parameter
+    const url = `${ADX_API_URL}?api_key=${ADX_API_KEY}&page=1&limit=100&timezone=Europe%2FLondon&cohort=1`;
     
     const body = {
         dateRange: {
-            from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 jours avant
-            to: new Date().toISOString().split('T')[0] // aujourd'hui
+            dateFrom: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 jours avant
+            dateTo: new Date().toISOString().split('T')[0] // aujourd'hui
         },
         breakdownFields: ["campaignId", "campaignName"],
         statisticFields: ["impressions"], // Un seul champ pour minimiser la réponse
@@ -32,23 +33,30 @@ async function getCampaignById(campaignId) {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            ...body,
-            api_key: ADX_API_KEY
-        })
+        body: JSON.stringify(body)
     });
 
     if (!response.ok) {
         throw new Error(`ADX API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const result = await response.json();
+    
+    // Extraire les données (peut être wrappé dans response.data ou data)
+    let data = [];
+    if (Array.isArray(result)) {
+        data = result;
+    } else if (result.response?.data && Array.isArray(result.response.data)) {
+        data = result.response.data;
+    } else if (result.data && Array.isArray(result.data)) {
+        data = result.data;
+    }
     
     // Extraire le nom de campagne du premier record
-    if (data && data.length > 0 && data[0].campaignName) {
+    if (data.length > 0 && data[0].campaignName) {
         return { name: data[0].campaignName, id: campaignId };
     }
     
