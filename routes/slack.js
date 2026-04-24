@@ -9,14 +9,19 @@ async function sendSlackMessage(blocks) {
         throw new Error('SLACK_WEBHOOK_URL non configurée');
     }
     
+    const payload = { blocks };
+    console.log('[SLACK] Envoi de', blocks.length, 'blocs');
+    
     const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blocks })
+        body: JSON.stringify(payload)
     });
     
     if (!response.ok) {
-        throw new Error(`Erreur Slack: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('[SLACK] Erreur détaillée:', errorText);
+        throw new Error(`Erreur Slack: ${response.statusText} - ${errorText}`);
     }
     
     return response;
