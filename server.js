@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const ProgrammingTracker = require('./services/programming-tracker');
+const StatusTracker = require('./services/status-tracker');
 const { startScheduler } = require('./services/slack-scheduler');
 
 // Timeout pour les requêtes API (120 secondes)
@@ -372,6 +373,38 @@ app.get('/api/programming-stats', async (req, res) => {
         });
     } catch (error) {
         log('API', `❌ Erreur stats: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Endpoint pour récupérer les stats basées sur "devenu programmable"
+app.get('/api/status-stats', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        const period = req.query.period || '30d';
+        const groupBy = req.query.groupBy || 'csm'; // 'csm' ou 'commercial'
+        const statusTracker = new StatusTracker(process.env.DATABASE_URL);
+        const stats = await statusTracker.getStats(period, groupBy);
+        
+        res.json({
+            success: true,
+            data: stats,
+            period,
+            groupBy,
+            description: `Stats basées sur la date où les campagnes sont devenues programmables, groupées par ${groupBy === 'commercial' ? 'Commercial' : 'CSM'}`,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur stats statuts: ${error.message}`);
         res.status(500).json({
             success: false,
             error: error.message
@@ -1023,11 +1056,17 @@ async function runProgrammingTracking() {
             log('TRACKING', `✅ ${totalCards} cartes récupérées dans ${lanes.length} lanes`);
         }
 
-        // Lancer le tracking
+        // Lancer le tracking des changements de statut (nouvelle logique)
+        const statusTracker = new StatusTracker(process.env.DATABASE_URL);
+        const statusResults = await statusTracker.trackStatusChanges(trelloCache);
+        
+        log('TRACKING', `✅ Tracking statuts: ${statusResults.changes} changements, ${statusResults.newProgrammable} nouvelles campagnes programmables`);
+        
+        // Garder aussi l'ancien tracking pour compatibilité
         const tracker = new ProgrammingTracker(process.env.DATABASE_URL);
         const results = await tracker.trackProgramming(trelloCache);
         
-        log('TRACKING', `✅ Tracking terminé: ${results.new} nouvelles programmations détectées (${results.total} total)`);
+        log('TRACKING', `✅ Tracking programmation: ${results.new} nouvelles programmations détectées (${results.total} total)`);
         
         // Réinitialiser le cache
         trelloCache = null;
