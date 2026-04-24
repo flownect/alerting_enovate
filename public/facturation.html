@@ -83,10 +83,7 @@
                 const allCards = trelloData.data.lanes.flatMap(lane => lane.cards || []);
                 allCampaigns = allCards.filter(card => {
                     const title = card.title?.toLowerCase() || '';
-                    return title.includes('facturation') || 
-                           title.includes('facturer') || 
-                           title.includes('a facturer') ||
-                           title.includes('pour facturation');
+                    return title.includes('pour facturation');
                 });
 
                 // Récupérer tous les IDs ADX et charger les noms en une fois
@@ -99,6 +96,7 @@
 
                 // Enrichir les campagnes avec les noms ADX
                 if (adxIds.length > 0) {
+                    console.log('🔍 Récupération noms ADX pour IDs:', adxIds);
                     try {
                         const adxResponse = await fetch('/api/adx/campaigns/names', {
                             method: 'POST',
@@ -106,19 +104,31 @@
                             body: JSON.stringify({ campaignIds: adxIds })
                         });
                         const adxData = await adxResponse.json();
+                        console.log('📦 Réponse ADX:', adxData);
+                        
                         if (adxData.success) {
+                            console.log('✅ Noms ADX récupérés:', adxData.campaigns);
                             // Ajouter le nom ADX directement dans chaque campagne
                             allCampaigns.forEach(campaign => {
                                 const match = campaign.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
                                 if (match) {
                                     const adxId = parseInt(match[1]);
                                     campaign.adxCampaignName = adxData.campaigns[adxId] || null;
+                                    if (campaign.adxCampaignName) {
+                                        console.log(`✅ ${campaign.title} → ADX: ${campaign.adxCampaignName}`);
+                                    } else {
+                                        console.log(`⚠️ ${campaign.title} → Pas de nom ADX pour ID ${adxId}`);
+                                    }
                                 }
                             });
+                        } else {
+                            console.error('❌ Échec récupération ADX:', adxData);
                         }
                     } catch (error) {
-                        console.error('Erreur récupération noms ADX:', error);
+                        console.error('❌ Erreur récupération noms ADX:', error);
                     }
+                } else {
+                    console.log('ℹ️ Aucun ID ADX à récupérer');
                 }
 
                 document.getElementById('campaign-count').textContent = allCampaigns.length;
