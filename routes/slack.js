@@ -270,8 +270,22 @@ async function sendAlertsToSlackWebhook(data) {
         });
     }
     
-    // Envoyer sur Slack
-    await sendSlackMessage(blocks);
+    // Slack limite à 50 blocs par message - diviser si nécessaire
+    if (blocks.length > 50) {
+        console.log(`[SLACK] ⚠️ ${blocks.length} blocs, division en plusieurs messages`);
+        
+        // Envoyer par tranches de 50 blocs
+        for (let i = 0; i < blocks.length; i += 50) {
+            const chunk = blocks.slice(i, i + 50);
+            await sendSlackMessage(chunk);
+            // Petite pause entre les messages
+            if (i + 50 < blocks.length) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    } else {
+        await sendSlackMessage(blocks);
+    }
     
     return { 
         success: true, 
