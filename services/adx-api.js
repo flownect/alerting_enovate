@@ -4,33 +4,55 @@
 // API ADX : Récupération des données de campagnes depuis la DSP
 
 const ADX_API_URL = process.env.ADX_API_URL;
-const ADX_API_TOKEN = process.env.ADX_API_TOKEN;
+const ADX_API_KEY = process.env.ADX_API_KEY;
 
 /**
- * Récupère les informations d'une campagne ADX par son ID
+ * Récupère le nom d'une campagne ADX via l'API de stats
  * @param {number} campaignId - ID de la campagne ADX
- * @returns {Promise<Object>} - Données de la campagne
+ * @returns {Promise<Object>} - Données de la campagne avec le nom
  */
 async function getCampaignById(campaignId) {
-    if (!ADX_API_URL || !ADX_API_TOKEN) {
+    if (!ADX_API_URL || !ADX_API_KEY) {
         throw new Error('ADX API credentials not configured');
     }
 
-    const url = `${ADX_API_URL}/campaigns/${campaignId}`;
+    // Appeler l'API de stats avec un breakdownFields minimal pour récupérer le nom
+    const url = `${ADX_API_URL}/statistics/`;
+    
+    const body = {
+        dateRange: {
+            from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 jours avant
+            to: new Date().toISOString().split('T')[0] // aujourd'hui
+        },
+        breakdownFields: ["campaignId", "campaignName"],
+        statisticFields: ["impressions"], // Un seul champ pour minimiser la réponse
+        filters: { campaign: [campaignId] }
+    };
     
     const response = await fetch(url, {
-        method: 'GET',
+        method: 'POST',
         headers: {
-            'Authorization': `Bearer ${ADX_API_TOKEN}`,
-            'Content-Type': 'application/json'
-        }
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            ...body,
+            api_key: ADX_API_KEY
+        })
     });
 
     if (!response.ok) {
         throw new Error(`ADX API error: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // Extraire le nom de campagne du premier record
+    if (data && data.length > 0 && data[0].campaignName) {
+        return { name: data[0].campaignName, id: campaignId };
+    }
+    
+    return null;
 }
 
 /**
@@ -40,13 +62,13 @@ async function getCampaignById(campaignId) {
  */
 async function getCampaignName(campaignId) {
     // Ne pas tenter si les credentials ne sont pas configurés
-    if (!ADX_API_URL || !ADX_API_TOKEN) {
+    if (!ADX_API_URL || !ADX_API_KEY) {
         return null;
     }
     
     try {
         const campaign = await getCampaignById(campaignId);
-        return campaign.name || campaign.title || null;
+        return campaign?.name || null;
     } catch (error) {
         console.error(`[ADX API] Erreur récupération campagne ${campaignId}:`, error.message);
         return null;
