@@ -156,11 +156,17 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    console.log('✅ Noms ADX récupérés:', data.campaigns);
                     campaigns.forEach(campaign => {
                         const match = campaign.adxCampaignUrl?.match(/\/campaigns\/view\/(\d+)/);
                         if (match) {
                             const adxId = parseInt(match[1]);
                             campaign.adxCampaignName = data.campaigns[adxId] || null;
+                            if (campaign.adxCampaignName) {
+                                console.log(`✅ ${campaign.title} → ADX: ${campaign.adxCampaignName}`);
+                            } else {
+                                console.log(`⚠️ ${campaign.title} → Pas de nom ADX pour ID ${adxId}`);
+                            }
                         }
                     });
                 }
