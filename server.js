@@ -888,6 +888,57 @@ app.delete('/api/comments/:commentId', async (req, res) => {
     }
 });
 
+// ==================== ADX API ====================
+const adxApi = require('./services/adx-api');
+
+// Récupérer le nom d'une campagne ADX par son ID
+app.get('/api/adx/campaign/:id', async (req, res) => {
+    try {
+        const campaignId = parseInt(req.params.id);
+        if (isNaN(campaignId)) {
+            return res.status(400).json({ success: false, error: 'Invalid campaign ID' });
+        }
+
+        const campaignName = await adxApi.getCampaignName(campaignId);
+        
+        res.json({
+            success: true,
+            campaignId,
+            campaignName
+        });
+    } catch (error) {
+        log('ADX-API', `❌ Erreur récupération campagne ${req.params.id}: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Récupérer les noms de plusieurs campagnes ADX
+app.post('/api/adx/campaigns/names', async (req, res) => {
+    try {
+        const { campaignIds } = req.body;
+        
+        if (!Array.isArray(campaignIds)) {
+            return res.status(400).json({ success: false, error: 'campaignIds must be an array' });
+        }
+
+        const names = await adxApi.getCampaignNames(campaignIds);
+        
+        res.json({
+            success: true,
+            campaigns: names
+        });
+    } catch (error) {
+        log('ADX-API', `❌ Erreur récupération campagnes: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // ==================== PROGRAMMING TRACKER ====================
 // Tracking automatique 3x par jour: 8h, 14h, 20h
 let trelloCache = null;
