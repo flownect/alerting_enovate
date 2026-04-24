@@ -32,6 +32,20 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Search Bar -->
+        <div class="mb-6">
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="search-input"
+                    placeholder="Rechercher par nom, trader, commercial, nom Nova, nom ADX..."
+                    class="w-full px-4 py-3 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    oninput="filterCampaigns()"
+                >
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            </div>
+        </div>
+
         <!-- Tabs -->
         <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
             <nav class="flex gap-4">
@@ -113,6 +127,14 @@
 
                 console.log(`📋 ${campaignsPour.length} campagnes "Pour Facturation"`);
                 console.log(`📋 ${campaignsPas.length} campagnes "A ne pas facturer"`);
+                
+                // Vérifier les URLs pour les campagnes "A ne pas facturer"
+                console.log('🔍 Campagnes "A ne pas facturer" - URLs:');
+                campaignsPas.slice(0, 5).forEach(c => {
+                    console.log(`- ${c.title}`);
+                    console.log(`  Nova: ${c.novaCampaignUrl || 'AUCUNE'}`);
+                    console.log(`  ADX: ${c.adxCampaignUrl || 'AUCUNE'}`);
+                });
 
                 // Récupérer les noms Nova et ADX pour toutes les campagnes
                 await enrichWithNovaNames(campaignsPour);
@@ -216,9 +238,52 @@
             }
         }
 
+        function filterCampaigns() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            
+            // Filtrer les campagnes "Pour Facturation"
+            const filteredPour = campaignsPour.filter(campaign => {
+                const searchableText = [
+                    campaign.title,
+                    campaign.trader,
+                    campaign.commercial,
+                    campaign.novaCampaignName,
+                    campaign.adxCampaignName
+                ].filter(Boolean).join(' ').toLowerCase();
+                
+                return searchableText.includes(searchTerm);
+            });
+            
+            // Filtrer les campagnes "A ne pas facturer"
+            const filteredPas = campaignsPas.filter(campaign => {
+                const searchableText = [
+                    campaign.title,
+                    campaign.trader,
+                    campaign.commercial,
+                    campaign.novaCampaignName,
+                    campaign.adxCampaignName
+                ].filter(Boolean).join(' ').toLowerCase();
+                
+                return searchableText.includes(searchTerm);
+            });
+            
+            // Re-render avec les résultats filtrés
+            renderCampaigns('pour', filteredPour);
+            renderCampaigns('pas', filteredPas);
+            
+            // Mettre à jour les compteurs
+            document.getElementById('count-pour').textContent = filteredPour.length;
+            document.getElementById('count-pas').textContent = filteredPas.length;
+        }
+
         function renderCampaigns(type, campaigns) {
             const container = document.getElementById(`campaigns-${type}`);
             container.innerHTML = '';
+
+            if (campaigns.length === 0) {
+                container.innerHTML = '<div class="text-center py-8 text-gray-500 dark:text-gray-400">Aucune campagne trouvée</div>';
+                return;
+            }
 
             campaigns.forEach(campaign => {
                 const card = createCampaignCard(campaign);
