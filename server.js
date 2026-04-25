@@ -412,6 +412,35 @@ app.get('/api/status-stats', async (req, res) => {
     }
 });
 
+// Endpoint pour forcer un tracking manuel
+app.post('/api/force-tracking', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        log('API', '🚀 Tracking manuel déclenché...');
+        
+        // Lancer le tracking
+        await runProgrammingTracking();
+        
+        res.json({
+            success: true,
+            message: 'Tracking exécuté avec succès',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur tracking manuel: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Endpoint pour vider la table de programmation (RESET)
 app.post('/api/programming-reset', sessionAuth, async (req, res) => {
     if (!process.env.DATABASE_URL) {
