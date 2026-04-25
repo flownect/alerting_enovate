@@ -84,6 +84,28 @@ CREATE TABLE IF NOT EXISTS campaign_programming (
     UNIQUE(campaign_id)
 );
 
+-- Ajouter les colonnes manquantes si elles n'existent pas (migration)
+DO $$ 
+BEGIN
+    -- Ajouter became_programmable_at si elle n'existe pas
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'campaign_programming' 
+        AND column_name = 'became_programmable_at'
+    ) THEN
+        ALTER TABLE campaign_programming ADD COLUMN became_programmable_at TIMESTAMP;
+    END IF;
+    
+    -- Ajouter campaign_start_date si elle n'existe pas
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'campaign_programming' 
+        AND column_name = 'campaign_start_date'
+    ) THEN
+        ALTER TABLE campaign_programming ADD COLUMN campaign_start_date DATE;
+    END IF;
+END $$;
+
 -- Index pour campaign_status_tracking
 CREATE INDEX IF NOT EXISTS idx_status_tracking_status ON campaign_status_tracking(current_status);
 CREATE INDEX IF NOT EXISTS idx_status_tracking_csm ON campaign_status_tracking(csm_name);
