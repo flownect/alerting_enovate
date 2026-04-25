@@ -1,16 +1,8 @@
 -- ============================================
 -- SCHEMA SIMPLIFIÉ - Tracking programmation campagnes
 -- ============================================
-
--- Supprimer les anciennes tables et vues si elles existent
-DROP TABLE IF EXISTS learnings_insights CASCADE;
-DROP TABLE IF EXISTS learnings_rules CASCADE;
-DROP TABLE IF EXISTS learnings_patterns CASCADE;
-DROP TABLE IF EXISTS campaigns_events CASCADE;
-DROP VIEW IF EXISTS v_learnings_stats CASCADE;
-DROP VIEW IF EXISTS v_programming_stats_30d CASCADE;
-DROP VIEW IF EXISTS v_programming_stats_by_csm CASCADE;
-DROP FUNCTION IF EXISTS update_updated_at_column CASCADE;
+-- Ce script peut être exécuté plusieurs fois sans problème
+-- Il crée les tables seulement si elles n'existent pas
 
 -- Table : Tracking de TOUTES les campagnes avec leur statut actuel
 CREATE TABLE IF NOT EXISTS campaign_status_tracking (
