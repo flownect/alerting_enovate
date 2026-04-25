@@ -1317,7 +1317,7 @@
         
         async function showProgrammingStats() {
             try {
-                const response = await fetch('/api/programming-stats?period=30d');
+                const response = await fetch('/api/status-stats?period=30d&groupBy=csm');
                 const result = await response.json();
                 
                 if (!result.success) {
@@ -1359,12 +1359,14 @@
             // Convertir les strings en nombres et trier les données
             let sortedStats = stats.map(s => ({
                 ...s,
-                total_programmed: parseInt(s.total_programmed) || 0,
-                late_j0: parseInt(s.late_j0) || 0,
-                late_j1: parseInt(s.late_j1) || 0,
-                late_j2: parseInt(s.late_j2) || 0,
-                on_time_j3: parseInt(s.on_time_j3) || 0,
-                on_time_j3_plus: parseInt(s.on_time_j3_plus) || 0
+                csm_name: s.name, // Nouveau système utilise "name"
+                total_programmed: parseInt(s.total_transitions) || 0,
+                programmed_after_start: parseInt(s.after_launch) || 0,
+                late_j0: parseInt(s.j0) || 0,
+                late_j1: parseInt(s.j1) || 0,
+                late_j2: parseInt(s.j2) || 0,
+                on_time_j3: parseInt(s.j3) || 0,
+                on_time_j3_plus: parseInt(s.j3_plus) || 0
             }));
             
             console.log('🎨 Converted stats:', sortedStats);
