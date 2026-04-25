@@ -24,53 +24,21 @@ class StatusTracker {
     }
 
     /**
-     * Parser le champ CSM pour extraire Commercial et CSM
-     * Format: "Commercial - CSM1, CSM2 / Trader"
-     * Exemple: "Antoinette - Edwin / Mustapha - Jerome"
-     * Si commercial = "aucun", on le met à NULL
+     * Extraire Commercial et CSM depuis les champs Trello
+     * Les données sont déjà parsées dans card.commercial et card.accountManager
      */
     parseCommercialAndCSM(card) {
-        // Essayer plusieurs champs possibles
-        const csmField = card.csm || card.csmName || card.commercial || card.responsable || '';
+        let commercial = card.commercial || null;
+        let csm = card.accountManager || null;
         
-        // Log pour debug (première carte seulement)
-        if (!this.loggedOnce) {
-            console.log('🔍 DEBUG parseCommercialAndCSM - TOUS LES CHAMPS:');
-            console.log('  card.csm:', card.csm);
-            console.log('  card.csmName:', card.csmName);
-            console.log('  card.commercial:', card.commercial);
-            console.log('  card.responsable:', card.responsable);
-            console.log('  card.trader:', card.trader);
-            console.log('  card.traderName:', card.traderName);
-            console.log('  Tous les champs de card:', Object.keys(card));
-            console.log('  csmField final:', csmField);
-            this.loggedOnce = true;
+        // Si commercial = "aucun", on le met à NULL
+        if (commercial && commercial.toLowerCase() === 'aucun') {
+            commercial = null;
         }
         
-        if (!csmField) {
-            return { commercial: null, csm: null };
-        }
-        
-        // Séparer par "/" pour ignorer le trader
-        const beforeTrader = csmField.split('/')[0].trim();
-        
-        // Séparer par "-" pour avoir Commercial et CSM
-        const parts = beforeTrader.split('-').map(p => p.trim());
-        
-        let commercial = null;
-        let csm = null;
-        
-        if (parts.length >= 2) {
-            commercial = parts[0]; // Premier élément = Commercial
-            csm = parts.slice(1).join(', '); // Reste = CSM (peut contenir des virgules)
-            
-            // Si commercial = "aucun", on le met à NULL
-            if (commercial && commercial.toLowerCase() === 'aucun') {
-                commercial = null;
-            }
-        } else if (parts.length === 1) {
-            // Si pas de "-", tout est considéré comme CSM
-            csm = parts[0];
+        // Si CSM = "aucun", on le met à NULL
+        if (csm && csm.toLowerCase() === 'aucun') {
+            csm = null;
         }
         
         return { commercial, csm };
