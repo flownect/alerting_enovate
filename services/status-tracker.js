@@ -35,12 +35,14 @@ class StatusTracker {
         
         // Log pour debug (première carte seulement)
         if (!this.loggedOnce) {
-            console.log('🔍 DEBUG parseCommercialAndCSM:');
+            console.log('🔍 DEBUG parseCommercialAndCSM - TOUS LES CHAMPS:');
             console.log('  card.csm:', card.csm);
             console.log('  card.csmName:', card.csmName);
             console.log('  card.commercial:', card.commercial);
             console.log('  card.responsable:', card.responsable);
             console.log('  card.trader:', card.trader);
+            console.log('  card.traderName:', card.traderName);
+            console.log('  Tous les champs de card:', Object.keys(card));
             console.log('  csmField final:', csmField);
             this.loggedOnce = true;
         }
