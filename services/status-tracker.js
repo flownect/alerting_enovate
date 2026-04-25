@@ -30,7 +30,24 @@ class StatusTracker {
      * Si commercial = "aucun", on le met à NULL
      */
     parseCommercialAndCSM(card) {
-        const csmField = card.csm || card.csmName || '';
+        // Essayer plusieurs champs possibles
+        const csmField = card.csm || card.csmName || card.commercial || card.responsable || '';
+        
+        // Log pour debug (première carte seulement)
+        if (!this.loggedOnce) {
+            console.log('🔍 DEBUG parseCommercialAndCSM:');
+            console.log('  card.csm:', card.csm);
+            console.log('  card.csmName:', card.csmName);
+            console.log('  card.commercial:', card.commercial);
+            console.log('  card.responsable:', card.responsable);
+            console.log('  card.trader:', card.trader);
+            console.log('  csmField final:', csmField);
+            this.loggedOnce = true;
+        }
+        
+        if (!csmField) {
+            return { commercial: null, csm: null };
+        }
         
         // Séparer par "/" pour ignorer le trader
         const beforeTrader = csmField.split('/')[0].trim();
