@@ -1101,10 +1101,10 @@ function scheduleAnalysis() {
     }, delay);
 }
 
-// Initialiser la base de données au démarrage
+// Fonction pour initialiser la base de données
 async function initializeDatabase() {
     if (!process.env.DATABASE_URL) {
-        log('DB', '⚠️  DATABASE_URL non configurée, initialisation ignorée');
+        log('DB', '⚠️ DATABASE_URL non configurée - Pas d\'initialisation BDD');
         return;
     }
 
