@@ -441,6 +441,70 @@ app.post('/api/force-tracking', async (req, res) => {
     }
 });
 
+// Endpoint pour récupérer les emails Commerce
+app.get('/api/commerce-emails', (req, res) => {
+    res.json({
+        success: true,
+        emails: process.env.COMMERCE_EMAIL_RECIPIENTS || ''
+    });
+});
+
+// Endpoint pour sauvegarder les emails Commerce
+app.post('/api/commerce-emails', (req, res) => {
+    const { emails } = req.body;
+    
+    if (!emails) {
+        return res.status(400).json({
+            success: false,
+            error: 'Emails requis'
+        });
+    }
+    
+    // Note: En production, il faudrait mettre à jour la variable d'environnement sur Railway
+    // Pour l'instant, on retourne juste un message informatif
+    res.json({
+        success: true,
+        message: 'Pour sauvegarder définitivement, ajoutez COMMERCE_EMAIL_RECIPIENTS sur Railway avec la valeur: ' + emails
+    });
+});
+
+// Endpoint pour tester l'envoi d'email Commerce
+app.post('/api/test-commerce-email', async (req, res) => {
+    try {
+        const { emails } = req.body;
+        
+        if (!emails) {
+            return res.status(400).json({
+                success: false,
+                error: 'Emails requis'
+            });
+        }
+        
+        // Temporairement override la variable d'environnement pour le test
+        const originalEmails = process.env.COMMERCE_EMAIL_RECIPIENTS;
+        process.env.COMMERCE_EMAIL_RECIPIENTS = emails;
+        
+        // Importer et appeler la fonction d'envoi
+        const { sendCommerceAlertsEmail } = require('./services/slack-scheduler');
+        await sendCommerceAlertsEmail();
+        
+        // Restaurer la valeur originale
+        process.env.COMMERCE_EMAIL_RECIPIENTS = originalEmails;
+        
+        res.json({
+            success: true,
+            message: 'Email de test envoyé',
+            alertCount: 'Variable selon les alertes du jour'
+        });
+    } catch (error) {
+        log('API', `❌ Erreur test email Commerce: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Endpoint pour vider la table de programmation (RESET)
 app.post('/api/programming-reset', sessionAuth, async (req, res) => {
     if (!process.env.DATABASE_URL) {

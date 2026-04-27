@@ -1,7 +1,6 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
 const { generateAlerts, generatePerformanceAlerts } = require('./alert-generator');
-const SibApiV3Sdk = require('@sendinblue/client');
 
 // Fonction pour envoyer directement sur Slack
 async function sendToSlack(blocks, webhookUrl = null) {
@@ -270,20 +269,34 @@ async function sendCommerceAlertsEmail() {
             </html>
         `;
         
-        // Configurer Brevo
-        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-        apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_SMTP_KEY);
+        // Envoyer via l'API Brevo directement
+        const recipients = (process.env.COMMERCE_EMAIL_RECIPIENTS || '').split(',').map(email => ({ email: email.trim() }));
         
-        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-        sendSmtpEmail.sender = { 
-            name: 'Alerting E-Novate', 
-            email: process.env.BREVO_SENDER_EMAIL || 'alerting@e-novate.fr' 
+        const emailData = {
+            sender: { 
+                name: 'Alerting E-Novate', 
+                email: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr'
+            },
+            to: recipients,
+            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce - ${new Date().toLocaleDateString('fr-FR')}`,
+            htmlContent: htmlContent
         };
-        sendSmtpEmail.to = (process.env.COMMERCE_EMAIL_RECIPIENTS || '').split(',').map(email => ({ email: email.trim() }));
-        sendSmtpEmail.subject = `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce - ${new Date().toLocaleDateString('fr-FR')}`;
-        sendSmtpEmail.htmlContent = htmlContent;
         
-        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_SMTP_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(emailData)
+        });
+        
+        if (!brevoResponse.ok) {
+            const errorText = await brevoResponse.text();
+            throw new Error(`Brevo API error: ${brevoResponse.status} - ${errorText}`);
+        }
+        
         log(`✅ ${commerceAlerts.length} alertes Commerce envoyées par email`);
         
     } catch (error) {

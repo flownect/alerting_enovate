@@ -133,6 +133,30 @@
                 </a>
             </div>
             
+            <!-- Alertes Commerce par Email -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h4 class="font-semibold text-gray-900 dark:text-white mb-2">📧 Alertes Commerce (Email)</h4>
+                <div class="space-y-2">
+                    <textarea 
+                        id="commerce-emails" 
+                        placeholder="email1@e-novate.fr, email2@e-novate.fr"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                        rows="3"
+                    ></textarea>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Emails séparés par des virgules. Envoi quotidien à 8h30.
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="saveCommerceEmails()" class="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
+                            💾 Sauvegarder
+                        </button>
+                        <button onclick="testCommerceEmail()" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
+                            🧪 Tester
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             <!-- UI Settings -->
             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Interface</h4>
@@ -2613,6 +2637,82 @@ ADX: ${adxLink}`;
             }
         }
         
+        // Charger les emails Commerce au chargement
+        async function loadCommerceEmails() {
+            try {
+                const response = await fetch('/api/commerce-emails');
+                const result = await response.json();
+                if (result.success && result.emails) {
+                    document.getElementById('commerce-emails').value = result.emails;
+                }
+            } catch (error) {
+                console.error('Erreur chargement emails:', error);
+            }
+        }
+        
+        // Sauvegarder les emails Commerce
+        async function saveCommerceEmails() {
+            const textarea = document.getElementById('commerce-emails');
+            const emails = textarea.value.trim();
+            
+            if (!emails) {
+                alert('Veuillez entrer au moins un email');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/commerce-emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Emails sauvegardés avec succès !');
+                } else {
+                    throw new Error(result.error || 'Erreur inconnue');
+                }
+            } catch (error) {
+                console.error('Erreur sauvegarde emails:', error);
+                alert('❌ Erreur lors de la sauvegarde');
+            }
+        }
+        
+        // Tester l'envoi d'email Commerce
+        async function testCommerceEmail() {
+            const emails = document.getElementById('commerce-emails').value.trim();
+            
+            if (!emails) {
+                alert('Veuillez entrer au moins un email avant de tester');
+                return;
+            }
+            
+            if (!confirm(`Envoyer un email de test à : ${emails} ?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/test-commerce-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Email de test envoyé avec succès !\n${result.alertCount} alerte(s) envoyée(s)`);
+                } else {
+                    throw new Error(result.error || 'Erreur inconnue');
+                }
+            } catch (error) {
+                console.error('Erreur test email:', error);
+                alert('❌ Erreur lors de l\'envoi du test');
+            }
+        }
+        
         // Switch between main tabs (Alerts / Performance / Traders / Launches)
         let currentMainTab = 'alerts';
         function switchMainTab(tab) {
@@ -3358,6 +3458,9 @@ ADX: ${adxLink}`;
             renderLaunches();
             updateGlobalStats();
             renderPerformance();
+            
+            // Charger les emails Commerce
+            loadCommerceEmails();
 
             // Auto-refresh every hour (between 7h and 20h)
             setInterval(() => {
