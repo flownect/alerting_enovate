@@ -196,21 +196,25 @@ async function sendDailyAlerts() {
 // Fonction pour envoyer les alertes Commerce par email (urgent + critique)
 async function sendCommerceAlertsEmail() {
     try {
-        log('Début envoi alertes Commerce par email...');
+        console.log('[EMAIL-COMMERCE] Début envoi alertes Commerce par email...');
         
         // Récupérer TOUTES les alertes commerce
         const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
         const alertsData = await response.json();
+        
+        // Debug: afficher toutes les alertes
+        console.log('[EMAIL-COMMERCE] Total alertes tradersCommerce:', alertsData.data.tradersCommerceAlerts.length);
+        console.log('[EMAIL-COMMERCE] Types d\'alertes:', alertsData.data.tradersCommerceAlerts.map(a => `${a.type}/${a.criticality}`));
         
         // Filtrer les alertes Commerce urgentes + critiques
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
             a.type === 'commerce' && (a.criticality === 'urgent' || a.criticality === 'critical')
         );
         
-        log(`Alertes Commerce: ${commerceAlerts.length} (urgentes + critiques)`);
+        console.log(`[EMAIL-COMMERCE] Alertes Commerce: ${commerceAlerts.length} (urgentes + critiques)`);
         
         if (commerceAlerts.length === 0) {
-            log('✅ Aucune alerte Commerce urgente/critique à envoyer');
+            console.log('[EMAIL-COMMERCE] ✅ Aucune alerte Commerce urgente/critique à envoyer');
             return;
         }
         
@@ -297,10 +301,10 @@ async function sendCommerceAlertsEmail() {
             throw new Error(`Brevo API error: ${brevoResponse.status} - ${errorText}`);
         }
         
-        log(`✅ ${commerceAlerts.length} alertes Commerce envoyées par email`);
+        console.log(`[EMAIL-COMMERCE] ✅ ${commerceAlerts.length} alertes Commerce envoyées par email`);
         
     } catch (error) {
-        log(`❌ Erreur envoi alertes Commerce par email: ${error.message}`);
+        console.log(`[EMAIL-COMMERCE] ❌ Erreur envoi alertes Commerce par email: ${error.message}`);
     }
 }
 
