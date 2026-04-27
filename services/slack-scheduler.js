@@ -206,9 +206,9 @@ async function sendCommerceAlertsEmail() {
         console.log('[EMAIL-COMMERCE] Total alertes tradersCommerce:', alertsData.data.tradersCommerceAlerts.length);
         console.log('[EMAIL-COMMERCE] Types d\'alertes:', alertsData.data.tradersCommerceAlerts.map(a => `${a.type}/${a.criticality}`));
         
-        // Filtrer les alertes Commerce urgentes + critiques
+        // Filtrer les alertes Commerce (type launch) urgentes + critiques
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
-            a.type === 'commerce' && (a.criticality === 'urgent' || a.criticality === 'critical')
+            a.type === 'launch' && (a.criticality === 'urgent' || a.criticality === 'critical')
         );
         
         console.log(`[EMAIL-COMMERCE] Alertes Commerce: ${commerceAlerts.length} (urgentes + critiques)`);
