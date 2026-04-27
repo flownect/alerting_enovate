@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
 const { generateAlerts, generatePerformanceAlerts } = require('./alert-generator');
+const SibApiV3Sdk = require('@sendinblue/client');
 
 // Fonction pour envoyer directement sur Slack
 async function sendToSlack(blocks, webhookUrl = null) {
@@ -193,14 +194,12 @@ async function sendDailyAlerts() {
     }
 }
 
-// Fonction pour envoyer les alertes Commerce uniquement (urgent + critique)
-async function sendCommerceAlerts() {
+// Fonction pour envoyer les alertes Commerce par email (urgent + critique)
+async function sendCommerceAlertsEmail() {
     try {
-        log('Début envoi alertes Commerce...');
+        log('Début envoi alertes Commerce par email...');
         
-        const alerts = await getCriticalAlerts();
-        
-        // Récupérer TOUTES les alertes commerce (pas seulement critiques)
+        // Récupérer TOUTES les alertes commerce
         const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
         const alertsData = await response.json();
         
@@ -216,93 +215,79 @@ async function sendCommerceAlerts() {
             return;
         }
         
-        // Formater les alertes au même format que les Traders
-        const formattedCommerce = commerceAlerts.map(a => ({
-            title: a.card?.title || 'Sans nom',
-            trader: a.card?.trader || 'N/A',
-            commercial: a.card?.commercial || 'N/A',
-            startDate: a.card?.dates?.startingDateFormatted,
-            endDate: a.card?.dates?.endingDateFormatted,
-            timing: a.timing,
-            message: a.message,
-            criticality: a.criticality,
-            novaLink: a.card?.campaignId 
-                ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
-                : null,
-            adxLink: a.card?.adxCampaignUrl,
-            commentsNova: [],
-            commentsDashboard: a.commentsDashboard || []
-        }));
-        
-        // Construire les blocs Slack
-        const blocks = [
-            {
-                type: 'header',
-                text: {
-                    type: 'plain_text',
-                    text: `🚨 Alertes Commerce - ${new Date().toLocaleDateString('fr-FR')}`,
-                    emoji: true
-                }
-            },
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*${commerceAlerts.length} alerte${commerceAlerts.length > 1 ? 's' : ''} urgente${commerceAlerts.length > 1 ? 's' : ''} / critique${commerceAlerts.length > 1 ? 's' : ''}*`
-                }
-            },
-            { type: 'divider' }
-        ];
-        
-        // Ajouter chaque alerte
-        formattedCommerce.forEach((alert, index) => {
-            const emoji = alert.criticality === 'critical' ? '🔴' : '🟠';
-            const criticalityText = alert.criticality === 'critical' ? 'CRITIQUE' : 'URGENT';
+        // Construire le HTML de l'email
+        const alertsHtml = commerceAlerts.map(a => {
+            const emoji = a.criticality === 'critical' ? '🔴' : '🟠';
+            const criticalityText = a.criticality === 'critical' ? 'CRITIQUE' : 'URGENT';
+            const bgColor = a.criticality === 'critical' ? '#fee2e2' : '#fed7aa';
+            const textColor = a.criticality === 'critical' ? '#991b1b' : '#9a3412';
             
-            blocks.push({
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `*${emoji} ${criticalityText} - ${alert.title}*\n` +
-                          `👤 Commercial: *${alert.commercial}* | Trader: ${alert.trader}\n` +
-                          `📅 ${alert.startDate} → ${alert.endDate}\n` +
-                          `⏰ ${alert.message}`
-                }
-            });
-            
-            // Ajouter les liens
-            const links = [];
-            if (alert.novaLink) links.push(`<${alert.novaLink}|📝 Nova>`);
-            if (alert.adxLink) links.push(`<${alert.adxLink}|📊 ADX>`);
-            
-            if (links.length > 0) {
-                blocks.push({
-                    type: 'context',
-                    elements: [{
-                        type: 'mrkdwn',
-                        text: links.join(' • ')
-                    }]
-                });
-            }
-            
-            // Divider entre les alertes (sauf la dernière)
-            if (index < formattedCommerce.length - 1) {
-                blocks.push({ type: 'divider' });
-            }
-        });
+            return `
+                <div style="margin-bottom: 20px; padding: 15px; background-color: ${bgColor}; border-left: 4px solid ${textColor}; border-radius: 4px;">
+                    <h3 style="margin: 0 0 10px 0; color: ${textColor};">
+                        ${emoji} ${criticalityText} - ${a.card?.title || 'Sans nom'}
+                    </h3>
+                    <p style="margin: 5px 0; color: #374151;">
+                        <strong>👤 Commercial:</strong> ${a.card?.commercial || 'N/A'} | 
+                        <strong>Trader:</strong> ${a.card?.trader || 'N/A'}
+                    </p>
+                    <p style="margin: 5px 0; color: #374151;">
+                        <strong>📅 Période:</strong> ${a.card?.dates?.startingDateFormatted} → ${a.card?.dates?.endingDateFormatted}
+                    </p>
+                    <p style="margin: 5px 0; color: #374151;">
+                        <strong>⏰ Alerte:</strong> ${a.message}
+                    </p>
+                    ${a.card?.campaignId || a.card?.adxCampaignUrl ? `
+                        <p style="margin: 10px 0 0 0;">
+                            ${a.card?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}" style="color: #2563eb; text-decoration: none; margin-right: 15px;">📝 Nova</a>` : ''}
+                            ${a.card?.adxCampaignUrl ? `<a href="${a.card.adxCampaignUrl}" style="color: #2563eb; text-decoration: none;">📊 ADX</a>` : ''}
+                        </p>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
         
-        // Envoyer sur le canal Commerce
-        const commerceWebhook = process.env.SLACK_WEBHOOK_COMMERCE;
-        if (!commerceWebhook) {
-            log('⚠️ SLACK_WEBHOOK_COMMERCE non configuré, envoi ignoré');
-            return;
-        }
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Alertes Commerce</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #1f2937; border-bottom: 3px solid #2563eb; padding-bottom: 10px;">
+                    � Alertes Commerce - ${new Date().toLocaleDateString('fr-FR')}
+                </h1>
+                <p style="font-size: 16px; color: #6b7280; margin-bottom: 30px;">
+                    ${commerceAlerts.length} alerte${commerceAlerts.length > 1 ? 's' : ''} urgente${commerceAlerts.length > 1 ? 's' : ''} / critique${commerceAlerts.length > 1 ? 's' : ''}
+                </p>
+                ${alertsHtml}
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                    Alerting E-Novate - Envoi automatique quotidien
+                </p>
+            </body>
+            </html>
+        `;
         
-        await sendToSlack(blocks, commerceWebhook);
-        log(`✅ ${commerceAlerts.length} alertes Commerce envoyées sur Slack`);
+        // Configurer Brevo
+        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_SMTP_KEY);
+        
+        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        sendSmtpEmail.sender = { 
+            name: 'Alerting E-Novate', 
+            email: process.env.BREVO_SENDER_EMAIL || 'alerting@e-novate.fr' 
+        };
+        sendSmtpEmail.to = (process.env.COMMERCE_EMAIL_RECIPIENTS || '').split(',').map(email => ({ email: email.trim() }));
+        sendSmtpEmail.subject = `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce - ${new Date().toLocaleDateString('fr-FR')}`;
+        sendSmtpEmail.htmlContent = htmlContent;
+        
+        await apiInstance.sendTransacEmail(sendSmtpEmail);
+        log(`✅ ${commerceAlerts.length} alertes Commerce envoyées par email`);
         
     } catch (error) {
-        log(`❌ Erreur envoi alertes Commerce: ${error.message}`);
+        log(`❌ Erreur envoi alertes Commerce par email: ${error.message}`);
     }
 }
 
@@ -316,15 +301,15 @@ function startScheduler() {
         timezone: 'Europe/Paris'
     });
     
-    // Tous les jours à 8h30 - Envoi Commerce (nouveau)
+    // Tous les jours à 8h30 - Envoi Commerce par email (nouveau)
     cron.schedule('30 8 * * *', () => {
-        log('🕐 Déclenchement automatique 8h30 - Commerce');
-        sendCommerceAlerts();
+        log('🕐 Déclenchement automatique 8h30 - Commerce (email)');
+        sendCommerceAlertsEmail();
     }, {
         timezone: 'Europe/Paris'
     });
     
-    log('✅ Scheduler démarré - Envoi quotidien à 8h30 (Traders + Commerce)');
+    log('✅ Scheduler démarré - Envoi quotidien à 8h30 (Traders Slack + Commerce Email)');
 }
 
-module.exports = { startScheduler, sendDailyAlerts, sendCommerceAlerts };
+module.exports = { startScheduler, sendDailyAlerts, sendCommerceAlertsEmail };
