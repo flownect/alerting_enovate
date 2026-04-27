@@ -3,14 +3,14 @@ const fetch = require('node-fetch');
 const { generateAlerts, generatePerformanceAlerts } = require('./alert-generator');
 
 // Fonction pour envoyer directement sur Slack
-async function sendToSlack(blocks) {
-    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+async function sendToSlack(blocks, webhookUrl = null) {
+    const url = webhookUrl || process.env.SLACK_WEBHOOK_URL;
     
-    if (!webhookUrl) {
+    if (!url) {
         throw new Error('SLACK_WEBHOOK_URL non configurée');
     }
     
-    const response = await fetch(webhookUrl, {
+    const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blocks })
@@ -193,17 +193,138 @@ async function sendDailyAlerts() {
     }
 }
 
+// Fonction pour envoyer les alertes Commerce uniquement (urgent + critique)
+async function sendCommerceAlerts() {
+    try {
+        log('Début envoi alertes Commerce...');
+        
+        const alerts = await getCriticalAlerts();
+        
+        // Récupérer TOUTES les alertes commerce (pas seulement critiques)
+        const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const alertsData = await response.json();
+        
+        // Filtrer les alertes Commerce urgentes + critiques
+        const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
+            a.type === 'commerce' && (a.criticality === 'urgent' || a.criticality === 'critical')
+        );
+        
+        log(`Alertes Commerce: ${commerceAlerts.length} (urgentes + critiques)`);
+        
+        if (commerceAlerts.length === 0) {
+            log('✅ Aucune alerte Commerce urgente/critique à envoyer');
+            return;
+        }
+        
+        // Formater les alertes au même format que les Traders
+        const formattedCommerce = commerceAlerts.map(a => ({
+            title: a.card?.title || 'Sans nom',
+            trader: a.card?.trader || 'N/A',
+            commercial: a.card?.commercial || 'N/A',
+            startDate: a.card?.dates?.startingDateFormatted,
+            endDate: a.card?.dates?.endingDateFormatted,
+            timing: a.timing,
+            message: a.message,
+            criticality: a.criticality,
+            novaLink: a.card?.campaignId 
+                ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
+                : null,
+            adxLink: a.card?.adxCampaignUrl,
+            commentsNova: [],
+            commentsDashboard: a.commentsDashboard || []
+        }));
+        
+        // Construire les blocs Slack
+        const blocks = [
+            {
+                type: 'header',
+                text: {
+                    type: 'plain_text',
+                    text: `🚨 Alertes Commerce - ${new Date().toLocaleDateString('fr-FR')}`,
+                    emoji: true
+                }
+            },
+            {
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `*${commerceAlerts.length} alerte${commerceAlerts.length > 1 ? 's' : ''} urgente${commerceAlerts.length > 1 ? 's' : ''} / critique${commerceAlerts.length > 1 ? 's' : ''}*`
+                }
+            },
+            { type: 'divider' }
+        ];
+        
+        // Ajouter chaque alerte
+        formattedCommerce.forEach((alert, index) => {
+            const emoji = alert.criticality === 'critical' ? '🔴' : '🟠';
+            const criticalityText = alert.criticality === 'critical' ? 'CRITIQUE' : 'URGENT';
+            
+            blocks.push({
+                type: 'section',
+                text: {
+                    type: 'mrkdwn',
+                    text: `*${emoji} ${criticalityText} - ${alert.title}*\n` +
+                          `👤 Commercial: *${alert.commercial}* | Trader: ${alert.trader}\n` +
+                          `📅 ${alert.startDate} → ${alert.endDate}\n` +
+                          `⏰ ${alert.message}`
+                }
+            });
+            
+            // Ajouter les liens
+            const links = [];
+            if (alert.novaLink) links.push(`<${alert.novaLink}|📝 Nova>`);
+            if (alert.adxLink) links.push(`<${alert.adxLink}|📊 ADX>`);
+            
+            if (links.length > 0) {
+                blocks.push({
+                    type: 'context',
+                    elements: [{
+                        type: 'mrkdwn',
+                        text: links.join(' • ')
+                    }]
+                });
+            }
+            
+            // Divider entre les alertes (sauf la dernière)
+            if (index < formattedCommerce.length - 1) {
+                blocks.push({ type: 'divider' });
+            }
+        });
+        
+        // Envoyer sur le canal Commerce
+        const commerceWebhook = process.env.SLACK_WEBHOOK_COMMERCE;
+        if (!commerceWebhook) {
+            log('⚠️ SLACK_WEBHOOK_COMMERCE non configuré, envoi ignoré');
+            return;
+        }
+        
+        await sendToSlack(blocks, commerceWebhook);
+        log(`✅ ${commerceAlerts.length} alertes Commerce envoyées sur Slack`);
+        
+    } catch (error) {
+        log(`❌ Erreur envoi alertes Commerce: ${error.message}`);
+    }
+}
+
 // Démarrer le scheduler
 function startScheduler() {
-    // Tous les jours à 8h30
+    // Tous les jours à 8h30 - Envoi Traders (existant)
     cron.schedule('30 8 * * *', () => {
-        log('🕐 Déclenchement automatique 8h30');
+        log('🕐 Déclenchement automatique 8h30 - Traders');
         sendDailyAlerts();
     }, {
         timezone: 'Europe/Paris'
     });
     
-    log('✅ Scheduler démarré - Envoi quotidien à 8h30');
+    // Tous les jours à 8h30 - Envoi Commerce (nouveau)
+    cron.schedule('30 8 * * *', () => {
+        log('🕐 Déclenchement automatique 8h30 - Commerce');
+        sendCommerceAlerts();
+    }, {
+        timezone: 'Europe/Paris'
+    });
+    
+    log('✅ Scheduler démarré - Envoi quotidien à 8h30 (Traders + Commerce)');
 }
 
-module.exports = { startScheduler, sendDailyAlerts };
+module.exports = { startScheduler, sendDailyAlerts, sendCommerceAlerts };
