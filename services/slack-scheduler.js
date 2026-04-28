@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const fetch = require('node-fetch');
+const nodemailer = require('nodemailer');
 const { generateAlerts, generatePerformanceAlerts } = require('./alert-generator');
 
 // Fonction pour envoyer directement sur Slack
@@ -275,35 +276,33 @@ async function sendCommerceAlertsEmail() {
             </html>
         `;
         
-        // Envoyer via l'API Brevo directement
-        const recipients = (process.env.COMMERCE_EMAIL_RECIPIENTS || '').split(',').map(email => ({ email: email.trim() }));
-        
-        const emailData = {
-            sender: { 
-                name: 'Alerting E-Novate', 
-                email: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr'
-            },
-            to: recipients,
-            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce - ${new Date().toLocaleDateString('fr-FR')}`,
-            htmlContent: htmlContent
-        };
-        
-        const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'api-key': process.env.BREVO_SMTP_KEY,
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify(emailData)
-        });
-        
-        if (!brevoResponse.ok) {
-            const errorText = await brevoResponse.text();
-            throw new Error(`Brevo API error: ${brevoResponse.status} - ${errorText}`);
+        // Envoyer via SMTP Brevo avec nodemailer
+        const smtpKey = process.env.BREVO_SMTP_KEY;
+        if (!smtpKey) {
+            throw new Error('BREVO_SMTP_KEY non configurée');
         }
         
-        console.log(`[EMAIL-COMMERCE] ✅ ${commerceAlerts.length} alertes Commerce envoyées par email`);
+        const transporter = nodemailer.createTransport({
+            host: 'smtp-relay.brevo.com',
+            port: 587,
+            secure: false,
+            auth: { 
+                user: process.env.BREVO_SMTP_LOGIN || '99cd6c001@smtp-brevo.com', 
+                pass: smtpKey 
+            }
+        });
+        
+        const recipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
+        const mailOptions = {
+            from: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr',
+            to: recipients,
+            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce - ${new Date().toLocaleDateString('fr-FR')}`,
+            html: htmlContent
+        };
+        
+        console.log('[EMAIL-COMMERCE] Connexion SMTP smtp-relay.brevo.com:587...');
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[EMAIL-COMMERCE] ✅ ${commerceAlerts.length} alertes Commerce envoyées par email — messageId: ${info.messageId}`);
         
     } catch (error) {
         console.log(`[EMAIL-COMMERCE] ❌ Erreur envoi alertes Commerce par email: ${error.message}`);

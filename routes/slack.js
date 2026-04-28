@@ -210,7 +210,7 @@ async function sendAlertsToSlackWebhook(data) {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${criticalPerf.length} | 👥 Traders: ${criticalTraders.length} | 💼 CSM: ${criticalCommerce.length}`
+                text: `*${totalCritical} alerte${totalCritical > 1 ? 's' : ''} critique${totalCritical > 1 ? 's' : ''}*\n📊 Performance: ${criticalPerf.length} | 👥 Traders: ${criticalTraders.length}`
             }
         },
         { type: 'divider' }
