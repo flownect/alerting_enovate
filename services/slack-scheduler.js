@@ -197,6 +197,8 @@ async function sendDailyAlerts() {
 async function sendCommerceAlertsEmail() {
     try {
         console.log('[EMAIL-COMMERCE] Début envoi alertes Commerce par email...');
+        console.log('[EMAIL-COMMERCE] Clé Brevo présente:', !!process.env.BREVO_SMTP_KEY);
+        console.log('[EMAIL-COMMERCE] Longueur clé:', process.env.BREVO_SMTP_KEY?.length);
         
         // Récupérer TOUTES les alertes commerce
         const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
