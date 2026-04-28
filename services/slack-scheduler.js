@@ -233,13 +233,21 @@ async function sendCommerceAlertsEmail() {
             const bgColor = a.criticality === 'critical' ? '#fee2e2' : '#fed7aa';
             const textColor = a.criticality === 'critical' ? '#991b1b' : '#9a3412';
             
+            // Étiquettes de timing et type
+            const timingBadge = a.timing ? `<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 5px;">${a.timing}</span>` : '';
+            const typeBadge = a.subtype ? `<span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${a.subtype}</span>` : '';
+            
             return `
                 <div style="margin-bottom: 20px; padding: 15px; background-color: ${bgColor}; border-left: 4px solid ${textColor}; border-radius: 4px;">
+                    <div style="margin-bottom: 8px;">
+                        ${timingBadge}${typeBadge}
+                    </div>
                     <h3 style="margin: 0 0 10px 0; color: ${textColor};">
                         ${emoji} ${criticalityText} - ${a.card?.title || 'Sans nom'}
                     </h3>
                     <p style="margin: 5px 0; color: #374151;">
                         <strong>👤 Commercial:</strong> ${a.card?.commercial || 'N/A'} | 
+                        <strong>CSM:</strong> ${a.card?.accountManager || 'N/A'} | 
                         <strong>Trader:</strong> ${a.card?.trader || 'N/A'}
                     </p>
                     <p style="margin: 5px 0; color: #374151;">
