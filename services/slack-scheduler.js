@@ -209,12 +209,10 @@ async function sendCommerceAlertsEmail() {
         console.log('[EMAIL-COMMERCE] Total alertes tradersCommerce:', alertsData.data.tradersCommerceAlerts.length);
         console.log('[EMAIL-COMMERCE] Types d\'alertes:', alertsData.data.tradersCommerceAlerts.map(a => `${a.type}/${a.criticality}`));
         
-        // Filtrer les alertes Commerce uniquement (type launch, urgentes + critiques, ET gérées par un Commercial)
+        // Filtrer les alertes Commerce uniquement (NON programmables, urgentes + critiques)
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
-            a.type === 'launch' && 
-            (a.criticality === 'urgent' || a.criticality === 'critical') &&
-            a.card?.commercial && 
-            a.card.commercial !== 'Aucun'
+            !a.card?.isProgrammable &&
+            (a.criticality === 'urgent' || a.criticality === 'critical')
         );
         
         // Compter les alertes par criticité
