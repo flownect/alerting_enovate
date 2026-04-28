@@ -209,12 +209,19 @@ async function sendCommerceAlertsEmail() {
         console.log('[EMAIL-COMMERCE] Total alertes tradersCommerce:', alertsData.data.tradersCommerceAlerts.length);
         console.log('[EMAIL-COMMERCE] Types d\'alertes:', alertsData.data.tradersCommerceAlerts.map(a => `${a.type}/${a.criticality}`));
         
-        // Filtrer les alertes Commerce (type launch) urgentes + critiques
+        // Filtrer les alertes Commerce uniquement (type launch, urgentes + critiques, ET gérées par un Commercial)
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
-            a.type === 'launch' && (a.criticality === 'urgent' || a.criticality === 'critical')
+            a.type === 'launch' && 
+            (a.criticality === 'urgent' || a.criticality === 'critical') &&
+            a.card?.commercial && 
+            a.card.commercial !== 'Aucun'
         );
         
-        console.log(`[EMAIL-COMMERCE] Alertes Commerce: ${commerceAlerts.length} (urgentes + critiques)`);
+        // Compter les alertes par criticité
+        const criticalCount = commerceAlerts.filter(a => a.criticality === 'critical').length;
+        const urgentCount = commerceAlerts.filter(a => a.criticality === 'urgent').length;
+        
+        console.log(`[EMAIL-COMMERCE] Alertes Commerce: ${commerceAlerts.length} total (${criticalCount} critiques, ${urgentCount} urgentes)`);
         
         if (commerceAlerts.length === 0) {
             console.log('[EMAIL-COMMERCE] ✅ Aucune alerte Commerce urgente/critique à envoyer');
@@ -296,7 +303,7 @@ async function sendCommerceAlertsEmail() {
         const mailOptions = {
             from: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr',
             to: recipients,
-            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce - ${new Date().toLocaleDateString('fr-FR')}`,
+            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce (${criticalCount} critique${criticalCount > 1 ? 's' : ''}, ${urgentCount} urgente${urgentCount > 1 ? 's' : ''}) - ${new Date().toLocaleDateString('fr-FR')}`,
             html: htmlContent
         };
         
