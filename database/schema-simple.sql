@@ -172,7 +172,20 @@ CREATE TABLE IF NOT EXISTS campaign_comments (
 CREATE INDEX IF NOT EXISTS idx_campaign_comments_campaign ON campaign_comments(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_comments_date ON campaign_comments(created_at DESC);
 
+-- Table pour stocker les emails destinataires des alertes Commerce
+CREATE TABLE IF NOT EXISTS commerce_email_recipients (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_commerce_email_active ON commerce_email_recipients(is_active);
+
 -- Commentaires
 COMMENT ON TABLE campaign_programming IS 'Suivi des dates de programmation des campagnes par CSM';
 COMMENT ON COLUMN campaign_programming.days_before_start IS 'Nombre de jours avant le début (0=J0, 1=J-1, 2=J-2, négatif=en retard)';
 COMMENT ON TABLE campaign_comments IS 'Commentaires sur les campagnes, persistants et associés à l''ID Nova';
+COMMENT ON TABLE commerce_email_recipients IS 'Emails destinataires des alertes Commerce quotidiennes';

@@ -305,7 +305,31 @@ async function sendCommerceAlertsEmail() {
             }
         });
         
-        const recipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
+        // Récupérer les emails depuis la base de données
+        let recipients = '';
+        if (process.env.DATABASE_URL) {
+            const { Pool } = require('pg');
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+            try {
+                const result = await pool.query(
+                    'SELECT email FROM commerce_email_recipients WHERE is_active = true ORDER BY email'
+                );
+                recipients = result.rows.map(r => r.email).join(', ');
+                await pool.end();
+                console.log(`[EMAIL-COMMERCE] ${result.rows.length} destinataire(s) trouvé(s) en BDD`);
+            } catch (error) {
+                console.log(`[EMAIL-COMMERCE] ⚠️ Erreur BDD, fallback sur env var: ${error.message}`);
+                recipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
+            }
+        } else {
+            recipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
+        }
+        
+        if (!recipients) {
+            console.log('[EMAIL-COMMERCE] ⚠️ Aucun destinataire configuré');
+            return;
+        }
+        
         const mailOptions = {
             from: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr',
             to: recipients,

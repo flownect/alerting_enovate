@@ -442,15 +442,34 @@ app.post('/api/force-tracking', async (req, res) => {
 });
 
 // Endpoint pour récupérer les emails Commerce
-app.get('/api/commerce-emails', (req, res) => {
-    res.json({
-        success: true,
-        emails: process.env.COMMERCE_EMAIL_RECIPIENTS || ''
-    });
+app.get('/api/commerce-emails', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.json({
+            success: true,
+            emails: process.env.COMMERCE_EMAIL_RECIPIENTS || ''
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT email FROM commerce_email_recipients WHERE is_active = true ORDER BY email'
+        );
+        const emails = result.rows.map(r => r.email).join(', ');
+        res.json({
+            success: true,
+            emails: emails
+        });
+    } catch (error) {
+        log('API', `❌ Erreur récupération emails: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 // Endpoint pour sauvegarder les emails Commerce
-app.post('/api/commerce-emails', (req, res) => {
+app.post('/api/commerce-emails', async (req, res) => {
     const { emails } = req.body;
     
     if (!emails) {
@@ -459,13 +478,52 @@ app.post('/api/commerce-emails', (req, res) => {
             error: 'Emails requis'
         });
     }
+
+    if (!process.env.DATABASE_URL) {
+        return res.json({
+            success: true,
+            message: 'Base de données non configurée. Ajoutez COMMERCE_EMAIL_RECIPIENTS sur Railway avec: ' + emails
+        });
+    }
     
-    // Note: En production, il faudrait mettre à jour la variable d'environnement sur Railway
-    // Pour l'instant, on retourne juste un message informatif
-    res.json({
-        success: true,
-        message: 'Pour sauvegarder définitivement, ajoutez COMMERCE_EMAIL_RECIPIENTS sur Railway avec la valeur: ' + emails
-    });
+    try {
+        // Parser les emails (séparés par virgules)
+        const emailList = emails.split(',').map(e => e.trim()).filter(e => e.length > 0);
+        
+        if (emailList.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Aucun email valide fourni'
+            });
+        }
+        
+        // Désactiver tous les emails existants
+        await pool.query('UPDATE commerce_email_recipients SET is_active = false');
+        
+        // Insérer ou réactiver les nouveaux emails
+        for (const email of emailList) {
+            await pool.query(`
+                INSERT INTO commerce_email_recipients (email, is_active, updated_at)
+                VALUES ($1, true, NOW())
+                ON CONFLICT (email) 
+                DO UPDATE SET is_active = true, updated_at = NOW()
+            `, [email]);
+        }
+        
+        log('API', `✅ ${emailList.length} email(s) Commerce sauvegardé(s)`);
+        
+        res.json({
+            success: true,
+            message: `${emailList.length} email(s) sauvegardé(s) avec succès`,
+            emails: emailList
+        });
+    } catch (error) {
+        log('API', `❌ Erreur sauvegarde emails: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 // Endpoint pour tester l'envoi d'email Commerce
