@@ -1,4 +1,5 @@
 const { Client } = require('pg');
+const fetch = require('node-fetch');
 
 async function migrateProgrammingData() {
     const client = new Client({
@@ -9,6 +10,28 @@ async function migrateProgrammingData() {
     try {
         await client.connect();
         console.log('🔄 Migration des données campaign_programming → campaign_status_tracking...');
+
+        // Récupérer les données Trello actuelles pour enrichir
+        console.log('📡 Récupération des données Trello...');
+        const trelloResponse = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const trelloData = await trelloResponse.json();
+        
+        // Créer un map des campagnes Trello par ID
+        const trelloMap = new Map();
+        if (trelloData.success && trelloData.data.trelloData) {
+            const allCards = [
+                ...(trelloData.data.trelloData.lane1?.cards || []),
+                ...(trelloData.data.trelloData.lane2?.cards || []),
+                ...(trelloData.data.trelloData.lane3?.cards || []),
+                ...(trelloData.data.trelloData.lane4?.cards || [])
+            ];
+            allCards.forEach(card => {
+                if (card.campaignId) {
+                    trelloMap.set(card.campaignId, card);
+                }
+            });
+            console.log(`📊 ${trelloMap.size} cartes Trello récupérées`);
+        }
 
         // Récupérer toutes les données de campaign_programming
         const result = await client.query(`
@@ -33,11 +56,18 @@ async function migrateProgrammingData() {
 
         for (const row of result.rows) {
             try {
+                // Enrichir avec les données Trello actuelles
+                const trelloCard = trelloMap.get(row.campaign_id);
+                const commercial = trelloCard?.commercial || null;
+                const csm = trelloCard?.accountManager || null;
+                const trader = trelloCard?.trader || row.trader_name;
+                
                 // Insérer ou mettre à jour dans campaign_status_tracking
                 await client.query(`
                     INSERT INTO campaign_status_tracking (
                         campaign_id,
                         campaign_name,
+                        commercial_name,
                         csm_name,
                         trader_name,
                         current_status,
@@ -48,9 +78,12 @@ async function migrateProgrammingData() {
                         first_seen_at,
                         created_at,
                         updated_at
-                    ) VALUES ($1, $2, $3, $4, 'programmed', $5, $6, $7, $8, $6, $6, NOW())
+                    ) VALUES ($1, $2, $3, $4, $5, 'programmed', $6, $7, $8, $9, $7, $7, NOW())
                     ON CONFLICT (campaign_id) 
                     DO UPDATE SET
+                        commercial_name = COALESCE(campaign_status_tracking.commercial_name, EXCLUDED.commercial_name),
+                        csm_name = COALESCE(campaign_status_tracking.csm_name, EXCLUDED.csm_name),
+                        trader_name = COALESCE(campaign_status_tracking.trader_name, EXCLUDED.trader_name),
                         became_programmable_at = COALESCE(campaign_status_tracking.became_programmable_at, EXCLUDED.became_programmable_at),
                         became_programmed_at = COALESCE(campaign_status_tracking.became_programmed_at, EXCLUDED.became_programmed_at),
                         days_before_launch = COALESCE(campaign_status_tracking.days_before_launch, EXCLUDED.days_before_launch),
@@ -58,8 +91,9 @@ async function migrateProgrammingData() {
                 `, [
                     row.campaign_id,
                     row.campaign_name,
-                    row.csm_name,
-                    row.trader_name,
+                    commercial,
+                    csm,
+                    trader,
                     row.became_programmable_at,
                     row.programmed_at,
                     row.campaign_start_date,
