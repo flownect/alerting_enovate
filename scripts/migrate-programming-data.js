@@ -22,8 +22,8 @@ async function migrateProgrammingData() {
                 campaign_start_date,
                 days_before_start
             FROM campaign_programming
-            WHERE became_programmable_at IS NOT NULL
-            ORDER BY became_programmable_at
+            WHERE programmed_at IS NOT NULL
+            ORDER BY programmed_at
         `);
 
         console.log(`📊 ${result.rows.length} campagnes à migrer...`);
