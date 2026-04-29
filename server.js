@@ -412,6 +412,35 @@ app.get('/api/status-stats', async (req, res) => {
     }
 });
 
+// Endpoint pour migrer les données de campaign_programming vers campaign_status_tracking
+app.post('/api/migrate-programming-data', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            error: 'Database not configured'
+        });
+    }
+
+    try {
+        log('API', '🔄 Migration des données de programmation...');
+        
+        const { migrateProgrammingData } = require('./scripts/migrate-programming-data');
+        await migrateProgrammingData();
+        
+        res.json({
+            success: true,
+            message: 'Migration des données terminée avec succès',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur migration: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Endpoint pour forcer un tracking manuel
 app.post('/api/force-tracking', async (req, res) => {
     if (!process.env.DATABASE_URL) {
