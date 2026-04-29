@@ -1341,7 +1341,7 @@
         
         async function showProgrammingStats() {
             try {
-                const response = await fetch('/api/status-stats?period=30d&groupBy=csm');
+                const response = await fetch('/api/status-stats?period=30d&groupBy=commercial');
                 const result = await response.json();
                 
                 if (!result.success) {
