@@ -13,17 +13,17 @@ async function migrateProgrammingData() {
 
         // Récupérer les données Trello actuelles pour enrichir
         console.log('📡 Récupération des données Trello...');
-        const trelloResponse = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const trelloResponse = await fetch('http://localhost:8080/api/trello?env=prod', { timeout: 300000 });
         const trelloData = await trelloResponse.json();
         
         // Créer un map des campagnes Trello par ID
         const trelloMap = new Map();
-        if (trelloData.success && trelloData.data.trelloData) {
+        if (trelloData.success && trelloData.data) {
             const allCards = [
-                ...(trelloData.data.trelloData.lane1?.cards || []),
-                ...(trelloData.data.trelloData.lane2?.cards || []),
-                ...(trelloData.data.trelloData.lane3?.cards || []),
-                ...(trelloData.data.trelloData.lane4?.cards || [])
+                ...(trelloData.data.lane1?.cards || []),
+                ...(trelloData.data.lane2?.cards || []),
+                ...(trelloData.data.lane3?.cards || []),
+                ...(trelloData.data.lane4?.cards || [])
             ];
             allCards.forEach(card => {
                 if (card.campaignId) {
