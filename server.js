@@ -451,10 +451,20 @@ app.get('/api/commerce-emails', async (req, res) => {
     }
 
     try {
-        const result = await pool.query(
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        await client.connect();
+        
+        const result = await client.query(
             'SELECT email FROM commerce_email_recipients WHERE is_active = true ORDER BY email'
         );
         const emails = result.rows.map(r => r.email).join(', ');
+        
+        await client.end();
+        
         res.json({
             success: true,
             emails: emails
@@ -497,18 +507,27 @@ app.post('/api/commerce-emails', async (req, res) => {
             });
         }
         
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        await client.connect();
+        
         // Désactiver tous les emails existants
-        await pool.query('UPDATE commerce_email_recipients SET is_active = false');
+        await client.query('UPDATE commerce_email_recipients SET is_active = false');
         
         // Insérer ou réactiver les nouveaux emails
         for (const email of emailList) {
-            await pool.query(`
+            await client.query(`
                 INSERT INTO commerce_email_recipients (email, is_active, updated_at)
                 VALUES ($1, true, NOW())
                 ON CONFLICT (email) 
                 DO UPDATE SET is_active = true, updated_at = NOW()
             `, [email]);
         }
+        
+        await client.end();
         
         log('API', `✅ ${emailList.length} email(s) Commerce sauvegardé(s)`);
         
