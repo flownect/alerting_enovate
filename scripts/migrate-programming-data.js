@@ -48,7 +48,7 @@ async function migrateProgrammingData() {
                         first_seen_at,
                         created_at,
                         updated_at
-                    ) VALUES ($1, $2, $3, $4, 'programmed', $5, $6, $7, $8, $5, $5, NOW())
+                    ) VALUES ($1, $2, $3, $4, 'programmed', $5, $6, $7, $8, $6, $6, NOW())
                     ON CONFLICT (campaign_id) 
                     DO UPDATE SET
                         became_programmable_at = COALESCE(campaign_status_tracking.became_programmable_at, EXCLUDED.became_programmable_at),
