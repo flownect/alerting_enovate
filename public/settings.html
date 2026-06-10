@@ -378,11 +378,14 @@
         // Toggle actif/inactif d'une personne
         async function togglePersonActive(name, role, currentlyActive) {
             const newActive = !currentlyActive;
+            // Récupérer l'email existant pour ne pas l'écraser
+            const existing = personsData.existing.find(p => p.name === name);
+            const existingEmail = existing?.email || null;
             try {
                 const response = await fetch('/api/person-emails', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, role, is_active: newActive })
+                    body: JSON.stringify({ name, role, email: existingEmail, is_active: newActive })
                 });
                 const result = await response.json();
                 if (result.success) {
@@ -391,6 +394,8 @@
                     const existingIndex = personsData.existing.findIndex(p => p.name === name);
                     if (existingIndex >= 0) {
                         personsData.existing[existingIndex].is_active = newActive;
+                    } else {
+                        personsData.existing.push({ name, email: existingEmail, role, is_active: newActive });
                     }
                     // Re-render
                     renderPersons(personsData);
