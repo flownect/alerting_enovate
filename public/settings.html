@@ -328,24 +328,27 @@
             commercialsContainer.innerHTML = personsData.commercials.map(name => {
                 const existing = existingMap.get(name);
                 const email = existing?.email || '';
-                return renderPersonRow(name, 'commercial', email);
+                const isActive = existing ? existing.is_active !== false : true;
+                return renderPersonRow(name, 'commercial', email, isActive);
             }).join('') || '<p class="text-gray-400 text-sm italic">Aucun commercial détecté</p>';
             
             // Render CSMs
             csmsContainer.innerHTML = personsData.csms.map(name => {
                 const existing = existingMap.get(name);
                 const email = existing?.email || '';
-                return renderPersonRow(name, 'csm', email);
+                const isActive = existing ? existing.is_active !== false : true;
+                return renderPersonRow(name, 'csm', email, isActive);
             }).join('') || '<p class="text-gray-400 text-sm italic">Aucun CSM détecté</p>';
         }
 
         // Render a single person row
-        function renderPersonRow(name, role, email) {
+        function renderPersonRow(name, role, email, isActive = true) {
             const roleColor = role === 'commercial' ? 'blue' : 'purple';
+            const safeName = name.replace(/\s+/g, '-');
             return `
-                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg fade-in">
+                <div class="flex items-center gap-3 p-3 rounded-lg fade-in transition-all ${isActive ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}" id="row-${safeName}">
                     <div class="flex-1">
-                        <div class="font-medium text-gray-900">${name}</div>
+                        <div class="font-medium ${isActive ? 'text-gray-900' : 'text-gray-400 line-through'}">${name}</div>
                         <div class="text-xs text-gray-500 uppercase tracking-wide">${role}</div>
                     </div>
                     <div class="flex-1">
@@ -356,14 +359,48 @@
                             data-name="${name}"
                             data-role="${role}"
                             onchange="savePersonEmail(this)"
-                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-${roleColor}-500 focus:border-${roleColor}-500"
+                            ${isActive ? '' : 'disabled'}
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-${roleColor}-500 focus:border-${roleColor}-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                     </div>
-                    <div class="text-xs text-gray-400 w-6 text-center" id="status-${name.replace(/\s+/g, '-')}">
+                    <button 
+                        onclick="togglePersonActive('${name}', '${role}', ${isActive})"
+                        title="${isActive ? 'Désactiver' : 'Activer'}"
+                        class="text-lg w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors"
+                    >${isActive ? '🟢' : '🔴'}</button>
+                    <div class="text-xs text-gray-400 w-6 text-center" id="status-${safeName}">
                         ${email ? '✓' : ''}
                     </div>
                 </div>
             `;
+        }
+
+        // Toggle actif/inactif d'une personne
+        async function togglePersonActive(name, role, currentlyActive) {
+            const newActive = !currentlyActive;
+            try {
+                const response = await fetch('/api/person-emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, role, is_active: newActive })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast(newActive ? `✅ ${name} activé` : `⏸️ ${name} désactivé`);
+                    // Mettre à jour personsData.existing
+                    const existingIndex = personsData.existing.findIndex(p => p.name === name);
+                    if (existingIndex >= 0) {
+                        personsData.existing[existingIndex].is_active = newActive;
+                    }
+                    // Re-render
+                    renderPersons(personsData);
+                    updateTestSelect();
+                } else {
+                    showToast('❌ ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
         }
 
         // Save person email

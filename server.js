@@ -611,7 +611,7 @@ app.get('/api/person-emails', async (req, res) => {
 
 // Sauvegarder ou mettre à jour un email de personne
 app.post('/api/person-emails', async (req, res) => {
-    const { name, email, role } = req.body;
+    const { name, email, role, is_active } = req.body;
 
     if (!name || !role) {
         return res.status(400).json({
@@ -635,13 +635,20 @@ app.post('/api/person-emails', async (req, res) => {
         });
         await client.connect();
 
+        const activeValue = is_active !== undefined ? is_active : true;
+        const emailValue = email !== undefined ? (email || null) : null;
+
         const result = await client.query(`
-            INSERT INTO person_emails (name, email, role, updated_at)
-            VALUES ($1, $2, $3, NOW())
+            INSERT INTO person_emails (name, email, role, is_active, updated_at)
+            VALUES ($1, $2, $3, $4, NOW())
             ON CONFLICT (name)
-            DO UPDATE SET email = $2, role = $3, updated_at = NOW()
+            DO UPDATE SET 
+                email = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE person_emails.email END,
+                role = $3,
+                is_active = $4,
+                updated_at = NOW()
             RETURNING *
-        `, [name, email || null, role]);
+        `, [name, emailValue, role, activeValue]);
 
         await client.end();
 
