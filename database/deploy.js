@@ -1,6 +1,6 @@
 /**
  * Script de déploiement de la base de données
- * Exécute le schema.sql sur Railway PostgreSQL
+ * Exécute le create-all-tables.sql sur Railway PostgreSQL
  * 
  * Usage: node database/deploy.js
  */
@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 async function deployDatabase() {
-    console.log('🚀 Déploiement de la base de données Learnings...\n');
+    console.log('🚀 Déploiement de la base de données...\n');
 
     // Vérifier que DATABASE_URL existe
     if (!process.env.DATABASE_URL) {
@@ -34,9 +34,9 @@ async function deployDatabase() {
         await client.connect();
         console.log('✅ Connecté\n');
 
-        // Lire le fichier schema.sql
-        const schemaPath = path.join(__dirname, 'schema.sql');
-        console.log('📄 Lecture du schema.sql...');
+        // Lire le fichier create-all-tables.sql (contient toutes les tables dont person_emails)
+        const schemaPath = path.join(__dirname, 'create-all-tables.sql');
+        console.log('📄 Lecture du create-all-tables.sql...');
         const schema = fs.readFileSync(schemaPath, 'utf8');
         console.log('✅ Schema chargé\n');
 
@@ -60,12 +60,25 @@ async function deployDatabase() {
             console.log(`   ✓ ${row.table_name}`);
         });
 
-        // Afficher les stats
-        console.log('\n📈 Statistiques:');
-        const stats = await client.query('SELECT * FROM v_learnings_stats');
-        stats.rows.forEach(row => {
-            console.log(`   ${row.table_name}: ${row.total_count} entrées`);
-        });
+        // Vérifier spécifiquement person_emails
+        console.log('\n📧 Vérification table person_emails:');
+        try {
+            const personCount = await client.query('SELECT COUNT(*) as count FROM person_emails');
+            console.log(`   ${personCount.rows[0].count} personnes enregistrées`);
+        } catch (e) {
+            console.log('   ⚠️ Table person_emails vide ou erreur');
+        }
+
+        // Afficher les stats learnings si la vue existe
+        try {
+            console.log('\n📈 Statistiques Learnings:');
+            const stats = await client.query('SELECT * FROM v_learnings_stats');
+            stats.rows.forEach(row => {
+                console.log(`   ${row.table_name}: ${row.total_count} entrées`);
+            });
+        } catch (e) {
+            // La vue n'existe peut-être pas encore
+        }
 
         console.log('\n✨ Déploiement terminé avec succès!');
 
