@@ -665,6 +665,7 @@ app.post('/api/person-emails', async (req, res) => {
 // Avec ?refresh=1: détecte aussi depuis Trello (plus lent mais complet)
 app.get('/api/persons-detected', async (req, res) => {
     const refresh = req.query.refresh === '1';
+    log('API', `🔄 /api/persons-detected called (refresh=${refresh})`);
 
     try {
         let commercials = new Set();
@@ -690,15 +691,22 @@ app.get('/api/persons-detected', async (req, res) => {
 
         // 2. Détecter depuis les alertes actuelles (rapide, utilise generateAlerts directement)
         try {
+            log('API', '🔍 Récupération Trello pour détection...');
             const trelloUrl = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
             const trelloResponse = await fetch(trelloUrl, { timeout: 30000 });
             
+            log('API', `📥 Trello response: ${trelloResponse.status}`);
+            
             if (trelloResponse.ok) {
                 const trelloRawData = await trelloResponse.json();
+                log('API', `📊 Trello data received, lanes: ${trelloRawData?.data?.lanes?.length || trelloRawData?.lanes?.length || 0}`);
+                
                 const trelloData = { data: trelloRawData };
                 
-                // Générer les alertes directement (pas besoin de fetch vers localhost)
+                // Générer les alertes directement
+                log('API', '🔄 Calling generateAlerts...');
                 const allAlerts = generateAlerts(trelloData);
+                log('API', `✅ generateAlerts returned ${allAlerts.length} alerts`);
                 
                 // Filtrer uniquement les alertes Commerce (non-programmable, critical/urgent)
                 const commerceAlerts = allAlerts.filter(a => 
@@ -706,6 +714,8 @@ app.get('/api/persons-detected', async (req, res) => {
                     a.subtype === 'non-programmable-late' && 
                     (a.criticality === 'critical' || a.criticality === 'urgent')
                 );
+                
+                log('API', `🎯 Commerce alerts (critical/urgent): ${commerceAlerts.length}`);
                 
                 for (const alert of commerceAlerts) {
                     const card = alert.card;
@@ -720,10 +730,13 @@ app.get('/api/persons-detected', async (req, res) => {
                     }
                 }
                 
-                log('API', `✅ Détecté ${commerceAlerts.length} alertes commerce, ${commercials.size} commerciaux, ${csms.size} CSM`);
+                log('API', `✅ Détecté ${commercials.size} commerciaux, ${csms.size} CSM`);
+            } else {
+                log('API', `❌ Trello API error: ${trelloResponse.status}`);
             }
         } catch (alertsError) {
-            log('API', `⚠️ Impossible de charger les alertes pour détection: ${alertsError.message}`);
+            log('API', `❌ Erreur détection alertes: ${alertsError.message}`);
+            log('API', alertsError.stack);
             // On continue quand même avec ce qu'on a
         }
 
