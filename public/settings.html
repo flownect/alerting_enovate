@@ -387,6 +387,14 @@
                     statusEl.textContent = email ? '✓' : '';
                     statusEl.className = 'text-xs text-green-500 w-6 text-center';
                     showToast(`✅ Email sauvegardé pour ${name}`);
+                    
+                    // Mettre à jour personsData.existing pour que le select voie le changement
+                    const existingIndex = personsData.existing.findIndex(p => p.name === name);
+                    if (existingIndex >= 0) {
+                        personsData.existing[existingIndex].email = email;
+                    } else {
+                        personsData.existing.push({ name, email, role });
+                    }
                     updateTestSelect();
                 } else {
                     statusEl.textContent = '✗';
@@ -401,21 +409,31 @@
         }
 
         // Update test person select
+        // Affiche tous les détectés, avec indicateur si email configuré
         function updateTestSelect() {
             const select = document.getElementById('test-person-select');
-            const existingWithEmails = personsData.existing.filter(p => p.email);
-            
+            const existingMap = new Map(personsData.existing.map(p => [p.name, p]));
+
+            // Fonction pour créer les options
+            const createOptions = (names, role) => {
+                if (!names || names.length === 0) {
+                    return '<option disabled>Aucun détecté</option>';
+                }
+                return names.map(name => {
+                    const existing = existingMap.get(name);
+                    const hasEmail = existing?.email;
+                    const emailIndicator = hasEmail ? '✓ ' : '⚠️ ';
+                    return `<option value="${name}" ${!hasEmail ? 'style="color: #9ca3af;"' : ''}>${emailIndicator}${name}</option>`;
+                }).join('');
+            };
+
             select.innerHTML = `
                 <option value="">Choisir une personne...</option>
                 <optgroup label="Commerciaux">
-                    ${existingWithEmails.filter(p => p.role === 'commercial').map(p => 
-                        `<option value="${p.name}">${p.name}</option>`
-                    ).join('') || '<option disabled>Aucun commercial avec email</option>'}
+                    ${createOptions(personsData.commercials, 'commercial')}
                 </optgroup>
                 <optgroup label="CSM">
-                    ${existingWithEmails.filter(p => p.role === 'csm').map(p => 
-                        `<option value="${p.name}">${p.name}</option>`
-                    ).join('') || '<option disabled>Aucun CSM avec email</option>'}
+                    ${createOptions(personsData.csms, 'csm')}
                 </optgroup>
             `;
         }
