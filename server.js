@@ -782,9 +782,11 @@ app.get('/api/persons-detected', async (req, res) => {
         });
     } catch (error) {
         log('API', `❌ Erreur détection personnes: ${error.message}`);
+        log('API', error.stack);
         res.status(500).json({
             success: false,
-            error: error.message
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

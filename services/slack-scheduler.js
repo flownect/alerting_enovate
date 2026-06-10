@@ -194,19 +194,33 @@ async function sendDailyAlerts() {
     }
 }
 
-// Fonction pour récupérer les commentaires d'une campagne
-async function getCommentsForCampaign(campaignId) {
-    if (!campaignId || !process.env.DATABASE_URL) return [];
-    
+// Fonction pour récupérer les commentaires d'une campagne (par ID ou par nom)
+async function getCommentsForCampaign(campaignId, campaignName = null) {
+    if ((!campaignId && !campaignName) || !process.env.DATABASE_URL) return [];
+
     try {
         const { Pool } = require('pg');
         const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-        const result = await pool.query(
-            'SELECT comment_text, author, created_at FROM campaign_comments WHERE campaign_id = $1 ORDER BY created_at DESC LIMIT 5',
-            [campaignId]
-        );
+        let result;
+
+        // Chercher d'abord par campaign_id
+        if (campaignId) {
+            result = await pool.query(
+                'SELECT comment_text, author, created_at FROM campaign_comments WHERE campaign_id = $1 ORDER BY created_at DESC LIMIT 5',
+                [campaignId]
+            );
+        }
+
+        // Si pas de résultat et qu'on a un nom, chercher par campaign_name
+        if ((!result || result.rows.length === 0) && campaignName) {
+            result = await pool.query(
+                'SELECT comment_text, author, created_at FROM campaign_comments WHERE campaign_name = $1 ORDER BY created_at DESC LIMIT 5',
+                [campaignName]
+            );
+        }
+
         await pool.end();
-        return result.rows;
+        return result?.rows || [];
     } catch (error) {
         console.log(`[EMAIL-COMMERCE] ⚠️ Erreur récupération commentaires: ${error.message}`);
         return [];
@@ -319,10 +333,10 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
             return { sent: 0, preview: null };
         }
         
-        // Récupérer les commentaires pour chaque campagne
+        // Récupérer les commentaires pour chaque campagne (par ID ou nom)
         const alertsWithComments = await Promise.all(
             commerceAlerts.map(async (a) => {
-                const comments = await getCommentsForCampaign(a.card?.campaignId);
+                const comments = await getCommentsForCampaign(a.card?.campaignId, a.card?.title);
                 return { ...a, comments };
             })
         );
@@ -543,7 +557,7 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
         
         const alertsWithComments = await Promise.all(
             commerceAlerts.map(async (a) => {
-                const comments = await getCommentsForCampaign(a.card?.campaignId);
+                const comments = await getCommentsForCampaign(a.card?.campaignId, a.card?.title);
                 return { ...a, comments };
             })
         );
