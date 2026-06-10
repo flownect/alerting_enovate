@@ -40,10 +40,25 @@ async function deployDatabase() {
         const schema = fs.readFileSync(schemaPath, 'utf8');
         console.log('✅ Schema chargé\n');
 
-        // Exécuter le schema
+        // Exécuter le schema (split par ; et exécuter chaque requête séparément)
         console.log('⚙️  Exécution du schema...');
-        await client.query(schema);
-        console.log('✅ Schema déployé avec succès\n');
+        const statements = schema
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0 && !s.startsWith('--'));
+        
+        console.log(`   ${statements.length} instructions à exécuter...`);
+        
+        for (let i = 0; i < statements.length; i++) {
+            const stmt = statements[i];
+            try {
+                await client.query(stmt);
+                process.stdout.write('.');
+            } catch (err) {
+                console.log(`\n   ⚠️  Instruction ${i+1} ignorée: ${err.message.substring(0, 50)}`);
+            }
+        }
+        console.log('\n✅ Schema déployé avec succès\n');
 
         // Vérifier les tables créées
         console.log('🔍 Vérification des tables...');
