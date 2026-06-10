@@ -86,9 +86,15 @@
                 <h2 class="text-lg font-semibold text-gray-800">
                     👤 Emails Individuels (Commerciaux & CSM)
                 </h2>
-                <button onclick="detectPersons()" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
-                    🔄 Détecter depuis les campagnes
+                <button onclick="detectPersons()" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition" title="Détecte depuis Trello (peut prendre 10-20s)">
+                    🔄 Rafraîchir depuis Trello
                 </button>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p class="text-sm text-blue-800">
+                    <strong>💡 Info:</strong> Les personnes ci-dessous sont chargées depuis la base de données (rapide).
+                    Cliquez sur "Rafraîchir depuis Trello" pour détecter automatiquement les nouveaux commerciaux/CSM des campagnes.
+                </p>
             </div>
             <p class="text-sm text-gray-600 mb-4">
                 Chaque commercial et CSM recevra uniquement les alertes concernant ses propres projets.
@@ -195,7 +201,7 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadGlobalEmails();
-            loadPersons();
+            loadPersons(false); // Chargement rapide depuis la base uniquement
         });
 
         // Show toast notification
@@ -244,32 +250,70 @@
             }
         }
 
-        // Load persons from API
-        async function loadPersons() {
+        // Load persons from API avec timeout
+        // refresh=false: charge depuis la base uniquement (rapide)
+        // refresh=true: détecte depuis Trello (plus lent)
+        async function loadPersons(refresh = false) {
             const loadingEl = document.getElementById('persons-loading');
             loadingEl.classList.remove('hidden');
-            
+
             try {
-                const response = await fetch('/api/persons-detected');
+                // AbortController pour timeout après 30 secondes si refresh
+                const controller = new AbortController();
+                const timeoutMs = refresh ? 30000 : 5000; // 5s si base seule, 30s si refresh
+                const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+                const url = '/api/persons-detected' + (refresh ? '?refresh=1' : '');
+                const response = await fetch(url, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     personsData = result;
                     renderPersons();
                     updateTestSelect();
+                } else {
+                    showToast('❌ ' + (result.error || 'Erreur API'), 'error');
                 }
             } catch (error) {
-                console.error('Erreur chargement personnes:', error);
-                showToast('❌ Erreur chargement personnes', 'error');
+                if (error.name === 'AbortError') {
+                    if (refresh) {
+                        showToast('⏱️ Timeout - L\'API Trello met trop de temps. Les données de la base sont affichées.', 'error');
+                    } else {
+                        showToast('⏱️ Timeout - Impossible de charger les données', 'error');
+                    }
+                } else {
+                    console.error('Erreur chargement personnes:', error);
+                    showToast('❌ Erreur chargement personnes', 'error');
+                }
             } finally {
                 loadingEl.classList.add('hidden');
             }
         }
 
-        // Detect persons from campaigns
+        // Detect persons from campaigns (avec refresh depuis Trello)
         async function detectPersons() {
-            await loadPersons();
-            showToast('✅ Personnes détectées et mises à jour');
+            const btn = document.querySelector('button[onclick="detectPersons()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '🔄 Détection depuis Trello...';
+            btn.disabled = true;
+
+            await loadPersons(true); // true = refresh depuis Trello
+
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            if (personsData.commercials.length > 0 || personsData.csms.length > 0) {
+                const msg = personsData.refreshed
+                    ? `✅ ${personsData.commercials.length} commerciaux et ${personsData.csms.length} CSM (${personsData.existing.length} en base)`
+                    : `✅ ${personsData.commercials.length} commerciaux et ${personsData.csms.length} CSM (depuis la base)`;
+                showToast(msg);
+            } else {
+                showToast('ℹ️ Aucune personne détectée. Ajoutez manuellement les emails ci-dessus.');
+            }
         }
 
         // Render persons lists

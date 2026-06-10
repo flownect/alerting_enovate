@@ -659,34 +659,17 @@ app.post('/api/person-emails', async (req, res) => {
     }
 });
 
-// Récupérer les personnes détectées depuis les campagnes
+// Récupérer les personnes (commerciaux et CSM)
+// Par défaut: retourne depuis la base (rapide)
+// Avec ?refresh=1: détecte depuis Trello (plus lent)
 app.get('/api/persons-detected', async (req, res) => {
+    const refresh = req.query.refresh === '1';
+
     try {
-        const url = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
-        const trelloResponse = await fetch(url, { timeout: 120000 });
-        const trelloData = await trelloResponse.json();
+        let commercials = new Set();
+        let csms = new Set();
 
-        const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
-
-        const commercials = new Set();
-        const csms = new Set();
-
-        for (const lane of lanes) {
-            for (const card of (lane.cards || [])) {
-                if (card.commercial && card.commercial !== 'Aucun') {
-                    commercials.add(card.commercial);
-                }
-                if (card.accountManager && card.accountManager !== 'Aucun') {
-                    // Gérer les CSM multiples séparés par virgule
-                    const csmList = card.accountManager.split(',').map(s => s.trim()).filter(s => s);
-                    for (const csm of csmList) {
-                        csms.add(csm);
-                    }
-                }
-            }
-        }
-
-        // Fusionner avec ceux déjà en base
+        // 1. Toujours récupérer les personnes déjà en base (rapide)
         let existingPersons = [];
         if (process.env.DATABASE_URL) {
             const { Client } = require('pg');
@@ -700,15 +683,43 @@ app.get('/api/persons-detected', async (req, res) => {
             await client.end();
         }
 
-        // Combiner détectés + existants
-        const allCommercials = new Set([...commercials, ...existingPersons.filter(p => p.role === 'commercial').map(p => p.name)]);
-        const allCsms = new Set([...csms, ...existingPersons.filter(p => p.role === 'csm').map(p => p.name)]);
+        // Ajouter les personnes de la base aux sets
+        existingPersons.filter(p => p.role === 'commercial').forEach(p => commercials.add(p.name));
+        existingPersons.filter(p => p.role === 'csm').forEach(p => csms.add(p.name));
+
+        // 2. Si refresh=1, aussi détecter depuis Trello
+        if (refresh) {
+            const url = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+            const trelloResponse = await fetch(url, { timeout: 25000 });
+
+            if (!trelloResponse.ok) {
+                throw new Error(`Trello API error: ${trelloResponse.status}`);
+            }
+
+            const trelloData = await trelloResponse.json();
+            const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
+
+            for (const lane of lanes) {
+                for (const card of (lane.cards || [])) {
+                    if (card.commercial && card.commercial !== 'Aucun') {
+                        commercials.add(card.commercial);
+                    }
+                    if (card.accountManager && card.accountManager !== 'Aucun') {
+                        const csmList = card.accountManager.split(',').map(s => s.trim()).filter(s => s);
+                        for (const csm of csmList) {
+                            csms.add(csm);
+                        }
+                    }
+                }
+            }
+        }
 
         res.json({
             success: true,
-            commercials: Array.from(allCommercials).sort(),
-            csms: Array.from(allCsms).sort(),
-            existing: existingPersons
+            commercials: Array.from(commercials).sort(),
+            csms: Array.from(csms).sort(),
+            existing: existingPersons,
+            refreshed: refresh
         });
     } catch (error) {
         log('API', `❌ Erreur détection personnes: ${error.message}`);
