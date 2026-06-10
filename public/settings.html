@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Paramètres - Alertes Commerce</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen">
+    
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <a href="/" class="text-blue-600 hover:text-blue-800 font-medium">
+                        ← Retour au Dashboard
+                    </a>
+                    <h1 class="text-xl font-bold text-gray-900">⚙️ Paramètres des Alertes Commerce</h1>
+                </div>
+                <div class="text-sm text-gray-500">
+                    Configuration des emails et prévisualisation
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+        
+        <!-- Section: Emails Globaux -->
+        <section class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                📧 Emails Globaux (Toutes les alertes)
+            </h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Ces destinataires recevront l'ensemble des alertes Commerce critiques et urgentes.
+            </p>
+            <div class="space-y-4">
+                <textarea 
+                    id="global-emails" 
+                    placeholder="email1@e-novate.fr, email2@e-novate.fr"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows="3"
+                ></textarea>
+                <p class="text-xs text-gray-500">
+                    Emails séparés par des virgules. Ces destinataires reçoivent toutes les alertes.
+                </p>
+                <div class="flex gap-3">
+                    <button onclick="saveGlobalEmails()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition">
+                        💾 Sauvegarder
+                    </button>
+                    <button onclick="previewGlobalEmail()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
+                        👁️ Prévisualiser l'email global
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Emails Individuels -->
+        <section class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4 border-b pb-2">
+                <h2 class="text-lg font-semibold text-gray-800">
+                    👤 Emails Individuels (Commerciaux & CSM)
+                </h2>
+                <button onclick="detectPersons()" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
+                    🔄 Détecter depuis les campagnes
+                </button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">
+                Chaque commercial et CSM recevra uniquement les alertes concernant ses propres projets.
+            </p>
+            
+            <!-- Loading state -->
+            <div id="persons-loading" class="hidden py-8 text-center">
+                <div class="loader mx-auto mb-2"></div>
+                <p class="text-gray-500">Chargement des personnes...</p>
+            </div>
+
+            <!-- Commerciaux -->
+            <div class="mb-6">
+                <h3 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">Commercial</span>
+                    Commerciaux détectés
+                </h3>
+                <div id="commercials-list" class="space-y-2">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- CSM -->
+            <div>
+                <h3 class="font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">CSM</span>
+                    Account Managers détectés
+                </h3>
+                <div id="csms-list" class="space-y-2">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Tests -->
+        <section class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">
+                🧪 Tests et Prévisualisation
+            </h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Visualisez les emails sans les envoyer réellement, ou envoyez un test.
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h3 class="font-medium text-gray-700 mb-2">Test Email Global</h3>
+                    <p class="text-sm text-gray-500 mb-3">Envoyer un email de test aux destinataires globaux configurés.</p>
+                    <button onclick="testGlobalEmail()" class="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition">
+                        📤 Envoyer Test Global
+                    </button>
+                </div>
+                
+                <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <h3 class="font-medium text-gray-700 mb-2">Test Email Individuel</h3>
+                    <select id="test-person-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 text-sm">
+                        <option value="">Choisir une personne...</option>
+                    </select>
+                    <div class="flex gap-2">
+                        <button onclick="previewIndividualEmail()" class="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm transition">
+                            👁️ Voir
+                        </button>
+                        <button onclick="testIndividualEmail()" class="flex-1 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-sm transition">
+                            📤 Tester
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-900" id="preview-title">Prévisualisation de l'email</h3>
+                <button onclick="closePreview()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 border-b border-gray-200 bg-blue-50">
+                <p class="text-sm text-blue-800">
+                    <strong>Sujet:</strong> <span id="preview-subject"></span>
+                </p>
+                <p class="text-sm text-blue-600 mt-1">
+                    <span id="preview-recipients"></span>
+                </p>
+            </div>
+            <div class="flex-1 overflow-y-auto p-0">
+                <iframe id="preview-frame" class="w-full h-full min-h-[500px] border-0"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-medium transition transform translate-y-0 z-50"></div>
+
+    <script>
+        // State
+        let personsData = { commercials: [], csms: [], existing: [] };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGlobalEmails();
+            loadPersons();
+        });
+
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-medium transition transform ${
+                type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+            }`;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        // Load global emails
+        async function loadGlobalEmails() {
+            try {
+                const response = await fetch('/api/commerce-emails');
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('global-emails').value = result.emails || '';
+                }
+            } catch (error) {
+                console.error('Erreur chargement emails globaux:', error);
+            }
+        }
+
+        // Save global emails
+        async function saveGlobalEmails() {
+            const emails = document.getElementById('global-emails').value.trim();
+            
+            try {
+                const response = await fetch('/api/commerce-emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅ Emails globaux sauvegardés');
+                } else {
+                    showToast('❌ ' + (result.error || 'Erreur'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
+        }
+
+        // Load persons from API
+        async function loadPersons() {
+            const loadingEl = document.getElementById('persons-loading');
+            loadingEl.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/persons-detected');
+                const result = await response.json();
+                
+                if (result.success) {
+                    personsData = result;
+                    renderPersons();
+                    updateTestSelect();
+                }
+            } catch (error) {
+                console.error('Erreur chargement personnes:', error);
+                showToast('❌ Erreur chargement personnes', 'error');
+            } finally {
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+        // Detect persons from campaigns
+        async function detectPersons() {
+            await loadPersons();
+            showToast('✅ Personnes détectées et mises à jour');
+        }
+
+        // Render persons lists
+        function renderPersons() {
+            const commercialsContainer = document.getElementById('commercials-list');
+            const csmsContainer = document.getElementById('csms-list');
+            
+            // Merge detected with existing emails
+            const existingMap = new Map(personsData.existing.map(p => [p.name, p]));
+            
+            // Render commercials
+            commercialsContainer.innerHTML = personsData.commercials.map(name => {
+                const existing = existingMap.get(name);
+                const email = existing?.email || '';
+                return renderPersonRow(name, 'commercial', email);
+            }).join('') || '<p class="text-gray-400 text-sm italic">Aucun commercial détecté</p>';
+            
+            // Render CSMs
+            csmsContainer.innerHTML = personsData.csms.map(name => {
+                const existing = existingMap.get(name);
+                const email = existing?.email || '';
+                return renderPersonRow(name, 'csm', email);
+            }).join('') || '<p class="text-gray-400 text-sm italic">Aucun CSM détecté</p>';
+        }
+
+        // Render a single person row
+        function renderPersonRow(name, role, email) {
+            const roleColor = role === 'commercial' ? 'blue' : 'purple';
+            return `
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg fade-in">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">${name}</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wide">${role}</div>
+                    </div>
+                    <div class="flex-1">
+                        <input 
+                            type="email" 
+                            value="${email}" 
+                            placeholder="email@e-novate.fr"
+                            data-name="${name}"
+                            data-role="${role}"
+                            onchange="savePersonEmail(this)"
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-${roleColor}-500 focus:border-${roleColor}-500"
+                        >
+                    </div>
+                    <div class="text-xs text-gray-400 w-6 text-center" id="status-${name.replace(/\s+/g, '-')}">
+                        ${email ? '✓' : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Save person email
+        async function savePersonEmail(input) {
+            const name = input.dataset.name;
+            const role = input.dataset.role;
+            const email = input.value.trim();
+            
+            const statusEl = document.getElementById(`status-${name.replace(/\s+/g, '-')}`);
+            statusEl.textContent = '...';
+            
+            try {
+                const response = await fetch('/api/person-emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email: email || null, role })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    statusEl.textContent = email ? '✓' : '';
+                    statusEl.className = 'text-xs text-green-500 w-6 text-center';
+                    showToast(`✅ Email sauvegardé pour ${name}`);
+                    updateTestSelect();
+                } else {
+                    statusEl.textContent = '✗';
+                    statusEl.className = 'text-xs text-red-500 w-6 text-center';
+                    showToast('❌ Erreur: ' + result.error, 'error');
+                }
+            } catch (error) {
+                statusEl.textContent = '✗';
+                statusEl.className = 'text-xs text-red-500 w-6 text-center';
+                showToast('❌ Erreur réseau', 'error');
+            }
+        }
+
+        // Update test person select
+        function updateTestSelect() {
+            const select = document.getElementById('test-person-select');
+            const existingWithEmails = personsData.existing.filter(p => p.email);
+            
+            select.innerHTML = `
+                <option value="">Choisir une personne...</option>
+                <optgroup label="Commerciaux">
+                    ${existingWithEmails.filter(p => p.role === 'commercial').map(p => 
+                        `<option value="${p.name}">${p.name}</option>`
+                    ).join('') || '<option disabled>Aucun commercial avec email</option>'}
+                </optgroup>
+                <optgroup label="CSM">
+                    ${existingWithEmails.filter(p => p.role === 'csm').map(p => 
+                        `<option value="${p.name}">${p.name}</option>`
+                    ).join('') || '<option disabled>Aucun CSM avec email</option>'}
+                </optgroup>
+            `;
+        }
+
+        // Preview global email
+        async function previewGlobalEmail() {
+            const emails = document.getElementById('global-emails').value.trim();
+            
+            try {
+                const response = await fetch('/api/test-commerce-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails, mode: 'preview' })
+                });
+                
+                const result = await response.json();
+                if (result.success && result.preview) {
+                    showPreview('Email Global', result.preview.subject, result.preview.html, emails || 'Destinataires globaux');
+                } else {
+                    showToast('❌ ' + (result.error || 'Erreur de prévisualisation'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
+        }
+
+        // Preview individual email
+        async function previewIndividualEmail() {
+            const person = document.getElementById('test-person-select').value;
+            if (!person) {
+                showToast('Veuillez choisir une personne', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/test-commerce-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: 'individual', testPerson: person })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    if (result.preview.error) {
+                        showToast('❌ ' + result.preview.error, 'error');
+                    } else {
+                        showPreview(`Email pour ${result.preview.person}`, result.preview.subject, result.preview.html, result.preview.email);
+                    }
+                } else {
+                    showToast('❌ ' + (result.error || 'Erreur'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
+        }
+
+        // Show preview modal
+        function showPreview(title, subject, html, recipients) {
+            document.getElementById('preview-title').textContent = title;
+            document.getElementById('preview-subject').textContent = subject;
+            document.getElementById('preview-recipients').textContent = `À: ${recipients}`;
+            
+            const frame = document.getElementById('preview-frame');
+            frame.srcdoc = html;
+            
+            document.getElementById('preview-modal').classList.remove('hidden');
+        }
+
+        // Close preview modal
+        function closePreview() {
+            document.getElementById('preview-modal').classList.add('hidden');
+            document.getElementById('preview-frame').srcdoc = '';
+        }
+
+        // Test global email (send real test)
+        async function testGlobalEmail() {
+            const emails = document.getElementById('global-emails').value.trim();
+            if (!emails) {
+                showToast('Veuillez configurer au moins un email global', 'error');
+                return;
+            }
+            
+            if (!confirm(`Envoyer un email de test à: ${emails} ?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/test-commerce-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emails })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅ Email de test envoyé avec succès');
+                } else {
+                    showToast('❌ ' + (result.error || 'Erreur'), 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
+        }
+
+        // Test individual email (send real test)
+        async function testIndividualEmail() {
+            const person = document.getElementById('test-person-select').value;
+            if (!person) {
+                showToast('Veuillez choisir une personne', 'error');
+                return;
+            }
+            
+            const personData = personsData.existing.find(p => p.name === person);
+            if (!personData || !personData.email) {
+                showToast('Cette personne n\'a pas d\'email configuré', 'error');
+                return;
+            }
+            
+            if (!confirm(`Envoyer un email de test à ${person} (${personData.email}) ?`)) {
+                return;
+            }
+            
+            // For now, we just show a message - individual test sending would need additional implementation
+            showToast(`ℹ️ Email individuel: utilisez la prévisualisation pour vérifier le contenu`, 'info');
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePreview();
+            }
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('preview-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'preview-modal') {
+                closePreview();
+            }
+        });
+    </script>
+</body>
+</html>

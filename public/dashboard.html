@@ -137,14 +137,14 @@
             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
                 <h4 class="font-semibold text-gray-900 dark:text-white mb-2">📧 Alertes Commerce (Email)</h4>
                 <div class="space-y-2">
-                    <textarea 
-                        id="commerce-emails" 
+                    <textarea
+                        id="commerce-emails"
                         placeholder="email1@e-novate.fr, email2@e-novate.fr"
                         class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                         rows="3"
                     ></textarea>
                     <p class="text-xs text-gray-500 dark:text-gray-400">
-                        Emails séparés par des virgules. Envoi quotidien à 8h30.
+                        Emails globaux séparés par des virgules. Envoi quotidien à 8h30.
                     </p>
                     <div class="flex gap-2">
                         <button onclick="saveCommerceEmails()" class="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
@@ -154,6 +154,12 @@
                             🧪 Tester
                         </button>
                     </div>
+                    <a href="/settings.html" target="_blank" class="block w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium text-center">
+                        ⚙️ Configurer les emails individuels
+                    </a>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Gérez les emails des commerciaux et CSM pour les alertes personnalisées.
+                    </p>
                 </div>
             </div>
             
@@ -2683,33 +2689,71 @@ ADX: ${adxLink}`;
         // Tester l'envoi d'email Commerce
         async function testCommerceEmail() {
             const emails = document.getElementById('commerce-emails').value.trim();
-            
+
             if (!emails) {
                 alert('Veuillez entrer au moins un email avant de tester');
                 return;
             }
-            
-            if (!confirm(`Envoyer un email de test à : ${emails} ?`)) {
-                return;
-            }
-            
+
+            const action = confirm(`Envoyer un email de test à : ${emails} ?\n\nCliquez OK pour envoyer, ou Annuler pour prévisualiser.`)
+                ? 'send'
+                : 'preview';
+
             try {
                 const response = await fetch('/api/test-commerce-email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ emails })
+                    body: JSON.stringify({ emails, mode: action === 'preview' ? 'preview' : undefined })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    alert(`✅ Email de test envoyé avec succès !\n${result.alertCount} alerte(s) envoyée(s)`);
+                    if (action === 'preview' && result.preview) {
+                        // Afficher la prévisualisation dans une nouvelle fenêtre
+                        const previewWindow = window.open('', '_blank', 'width=800,height=600');
+                        previewWindow.document.write(`
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <title>Prévisualisation - ${result.preview.subject}</title>
+                                <style>
+                                    body { font-family: Arial, sans-serif; padding: 20px; background: #f3f4f6; }
+                                    .header { background: #1f2937; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                                    .header h1 { margin: 0; font-size: 18px; }
+                                    .header p { margin: 5px 0 0 0; font-size: 14px; opacity: 0.8; }
+                                    .content { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                                    .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+                                    .badge-critical { background: #fee2e2; color: #991b1b; }
+                                    .badge-urgent { background: #fed7aa; color: #9a3412; }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="header">
+                                    <h1>📧 Prévisualisation de l'email</h1>
+                                    <p><strong>Sujet:</strong> ${result.preview.subject}</p>
+                                    <p><strong>À:</strong> ${emails}</p>
+                                    <p>
+                                        <span class="badge badge-critical">${result.preview.criticalCount} critiques</span>
+                                        <span class="badge badge-urgent">${result.preview.urgentCount} urgentes</span>
+                                    </p>
+                                </div>
+                                <div class="content">
+                                    ${result.preview.html}
+                                </div>
+                            </body>
+                            </html>
+                        `);
+                        previewWindow.document.close();
+                    } else {
+                        alert(`✅ Email de test envoyé avec succès !`);
+                    }
                 } else {
                     throw new Error(result.error || 'Erreur inconnue');
                 }
             } catch (error) {
                 console.error('Erreur test email:', error);
-                alert('❌ Erreur lors de l\'envoi du test');
+                alert('❌ Erreur: ' + error.message);
             }
         }
         

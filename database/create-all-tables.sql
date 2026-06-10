@@ -134,6 +134,21 @@ WHERE programmed_at >= NOW() - INTERVAL '30 days'
 GROUP BY COALESCE(csm_name, trader_name)
 ORDER BY COUNT(*) FILTER (WHERE days_before_start <= 2) DESC;
 
+-- Table pour les emails des commerciaux et CSM
+CREATE TABLE IF NOT EXISTS person_emails (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(255),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('commercial', 'csm')),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Index pour person_emails
+CREATE INDEX IF NOT EXISTS idx_person_emails_role ON person_emails(role);
+CREATE INDEX IF NOT EXISTS idx_person_emails_active ON person_emails(is_active);
+
 -- Vérifier que tout est créé
 SELECT 
     'Tables créées avec succès' as status,

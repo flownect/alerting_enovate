@@ -574,29 +574,194 @@ app.post('/api/commerce-emails', async (req, res) => {
     }
 });
 
+// ==================== PERSON EMAILS (COMMERCIAL/CSM) ====================
+
+// Récupérer tous les emails de personnes (commerciaux et CSM)
+app.get('/api/person-emails', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.json({ success: true, persons: [] });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        await client.connect();
+
+        const result = await client.query(
+            'SELECT * FROM person_emails ORDER BY role, name'
+        );
+        await client.end();
+
+        res.json({
+            success: true,
+            persons: result.rows
+        });
+    } catch (error) {
+        log('API', `❌ Erreur récupération person_emails: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Sauvegarder ou mettre à jour un email de personne
+app.post('/api/person-emails', async (req, res) => {
+    const { name, email, role } = req.body;
+
+    if (!name || !role) {
+        return res.status(400).json({
+            success: false,
+            error: 'Nom et role requis'
+        });
+    }
+
+    if (!process.env.DATABASE_URL) {
+        return res.json({
+            success: false,
+            error: 'Base de données non configurée'
+        });
+    }
+
+    try {
+        const { Client } = require('pg');
+        const client = new Client({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false }
+        });
+        await client.connect();
+
+        const result = await client.query(`
+            INSERT INTO person_emails (name, email, role, updated_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (name)
+            DO UPDATE SET email = $2, role = $3, updated_at = NOW()
+            RETURNING *
+        `, [name, email || null, role]);
+
+        await client.end();
+
+        log('API', `✅ Email sauvegardé pour ${name} (${role})`);
+
+        res.json({
+            success: true,
+            person: result.rows[0]
+        });
+    } catch (error) {
+        log('API', `❌ Erreur sauvegarde person_email: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Récupérer les personnes détectées depuis les campagnes
+app.get('/api/persons-detected', async (req, res) => {
+    try {
+        const url = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+        const trelloResponse = await fetch(url, { timeout: 120000 });
+        const trelloData = await trelloResponse.json();
+
+        const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
+
+        const commercials = new Set();
+        const csms = new Set();
+
+        for (const lane of lanes) {
+            for (const card of (lane.cards || [])) {
+                if (card.commercial && card.commercial !== 'Aucun') {
+                    commercials.add(card.commercial);
+                }
+                if (card.accountManager && card.accountManager !== 'Aucun') {
+                    // Gérer les CSM multiples séparés par virgule
+                    const csmList = card.accountManager.split(',').map(s => s.trim()).filter(s => s);
+                    for (const csm of csmList) {
+                        csms.add(csm);
+                    }
+                }
+            }
+        }
+
+        // Fusionner avec ceux déjà en base
+        let existingPersons = [];
+        if (process.env.DATABASE_URL) {
+            const { Client } = require('pg');
+            const client = new Client({
+                connectionString: process.env.DATABASE_URL,
+                ssl: { rejectUnauthorized: false }
+            });
+            await client.connect();
+            const result = await client.query('SELECT name, email, role FROM person_emails WHERE is_active = true');
+            existingPersons = result.rows;
+            await client.end();
+        }
+
+        // Combiner détectés + existants
+        const allCommercials = new Set([...commercials, ...existingPersons.filter(p => p.role === 'commercial').map(p => p.name)]);
+        const allCsms = new Set([...csms, ...existingPersons.filter(p => p.role === 'csm').map(p => p.name)]);
+
+        res.json({
+            success: true,
+            commercials: Array.from(allCommercials).sort(),
+            csms: Array.from(allCsms).sort(),
+            existing: existingPersons
+        });
+    } catch (error) {
+        log('API', `❌ Erreur détection personnes: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Endpoint pour tester l'envoi d'email Commerce
 app.post('/api/test-commerce-email', async (req, res) => {
     try {
-        const { emails } = req.body;
-        
-        if (!emails) {
+        const { emails, mode, testPerson } = req.body;
+
+        if (!emails && mode !== 'individual') {
             return res.status(400).json({
                 success: false,
-                error: 'Emails requis'
+                error: 'Emails requis ou mode individual requis'
             });
         }
-        
-        // Temporairement override la variable d'environnement pour le test
+
+        // Importer et appeler la fonction d'envoi
+        const { sendCommerceAlertsEmail, previewCommerceEmails } = require('./services/slack-scheduler');
+
+        // Mode preview (sans envoi réel)
+        if (mode === 'preview') {
+            const preview = await previewCommerceEmails(emails);
+            return res.json({
+                success: true,
+                mode: 'preview',
+                preview
+            });
+        }
+
+        // Mode test individuel
+        if (mode === 'individual' && testPerson) {
+            const preview = await previewCommerceEmails(null, testPerson);
+            return res.json({
+                success: true,
+                mode: 'individual_preview',
+                preview
+            });
+        }
+
+        // Envoi réel de test (global)
         const originalEmails = process.env.COMMERCE_EMAIL_RECIPIENTS;
         process.env.COMMERCE_EMAIL_RECIPIENTS = emails;
-        
-        // Importer et appeler la fonction d'envoi
-        const { sendCommerceAlertsEmail } = require('./services/slack-scheduler');
+
         await sendCommerceAlertsEmail();
-        
-        // Restaurer la valeur originale
+
         process.env.COMMERCE_EMAIL_RECIPIENTS = originalEmails;
-        
+
         res.json({
             success: true,
             message: 'Email de test envoyé',

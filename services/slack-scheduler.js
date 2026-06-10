@@ -194,20 +194,113 @@ async function sendDailyAlerts() {
     }
 }
 
-// Fonction pour envoyer les alertes Commerce par email (urgent + critique)
-async function sendCommerceAlertsEmail() {
+// Fonction pour récupérer les commentaires d'une campagne
+async function getCommentsForCampaign(campaignId) {
+    if (!campaignId || !process.env.DATABASE_URL) return [];
+    
     try {
-        console.log('[EMAIL-COMMERCE] Début envoi alertes Commerce par email...');
-        console.log('[EMAIL-COMMERCE] Clé Brevo présente:', !!process.env.BREVO_SMTP_KEY);
-        console.log('[EMAIL-COMMERCE] Longueur clé:', process.env.BREVO_SMTP_KEY?.length);
+        const { Pool } = require('pg');
+        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+        const result = await pool.query(
+            'SELECT comment_text, author, created_at FROM campaign_comments WHERE campaign_id = $1 ORDER BY created_at DESC LIMIT 5',
+            [campaignId]
+        );
+        await pool.end();
+        return result.rows;
+    } catch (error) {
+        console.log(`[EMAIL-COMMERCE] ⚠️ Erreur récupération commentaires: ${error.message}`);
+        return [];
+    }
+}
+
+// Fonction pour récupérer les personnes avec leurs emails
+async function getPersonEmails() {
+    if (!process.env.DATABASE_URL) return { commercials: [], csms: [] };
+    
+    try {
+        const { Pool } = require('pg');
+        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+        const result = await pool.query(
+            'SELECT name, email, role FROM person_emails WHERE is_active = true AND email IS NOT NULL'
+        );
+        await pool.end();
+        
+        const commercials = result.rows.filter(r => r.role === 'commercial');
+        const csms = result.rows.filter(r => r.role === 'csm');
+        
+        return { commercials, csms };
+    } catch (error) {
+        console.log(`[EMAIL-COMMERCE] ⚠️ Erreur récupération personnes: ${error.message}`);
+        return { commercials: [], csms: [] };
+    }
+}
+
+// Fonction pour générer le HTML d'une alerte
+function generateAlertHtml(a, comments = []) {
+    const emoji = a.criticality === 'critical' ? '🔴' : '🟠';
+    const criticalityText = a.criticality === 'critical' ? 'CRITIQUE' : 'URGENT';
+    const bgColor = a.criticality === 'critical' ? '#fee2e2' : '#fed7aa';
+    const textColor = a.criticality === 'critical' ? '#991b1b' : '#9a3412';
+    
+    // Étiquettes de timing et type
+    const timingBadge = a.timing ? `<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 5px;">${a.timing}</span>` : '';
+    const typeBadge = a.subtype ? `<span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${a.subtype}</span>` : '';
+    
+    // Générer le HTML des commentaires
+    let commentsHtml = '';
+    if (comments && comments.length > 0) {
+        commentsHtml = `
+            <div style="margin-top: 12px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #6b7280; font-weight: 600;">💬 Commentaires:</p>
+                ${comments.map(c => `
+                    <p style="margin: 4px 0; font-size: 11px; color: #4b5563;">
+                        <span style="color: #9ca3af;">[${new Date(c.created_at).toLocaleDateString('fr-FR')}]</span>
+                        <strong>${c.author}:</strong> ${c.comment_text}
+                    </p>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    return `
+        <div style="margin-bottom: 20px; padding: 15px; background-color: ${bgColor}; border-left: 4px solid ${textColor}; border-radius: 4px;">
+            <div style="margin-bottom: 8px;">
+                ${timingBadge}${typeBadge}
+            </div>
+            <h3 style="margin: 0 0 10px 0; color: ${textColor};">
+                ${emoji} ${criticalityText} - ${a.card?.title || 'Sans nom'}
+            </h3>
+            <p style="margin: 5px 0; color: #374151;">
+                <strong>👤 Commercial:</strong> ${a.card?.commercial || 'N/A'} | 
+                <strong>CSM:</strong> ${a.card?.accountManager || 'N/A'} | 
+                <strong>Trader:</strong> ${a.card?.trader || 'N/A'}
+            </p>
+            <p style="margin: 5px 0; color: #374151;">
+                <strong>📅 Période:</strong> ${a.card?.dates?.startingDateFormatted} → ${a.card?.dates?.endingDateFormatted}
+            </p>
+            <p style="margin: 5px 0; color: #374151;">
+                <strong>⏰ Alerte:</strong> ${a.message}
+            </p>
+            ${a.card?.campaignId || a.card?.adxCampaignUrl ? `
+                <p style="margin: 10px 0 0 0;">
+                    ${a.card?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}" style="color: #2563eb; text-decoration: none; margin-right: 15px;">📝 Nova</a>` : ''}
+                    ${a.card?.adxCampaignUrl ? `<a href="${a.card.adxCampaignUrl}" style="color: #2563eb; text-decoration: none;">📊 ADX</a>` : ''}
+                </p>
+            ` : ''}
+            ${commentsHtml}
+        </div>
+    `;
+}
+
+// Fonction pour envoyer les alertes Commerce par email (urgent + critique)
+// Mode: 'send' pour envoyer réellement, 'preview' pour prévisualiser
+async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
+    try {
+        console.log(`[EMAIL-COMMERCE] Début ${mode === 'preview' ? 'prévisualisation' : 'envoi'} alertes Commerce par email...`);
         
         // Récupérer TOUTES les alertes commerce
         const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
         const alertsData = await response.json();
-        
-        // Debug: afficher toutes les alertes
-        console.log('[EMAIL-COMMERCE] Total alertes tradersCommerce:', alertsData.data.tradersCommerceAlerts.length);
-        console.log('[EMAIL-COMMERCE] Types d\'alertes:', alertsData.data.tradersCommerceAlerts.map(a => `${a.type}/${a.criticality}`));
         
         // Filtrer les alertes Commerce uniquement (NON programmables, urgentes + critiques)
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
@@ -222,49 +315,20 @@ async function sendCommerceAlertsEmail() {
         console.log(`[EMAIL-COMMERCE] Alertes Commerce: ${commerceAlerts.length} total (${criticalCount} critiques, ${urgentCount} urgentes)`);
         
         if (commerceAlerts.length === 0) {
-            console.log('[EMAIL-COMMERCE] ✅ Aucune alerte Commerce urgente/critique à envoyer');
-            return;
+            console.log('[EMAIL-COMMERCE] ✅ Aucune alerte Commerce urgente/critique');
+            return { sent: 0, preview: null };
         }
         
-        // Construire le HTML de l'email
-        const alertsHtml = commerceAlerts.map(a => {
-            const emoji = a.criticality === 'critical' ? '🔴' : '🟠';
-            const criticalityText = a.criticality === 'critical' ? 'CRITIQUE' : 'URGENT';
-            const bgColor = a.criticality === 'critical' ? '#fee2e2' : '#fed7aa';
-            const textColor = a.criticality === 'critical' ? '#991b1b' : '#9a3412';
-            
-            // Étiquettes de timing et type
-            const timingBadge = a.timing ? `<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 5px;">${a.timing}</span>` : '';
-            const typeBadge = a.subtype ? `<span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${a.subtype}</span>` : '';
-            
-            return `
-                <div style="margin-bottom: 20px; padding: 15px; background-color: ${bgColor}; border-left: 4px solid ${textColor}; border-radius: 4px;">
-                    <div style="margin-bottom: 8px;">
-                        ${timingBadge}${typeBadge}
-                    </div>
-                    <h3 style="margin: 0 0 10px 0; color: ${textColor};">
-                        ${emoji} ${criticalityText} - ${a.card?.title || 'Sans nom'}
-                    </h3>
-                    <p style="margin: 5px 0; color: #374151;">
-                        <strong>👤 Commercial:</strong> ${a.card?.commercial || 'N/A'} | 
-                        <strong>CSM:</strong> ${a.card?.accountManager || 'N/A'} | 
-                        <strong>Trader:</strong> ${a.card?.trader || 'N/A'}
-                    </p>
-                    <p style="margin: 5px 0; color: #374151;">
-                        <strong>📅 Période:</strong> ${a.card?.dates?.startingDateFormatted} → ${a.card?.dates?.endingDateFormatted}
-                    </p>
-                    <p style="margin: 5px 0; color: #374151;">
-                        <strong>⏰ Alerte:</strong> ${a.message}
-                    </p>
-                    ${a.card?.campaignId || a.card?.adxCampaignUrl ? `
-                        <p style="margin: 10px 0 0 0;">
-                            ${a.card?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}" style="color: #2563eb; text-decoration: none; margin-right: 15px;">📝 Nova</a>` : ''}
-                            ${a.card?.adxCampaignUrl ? `<a href="${a.card.adxCampaignUrl}" style="color: #2563eb; text-decoration: none;">📊 ADX</a>` : ''}
-                        </p>
-                    ` : ''}
-                </div>
-            `;
-        }).join('');
+        // Récupérer les commentaires pour chaque campagne
+        const alertsWithComments = await Promise.all(
+            commerceAlerts.map(async (a) => {
+                const comments = await getCommentsForCampaign(a.card?.campaignId);
+                return { ...a, comments };
+            })
+        );
+        
+        // Construire le HTML de l'email global
+        const alertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');
         
         const htmlContent = `
             <!DOCTYPE html>
@@ -275,7 +339,7 @@ async function sendCommerceAlertsEmail() {
             </head>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
                 <h1 style="color: #1f2937; border-bottom: 3px solid #2563eb; padding-bottom: 10px;">
-                    � Alertes Commerce - ${new Date().toLocaleDateString('fr-FR')}
+                    📧 Alertes Commerce - ${new Date().toLocaleDateString('fr-FR')}
                 </h1>
                 <p style="font-size: 16px; color: #6b7280; margin-bottom: 30px;">
                     ${commerceAlerts.length} alerte${commerceAlerts.length > 1 ? 's' : ''} urgente${commerceAlerts.length > 1 ? 's' : ''} / critique${commerceAlerts.length > 1 ? 's' : ''}
@@ -288,6 +352,20 @@ async function sendCommerceAlertsEmail() {
             </body>
             </html>
         `;
+        
+        // Mode preview: retourner le HTML sans envoyer
+        if (mode === 'preview') {
+            return {
+                sent: 0,
+                preview: {
+                    subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce (${criticalCount} critique${criticalCount > 1 ? 's' : ''}, ${urgentCount} urgente${urgentCount > 1 ? 's' : ''}) - ${new Date().toLocaleDateString('fr-FR')}`,
+                    html: htmlContent,
+                    alertCount: commerceAlerts.length,
+                    criticalCount,
+                    urgentCount
+                }
+            };
+        }
         
         // Envoyer via SMTP Brevo avec nodemailer
         const smtpKey = process.env.BREVO_SMTP_KEY;
@@ -305,45 +383,207 @@ async function sendCommerceAlertsEmail() {
             }
         });
         
-        // Récupérer les emails depuis la base de données
-        let recipients = '';
-        if (process.env.DATABASE_URL) {
-            const { Pool } = require('pg');
-            const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-            try {
-                const result = await pool.query(
-                    'SELECT email FROM commerce_email_recipients WHERE is_active = true ORDER BY email'
-                );
-                recipients = result.rows.map(r => r.email).join(', ');
-                await pool.end();
-                console.log(`[EMAIL-COMMERCE] ${result.rows.length} destinataire(s) trouvé(s) en BDD`);
-            } catch (error) {
-                console.log(`[EMAIL-COMMERCE] ⚠️ Erreur BDD, fallback sur env var: ${error.message}`);
-                recipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
+        let totalSent = 0;
+        
+        // 1. ENVOI GLOBAL aux destinataires configurés
+        let globalRecipients = testRecipients;
+        if (!globalRecipients) {
+            if (process.env.DATABASE_URL) {
+                const { Pool } = require('pg');
+                const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+                try {
+                    const result = await pool.query(
+                        'SELECT email FROM commerce_email_recipients WHERE is_active = true ORDER BY email'
+                    );
+                    globalRecipients = result.rows.map(r => r.email).join(', ');
+                    await pool.end();
+                    console.log(`[EMAIL-COMMERCE] ${result.rows.length} destinataire(s) global trouvé(s)`);
+                } catch (error) {
+                    globalRecipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
+                }
+            } else {
+                globalRecipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
             }
-        } else {
-            recipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
         }
         
-        if (!recipients) {
-            console.log('[EMAIL-COMMERCE] ⚠️ Aucun destinataire configuré');
-            return;
+        if (globalRecipients) {
+            const mailOptions = {
+                from: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr',
+                to: globalRecipients,
+                subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce (${criticalCount} critique${criticalCount > 1 ? 's' : ''}, ${urgentCount} urgente${urgentCount > 1 ? 's' : ''}) - ${new Date().toLocaleDateString('fr-FR')}`,
+                html: htmlContent
+            };
+            
+            const info = await transporter.sendMail(mailOptions);
+            console.log(`[EMAIL-COMMERCE] ✅ Email global envoyé — messageId: ${info.messageId}`);
+            totalSent++;
         }
         
-        const mailOptions = {
-            from: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr',
-            to: recipients,
-            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} Commerce (${criticalCount} critique${criticalCount > 1 ? 's' : ''}, ${urgentCount} urgente${urgentCount > 1 ? 's' : ''}) - ${new Date().toLocaleDateString('fr-FR')}`,
-            html: htmlContent
-        };
+        // 2. ENVOIS INDIVIDUELS aux commerciaux et CSM
+        const { commercials, csms } = await getPersonEmails();
         
-        console.log('[EMAIL-COMMERCE] Connexion SMTP smtp-relay.brevo.com:587...');
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL-COMMERCE] ✅ ${commerceAlerts.length} alertes Commerce envoyées par email — messageId: ${info.messageId}`);
+        // Regrouper les alertes par personne
+        const alertsByPerson = new Map();
+        
+        for (const alert of alertsWithComments) {
+            const commercial = alert.card?.commercial;
+            const csm = alert.card?.accountManager;
+            
+            // Ajouter aux alertes du commercial
+            if (commercial && commercial !== 'N/A' && commercial !== 'Aucun') {
+                if (!alertsByPerson.has(commercial)) {
+                    alertsByPerson.set(commercial, []);
+                }
+                alertsByPerson.get(commercial).push(alert);
+            }
+            
+            // Ajouter aux alertes du CSM (peut y avoir plusieurs CSM séparés par virgule)
+            if (csm && csm !== 'N/A' && csm !== 'Aucun') {
+                const csmList = csm.split(',').map(s => s.trim()).filter(s => s);
+                for (const csmName of csmList) {
+                    if (!alertsByPerson.has(csmName)) {
+                        alertsByPerson.set(csmName, []);
+                    }
+                    // Éviter les doublons si commercial = CSM
+                    const existing = alertsByPerson.get(csmName);
+                    if (!existing.find(a => a.card?.campaignId === alert.card?.campaignId && a.type === alert.type)) {
+                        alertsByPerson.get(csmName).push(alert);
+                    }
+                }
+            }
+        }
+        
+        // Envoyer un email à chaque personne avec des emails configurés
+        const allPersons = [...commercials, ...csms];
+        
+        for (const person of allPersons) {
+            const personAlerts = alertsByPerson.get(person.name) || [];
+            
+            if (personAlerts.length === 0) {
+                console.log(`[EMAIL-COMMERCE] ℹ️ ${person.name}: aucune alerte, email non envoyé`);
+                continue;
+            }
+            
+            // Construire le HTML spécifique à cette personne
+            const personAlertsHtml = personAlerts.map(a => generateAlertHtml(a, a.comments)).join('');
+            
+            const personHtmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Vos Alertes Commerce</title>
+                </head>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+                    <h1 style="color: #1f2937; border-bottom: 3px solid #2563eb; padding-bottom: 10px;">
+                        📧 Vos Alertes - ${new Date().toLocaleDateString('fr-FR')}
+                    </h1>
+                    <p style="font-size: 16px; color: #6b7280; margin-bottom: 30px;">
+                        Bonjour ${person.name},<br><br>
+                        Vous avez ${personAlerts.length} alerte${personAlerts.length > 1 ? 's' : ''} concernant vos campagnes.
+                    </p>
+                    ${personAlertsHtml}
+                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+                    <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                        Alerting E-Novate - Envoi automatique quotidien<br>
+                        <a href="http://localhost:8080/settings.html" style="color: #2563eb;">Gérer mes préférences</a>
+                    </p>
+                </body>
+                </html>
+            `;
+            
+            const personMailOptions = {
+                from: process.env.BREVO_SENDER_EMAIL || 'jmeyer@flownect.fr',
+                to: person.email,
+                subject: `🚨 ${personAlerts.length} Alerte${personAlerts.length > 1 ? 's' : ''} sur vos campagnes - ${new Date().toLocaleDateString('fr-FR')}`,
+                html: personHtmlContent
+            };
+            
+            try {
+                const info = await transporter.sendMail(personMailOptions);
+                console.log(`[EMAIL-COMMERCE] ✅ Email envoyé à ${person.name} (${person.email}) — ${personAlerts.length} alertes`);
+                totalSent++;
+            } catch (error) {
+                console.log(`[EMAIL-COMMERCE] ❌ Erreur envoi à ${person.name}: ${error.message}`);
+            }
+        }
+        
+        console.log(`[EMAIL-COMMERCE] ✅ Total: ${totalSent} email(s) envoyé(s)`);
+        return { sent: totalSent, preview: null };
         
     } catch (error) {
-        console.log(`[EMAIL-COMMERCE] ❌ Erreur envoi alertes Commerce par email: ${error.message}`);
+        console.log(`[EMAIL-COMMERCE] ❌ Erreur: ${error.message}`);
+        throw error;
     }
+}
+
+// Fonction de prévisualisation (pour le mode test)
+async function previewCommerceEmails(testRecipients = null, testPerson = null) {
+    if (testPerson) {
+        // Prévisualisation pour une personne spécifique
+        const { commercials, csms } = await getPersonEmails();
+        const allPersons = [...commercials, ...csms];
+        const person = allPersons.find(p => p.name === testPerson);
+        
+        if (!person) {
+            return {
+                error: `Personne ${testPerson} non trouvée dans la base de données`
+            };
+        }
+        
+        // Récupérer les alertes
+        const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const alertsData = await response.json();
+        
+        const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
+            !a.card?.isProgrammable &&
+            (a.criticality === 'urgent' || a.criticality === 'critical') &&
+            (a.card?.commercial === testPerson || a.card?.accountManager?.includes(testPerson))
+        );
+        
+        const alertsWithComments = await Promise.all(
+            commerceAlerts.map(async (a) => {
+                const comments = await getCommentsForCampaign(a.card?.campaignId);
+                return { ...a, comments };
+            })
+        );
+        
+        const personAlertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');
+        
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"><title>Vos Alertes</title></head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #1f2937; border-bottom: 3px solid #2563eb; padding-bottom: 10px;">
+                    📧 Vos Alertes - ${new Date().toLocaleDateString('fr-FR')}
+                </h1>
+                <p style="font-size: 16px; color: #6b7280; margin-bottom: 30px;">
+                    Bonjour ${person.name},<br><br>
+                    Vous avez ${commerceAlerts.length} alerte${commerceAlerts.length > 1 ? 's' : ''} concernant vos campagnes.
+                </p>
+                ${personAlertsHtml || '<p style="color: #6b7280;">Aucune alerte pour vous aujourd\'hui.</p>'}
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                    Alerting E-Novate - Envoi automatique quotidien
+                </p>
+            </body>
+            </html>
+        `;
+        
+        return {
+            mode: 'individual',
+            person: person.name,
+            email: person.email,
+            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} sur vos campagnes - ${new Date().toLocaleDateString('fr-FR')}`,
+            html: htmlContent,
+            alertCount: commerceAlerts.length
+        };
+    }
+    
+    // Prévisualisation globale
+    const result = await sendCommerceAlertsEmail('preview', testRecipients);
+    return result.preview;
 }
 
 // Démarrer le scheduler
@@ -367,4 +607,4 @@ function startScheduler() {
     log('✅ Scheduler démarré - Envoi quotidien à 8h30 (Traders Slack + Commerce Email)');
 }
 
-module.exports = { startScheduler, sendDailyAlerts, sendCommerceAlertsEmail };
+module.exports = { startScheduler, sendDailyAlerts, sendCommerceAlertsEmail, previewCommerceEmails };
