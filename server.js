@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const ProgrammingTracker = require('./services/programming-tracker');
 const StatusTracker = require('./services/status-tracker');
 const { startScheduler } = require('./services/slack-scheduler');
+const { generateAlerts } = require('./services/alert-generator');
 
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
@@ -687,13 +688,26 @@ app.get('/api/persons-detected', async (req, res) => {
         existingPersons.filter(p => p.role === 'commercial').forEach(p => commercials.add(p.name));
         existingPersons.filter(p => p.role === 'csm').forEach(p => csms.add(p.name));
 
-        // 2. Détecter depuis les alertes actuelles (rapide, utilise le cache du serveur)
+        // 2. Détecter depuis les alertes actuelles (rapide, utilise generateAlerts directement)
         try {
-            const alertsResponse = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 10000 });
-            const alertsData = await alertsResponse.json();
+            const trelloUrl = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+            const trelloResponse = await fetch(trelloUrl, { timeout: 30000 });
             
-            if (alertsData.success && alertsData.data?.tradersCommerceAlerts) {
-                for (const alert of alertsData.data.tradersCommerceAlerts) {
+            if (trelloResponse.ok) {
+                const trelloRawData = await trelloResponse.json();
+                const trelloData = { data: trelloRawData };
+                
+                // Générer les alertes directement (pas besoin de fetch vers localhost)
+                const allAlerts = generateAlerts(trelloData);
+                
+                // Filtrer uniquement les alertes Commerce (non-programmable, critical/urgent)
+                const commerceAlerts = allAlerts.filter(a => 
+                    a.type === 'launch' && 
+                    a.subtype === 'non-programmable-late' && 
+                    (a.criticality === 'critical' || a.criticality === 'urgent')
+                );
+                
+                for (const alert of commerceAlerts) {
                     const card = alert.card;
                     if (card?.commercial && card.commercial !== 'Aucun') {
                         commercials.add(card.commercial);
@@ -705,6 +719,8 @@ app.get('/api/persons-detected', async (req, res) => {
                         }
                     }
                 }
+                
+                log('API', `✅ Détecté ${commerceAlerts.length} alertes commerce, ${commercials.size} commerciaux, ${csms.size} CSM`);
             }
         } catch (alertsError) {
             log('API', `⚠️ Impossible de charger les alertes pour détection: ${alertsError.message}`);
