@@ -1586,19 +1586,29 @@ async function initializeDatabase() {
         
         await client.connect();
         
-        // Lire et exécuter le script SQL
-        const sqlScript = fs.readFileSync(path.join(__dirname, 'database', 'schema-simple.sql'), 'utf8');
-        await client.query(sqlScript);
+        // Lire et exécuter create-all-tables.sql (contient TOUTES les tables à jour)
+        const sqlScript = fs.readFileSync(path.join(__dirname, 'database', 'create-all-tables.sql'), 'utf8');
+        
+        // Exécuter instruction par instruction pour éviter les erreurs bloquantes
+        const statements = sqlScript
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0 && !s.startsWith('--'));
+        
+        let ok = 0, skipped = 0;
+        for (const stmt of statements) {
+            try {
+                await client.query(stmt);
+                ok++;
+            } catch (err) {
+                skipped++;
+            }
+        }
         
         await client.end();
-        log('DB', '✅ Base de données initialisée avec succès');
+        log('DB', `✅ Base de données initialisée (${ok} instructions OK, ${skipped} ignorées)`);
     } catch (error) {
-        // Si la table existe déjà, c'est OK
-        if (error.message.includes('already exists')) {
-            log('DB', '✅ Base de données déjà initialisée');
-        } else {
-            log('DB', `❌ Erreur lors de l\'initialisation: ${error.message}`);
-        }
+        log('DB', `❌ Erreur lors de l\'initialisation: ${error.message}`);
     }
 }
 
