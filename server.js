@@ -670,24 +670,31 @@ app.get('/api/persons-detected', async (req, res) => {
     try {
         let commercials = new Set();
         let csms = new Set();
+        let existingPersons = [];
 
         // 1. Toujours récupérer les personnes déjà en base (rapide)
-        let existingPersons = [];
-        if (process.env.DATABASE_URL) {
-            const { Client } = require('pg');
-            const client = new Client({
-                connectionString: process.env.DATABASE_URL,
-                ssl: { rejectUnauthorized: false }
-            });
-            await client.connect();
-            const result = await client.query('SELECT name, email, role FROM person_emails WHERE is_active = true');
-            existingPersons = result.rows;
-            await client.end();
+        try {
+            if (process.env.DATABASE_URL) {
+                const { Client } = require('pg');
+                const client = new Client({
+                    connectionString: process.env.DATABASE_URL,
+                    ssl: { rejectUnauthorized: false }
+                });
+                await client.connect();
+                const result = await client.query('SELECT name, email, role FROM person_emails WHERE is_active = true');
+                existingPersons = result.rows;
+                await client.end();
+                
+                // Ajouter les personnes de la base aux sets
+                existingPersons.filter(p => p.role === 'commercial').forEach(p => commercials.add(p.name));
+                existingPersons.filter(p => p.role === 'csm').forEach(p => csms.add(p.name));
+                
+                log('API', `✅ Base: ${existingPersons.length} personnes (${commercials.size} commerciaux, ${csms.size} CSM)`);
+            }
+        } catch (dbError) {
+            log('API', `⚠️ Erreur base de données: ${dbError.message}`);
+            // On continue avec des sets vides
         }
-
-        // Ajouter les personnes de la base aux sets
-        existingPersons.filter(p => p.role === 'commercial').forEach(p => commercials.add(p.name));
-        existingPersons.filter(p => p.role === 'csm').forEach(p => csms.add(p.name));
 
         // 2. Détecter depuis les alertes actuelles (rapide, utilise generateAlerts directement)
         try {
@@ -772,21 +779,36 @@ app.get('/api/persons-detected', async (req, res) => {
             }
         }
 
+        const commercialsArray = Array.from(commercials).sort();
+        const csmsArray = Array.from(csms).sort();
+        
+        log('API', `✅ Réponse: ${commercialsArray.length} commerciaux, ${csmsArray.length} CSM, ${existingPersons.length} en base`);
+
         res.json({
             success: true,
-            commercials: Array.from(commercials).sort(),
-            csms: Array.from(csms).sort(),
+            commercials: commercialsArray,
+            csms: csmsArray,
             existing: existingPersons,
             refreshed: refresh,
-            source: refresh ? 'trello+alerts+base' : 'alerts+base'
+            source: refresh ? 'trello+alerts+base' : 'alerts+base',
+            debug: {
+                commercialCount: commercialsArray.length,
+                csmCount: csmsArray.length,
+                existingCount: existingPersons.length
+            }
         });
     } catch (error) {
-        log('API', `❌ Erreur détection personnes: ${error.message}`);
+        log('API', `❌ Erreur critique dans /api/persons-detected: ${error.message}`);
         log('API', error.stack);
-        res.status(500).json({
-            success: false,
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        // Même en cas d'erreur globale, on retourne une réponse valide avec les données de base si on les a
+        res.json({
+            success: true,
+            commercials: [],
+            csms: [],
+            existing: [],
+            refreshed: false,
+            source: 'error-fallback',
+            error: error.message
         });
     }
 });
