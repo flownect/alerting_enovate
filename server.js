@@ -699,13 +699,14 @@ app.get('/api/persons-detected', async (req, res) => {
                     ssl: { rejectUnauthorized: false }
                 });
                 await client.connect();
-                const result = await client.query('SELECT name, email, role FROM person_emails WHERE is_active = true');
+                // Récupérer TOUTES les personnes (actives ET inactives) avec is_active pour l'UI
+                const result = await client.query('SELECT name, email, role, is_active FROM person_emails ORDER BY role, name');
                 existingPersons = result.rows;
                 await client.end();
                 
-                // Ajouter les personnes de la base aux sets
-                existingPersons.filter(p => p.role === 'commercial').forEach(p => commercials.add(p.name));
-                existingPersons.filter(p => p.role === 'csm').forEach(p => csms.add(p.name));
+                // Ajouter uniquement les personnes ACTIVES aux sets de détection
+                existingPersons.filter(p => p.role === 'commercial' && p.is_active).forEach(p => commercials.add(p.name));
+                existingPersons.filter(p => p.role === 'csm' && p.is_active).forEach(p => csms.add(p.name));
                 
                 log('API', `✅ Base: ${existingPersons.length} personnes (${commercials.size} commerciaux, ${csms.size} CSM)`);
             }
