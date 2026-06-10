@@ -366,8 +366,8 @@
                     <button 
                         onclick="togglePersonActive('${name}', '${role}', ${isActive})"
                         title="${isActive ? 'Désactiver' : 'Activer'}"
-                        class="text-lg w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors"
-                    >${isActive ? '🟢' : '🔴'}</button>
+                        class="text-xs font-bold w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors hover:opacity-80 ${isActive ? 'border-gray-400 text-gray-600 hover:bg-gray-200' : 'border-gray-300 text-gray-400 hover:bg-gray-100'}"
+                    >${isActive ? 'ON' : 'OFF'}</button>
                     <div class="text-xs text-gray-400 w-6 text-center" id="status-${safeName}">
                         ${email ? '✓' : ''}
                     </div>
