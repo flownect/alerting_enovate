@@ -660,8 +660,8 @@ app.post('/api/person-emails', async (req, res) => {
 });
 
 // Récupérer les personnes (commerciaux et CSM)
-// Par défaut: retourne depuis la base (rapide)
-// Avec ?refresh=1: détecte depuis Trello (plus lent)
+// Par défaut: retourne depuis la base + détecte depuis les alertes actuelles (rapide)
+// Avec ?refresh=1: détecte aussi depuis Trello (plus lent mais complet)
 app.get('/api/persons-detected', async (req, res) => {
     const refresh = req.query.refresh === '1';
 
@@ -687,30 +687,59 @@ app.get('/api/persons-detected', async (req, res) => {
         existingPersons.filter(p => p.role === 'commercial').forEach(p => commercials.add(p.name));
         existingPersons.filter(p => p.role === 'csm').forEach(p => csms.add(p.name));
 
-        // 2. Si refresh=1, aussi détecter depuis Trello
-        if (refresh) {
-            const url = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
-            const trelloResponse = await fetch(url, { timeout: 25000 });
-
-            if (!trelloResponse.ok) {
-                throw new Error(`Trello API error: ${trelloResponse.status}`);
-            }
-
-            const trelloData = await trelloResponse.json();
-            const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
-
-            for (const lane of lanes) {
-                for (const card of (lane.cards || [])) {
-                    if (card.commercial && card.commercial !== 'Aucun') {
+        // 2. Détecter depuis les alertes actuelles (rapide, utilise le cache du serveur)
+        try {
+            const alertsResponse = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 10000 });
+            const alertsData = await alertsResponse.json();
+            
+            if (alertsData.success && alertsData.data?.tradersCommerceAlerts) {
+                for (const alert of alertsData.data.tradersCommerceAlerts) {
+                    const card = alert.card;
+                    if (card?.commercial && card.commercial !== 'Aucun') {
                         commercials.add(card.commercial);
                     }
-                    if (card.accountManager && card.accountManager !== 'Aucun') {
+                    if (card?.accountManager && card.accountManager !== 'Aucun') {
                         const csmList = card.accountManager.split(',').map(s => s.trim()).filter(s => s);
                         for (const csm of csmList) {
                             csms.add(csm);
                         }
                     }
                 }
+            }
+        } catch (alertsError) {
+            log('API', `⚠️ Impossible de charger les alertes pour détection: ${alertsError.message}`);
+            // On continue quand même avec ce qu'on a
+        }
+
+        // 3. Si refresh=1, aussi détecter depuis Trello (plus complet)
+        if (refresh) {
+            try {
+                const url = `${NOVA_URL_PROD}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+                const trelloResponse = await fetch(url, { timeout: 25000 });
+
+                if (!trelloResponse.ok) {
+                    throw new Error(`Trello API error: ${trelloResponse.status}`);
+                }
+
+                const trelloData = await trelloResponse.json();
+                const lanes = trelloData?.data?.lanes || trelloData?.lanes || [];
+
+                for (const lane of lanes) {
+                    for (const card of (lane.cards || [])) {
+                        if (card.commercial && card.commercial !== 'Aucun') {
+                            commercials.add(card.commercial);
+                        }
+                        if (card.accountManager && card.accountManager !== 'Aucun') {
+                            const csmList = card.accountManager.split(',').map(s => s.trim()).filter(s => s);
+                            for (const csm of csmList) {
+                                csms.add(csm);
+                            }
+                        }
+                    }
+                }
+            } catch (trelloError) {
+                log('API', `⚠️ Erreur Trello lors du refresh: ${trelloError.message}`);
+                // On continue avec ce qu'on a déjà
             }
         }
 
@@ -719,7 +748,8 @@ app.get('/api/persons-detected', async (req, res) => {
             commercials: Array.from(commercials).sort(),
             csms: Array.from(csms).sort(),
             existing: existingPersons,
-            refreshed: refresh
+            refreshed: refresh,
+            source: refresh ? 'trello+alerts+base' : 'alerts+base'
         });
     } catch (error) {
         log('API', `❌ Erreur détection personnes: ${error.message}`);
