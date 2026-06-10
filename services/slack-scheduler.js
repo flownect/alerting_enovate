@@ -535,15 +535,17 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
 async function previewCommerceEmails(testRecipients = null, testPerson = null) {
     if (testPerson) {
         // Prévisualisation pour une personne spécifique
+        // Chercher si la personne a un email en base
         const { commercials, csms } = await getPersonEmails();
         const allPersons = [...commercials, ...csms];
-        const person = allPersons.find(p => p.name === testPerson);
+        const personFromDb = allPersons.find(p => p.name === testPerson);
         
-        if (!person) {
-            return {
-                error: `Personne ${testPerson} non trouvée dans la base de données`
-            };
-        }
+        // Créer un objet personne (depuis la base ou fictif pour la preview)
+        const person = personFromDb || { 
+            name: testPerson, 
+            email: '(email non configuré - ajoutez-le dans les paramètres)',
+            role: 'unknown' 
+        };
         
         // Récupérer les alertes
         const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
@@ -591,7 +593,8 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
             email: person.email,
             subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} sur vos campagnes - ${new Date().toLocaleDateString('fr-FR')}`,
             html: htmlContent,
-            alertCount: commerceAlerts.length
+            alertCount: commerceAlerts.length,
+            fromDatabase: !!personFromDb
         };
     }
     

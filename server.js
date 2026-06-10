@@ -653,9 +653,17 @@ app.post('/api/person-emails', async (req, res) => {
         });
     } catch (error) {
         log('API', `❌ Erreur sauvegarde person_email: ${error.message}`);
+        
+        // Message plus utile si la table n'existe pas
+        let errorMessage = error.message;
+        if (error.message.includes('relation') && error.message.includes('does not exist')) {
+            errorMessage = 'La table person_emails n\'existe pas. Veuillez exécuter le script database/create-all-tables.sql';
+        }
+        
         res.status(500).json({
             success: false,
-            error: error.message
+            error: errorMessage,
+            hint: 'Table manquante? Exécutez: node database/deploy.js'
         });
     }
 });
