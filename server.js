@@ -489,12 +489,17 @@ app.get('/api/campaign-events/activity', async (req, res) => {
             ? req.query.traders.split(',').map(t => t.trim()).filter(Boolean)
             : null;
 
+        const eventTypes = req.query.event_types
+            ? req.query.event_types.split(',').map(t => t.trim()).filter(Boolean)
+            : null;
+
         const rows = await tracker.getActivityLog({
             limit: req.query.limit || 50,
             period: req.query.period || '7d',
             trader: req.query.trader || null,
             traders,
-            includeDiscovered: req.query.include_discovered === '1'
+            includeDiscovered: req.query.include_discovered === '1',
+            eventTypes
         });
 
         res.json({

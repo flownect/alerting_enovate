@@ -57,7 +57,10 @@
             max-height: calc(100vh - 6rem);
         }
         #activity-log-list {
-            max-height: calc(100vh - 14rem);
+            max-height: calc(100vh - 22rem);
+        }
+        #activity-event-filters {
+            max-height: 9rem;
         }
     </style>
 </head>
@@ -377,6 +380,17 @@
                         <input type="checkbox" id="activity-include-discovered" onchange="loadActivityLog(true)" class="rounded" checked>
                         Inclure découvertes
                     </label>
+                    <details class="text-xs" id="activity-filter-types-details">
+                        <summary class="cursor-pointer text-gray-600 dark:text-gray-300 font-medium select-none">Filtrer par type d'event</summary>
+                        <div class="mt-2 space-y-2">
+                            <div class="flex gap-2 text-[10px]">
+                                <button type="button" onclick="setAllActivityEventFilters(true)" class="text-blue-600 dark:text-blue-400 hover:underline">Tout</button>
+                                <span class="text-gray-300">·</span>
+                                <button type="button" onclick="setAllActivityEventFilters(false)" class="text-blue-600 dark:text-blue-400 hover:underline">Aucun</button>
+                            </div>
+                            <div id="activity-event-filters" class="overflow-y-auto space-y-2 pr-1"></div>
+                        </div>
+                    </details>
                 </div>
                 <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-2">↻ = sync immédiate · auto : toutes les heures 7h-21h</p>
             </div>
@@ -3528,6 +3542,60 @@ ADX: ${adxLink}`;
             lane_changed: { icon: '↔️', label: 'Colonne changée' }
         };
 
+        const EVENT_FILTER_GROUPS = [
+            { label: 'Programmation', types: ['became_programmable', 'became_non_programmable', 'became_programmed', 'became_unprogrammed'] },
+            { label: 'Live', types: ['became_live', 'became_offline'] },
+            { label: 'Validation', types: ['checked', 'unchecked'] },
+            { label: 'Bilan', types: ['bilan_ok', 'bilan_missing'] },
+            { label: 'Priorité', types: ['priority_on', 'priority_off'] },
+            { label: 'Équipe', types: ['trader_changed', 'csm_changed', 'commercial_changed'] },
+            { label: 'Autre', types: ['lane_changed', 'discovered'] }
+        ];
+
+        function initActivityEventFilters() {
+            const container = document.getElementById('activity-event-filters');
+            if (!container || container.dataset.ready === '1') return;
+
+            container.innerHTML = EVENT_FILTER_GROUPS.map(group => `
+                <div>
+                    <p class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">${escapeHtml(group.label)}</p>
+                    <div class="space-y-1">
+                        ${group.types.map(type => {
+                            const meta = EVENT_LABELS[type] || { icon: '•', label: type };
+                            return `
+                                <label class="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-300 cursor-pointer">
+                                    <input type="checkbox" class="activity-event-filter rounded" value="${type}" checked onchange="loadActivityLog(true)">
+                                    <span>${meta.icon} ${escapeHtml(meta.label)}</span>
+                                </label>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            container.dataset.ready = '1';
+        }
+
+        function getSelectedActivityEventTypes() {
+            const boxes = document.querySelectorAll('.activity-event-filter');
+            if (!boxes.length) return null;
+
+            const selected = Array.from(boxes)
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+
+            if (selected.length === 0 || selected.length === boxes.length) {
+                return null;
+            }
+            return selected;
+        }
+
+        function setAllActivityEventFilters(checked) {
+            document.querySelectorAll('.activity-event-filter').forEach(cb => {
+                cb.checked = checked;
+            });
+            loadActivityLog(true);
+        }
+
         function formatActivityDate(iso) {
             if (!iso) return '';
             const d = new Date(iso);
@@ -3592,12 +3660,14 @@ ADX: ${adxLink}`;
 
             const team = document.getElementById('activity-filter-team')?.value || '';
             const includeDiscovered = document.getElementById('activity-include-discovered')?.checked;
+            const eventTypes = getSelectedActivityEventTypes();
 
             const params = new URLSearchParams({ period: includeDiscovered ? '30d' : '7d', limit: '50' });
             if (team && TEAMS[team]) {
                 params.set('traders', TEAMS[team].join(','));
             }
             if (includeDiscovered) params.set('include_discovered', '1');
+            if (eventTypes?.length) params.set('event_types', eventTypes.join(','));
 
             try {
                 const response = await fetch(`/api/campaign-events/activity?${params}`);
@@ -3629,10 +3699,11 @@ ADX: ${adxLink}`;
             if (!container) return;
 
             if (!events || events.length === 0) {
+                const hasTypeFilter = getSelectedActivityEventTypes()?.length;
                 container.innerHTML = `
                     <div class="text-center py-6 px-2">
                         <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Aucun changement récent</p>
-                        <p class="text-[10px] text-gray-400">Les events apparaissent après chaque cycle BDD (toutes les heures, 7h-21h) quand une campagne change de statut.</p>
+                        <p class="text-[10px] text-gray-400">${hasTypeFilter ? 'Aucun event pour les types sélectionnés.' : 'Les events apparaissent après chaque cycle BDD (toutes les heures, 7h-21h) quand une campagne change de statut.'}</p>
                         ${!includeDiscovered ? '<p class="text-[10px] text-blue-500 mt-2">💡 Cochez « Inclure découvertes » pour voir les campagnes connues.</p>' : ''}
                     </div>`;
                 return;
@@ -3672,6 +3743,7 @@ ADX: ${adxLink}`;
 
         window.loadActivityLog = loadActivityLog;
         window.refreshActivityLog = refreshActivityLog;
+        window.setAllActivityEventFilters = setAllActivityEventFilters;
 
         // ==================== INIT ====================
         async function init() {
@@ -3718,6 +3790,7 @@ ADX: ${adxLink}`;
             renderLaunches();
             updateGlobalStats();
             renderPerformance();
+            initActivityEventFilters();
             loadActivityLog(true);
             
             // Rafraîchir l'affichage toutes les 5 min (lecture BDD uniquement, pas de sync Trello)

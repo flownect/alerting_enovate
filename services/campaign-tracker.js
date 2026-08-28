@@ -579,7 +579,7 @@ class CampaignTracker {
 
     // ─── Fil d'activité (sidebar) ──────────────────────────────
 
-    async getActivityLog({ limit = 50, period = '7d', trader = null, traders = null, includeDiscovered = false }) {
+    async getActivityLog({ limit = 50, period = '7d', trader = null, traders = null, includeDiscovered = false, eventTypes = null }) {
         const intervalDays = period === '30d' ? 30 : period === '1d' ? 1 : 7;
         const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
 
@@ -591,6 +591,11 @@ class CampaignTracker {
 
             if (!includeDiscovered) {
                 conditions.push(`event_type != 'discovered'`);
+            }
+
+            if (eventTypes && eventTypes.length > 0) {
+                params.push(eventTypes);
+                conditions.push(`event_type = ANY($${params.length})`);
             }
 
             if (trader) {
