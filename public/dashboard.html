@@ -1350,11 +1350,13 @@
         }
 
         // ==================== RENDERING ====================
-        let programmingStatsData = null; // Stocker les données pour le tri
+        let programmingStatsData = null;
+        let programmingStatsGroupBy = 'csm';
         
-        async function showProgrammingStats() {
+        async function showProgrammingStats(groupBy = 'csm') {
+            programmingStatsGroupBy = groupBy;
             try {
-                const response = await fetch('/api/status-stats?period=30d&groupBy=csm');
+                const response = await fetch(`/api/campaign-events/stats?period=30d&groupBy=${groupBy}`);
                 const result = await response.json();
                 
                 if (!result.success) {
@@ -1363,20 +1365,7 @@
                 }
                 
                 programmingStatsData = result.data;
-                
-                // Debug: afficher dans la console
-                console.log('📊 Programming Stats Data:', programmingStatsData);
-                console.log('📊 Nombre de CSM:', programmingStatsData.length);
-                
-                if (programmingStatsData.length === 0) {
-                    // Charger les données de debug
-                    const debugResponse = await fetch('/api/debug/programming');
-                    const debugResult = await debugResponse.json();
-                    console.log('🔍 Debug Data:', debugResult);
-                    alert('Aucune donnée trouvée. Vérifiez la console (F12) pour les détails de debug.');
-                }
-                
-                renderProgrammingStatsModal(programmingStatsData, 'retards');
+                renderProgrammingStatsModal(programmingStatsData, 'retards', groupBy);
                 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -1384,168 +1373,158 @@
             }
         }
         
-        function sortProgrammingStats(sortBy) {
-            if (!programmingStatsData) return;
-            renderProgrammingStatsModal(programmingStatsData, sortBy);
+        function exportProgrammingStats(person = null) {
+            const groupBy = programmingStatsGroupBy || 'csm';
+            const params = new URLSearchParams({ period: '30d', groupBy, format: 'csv' });
+            if (person) params.set('person', person);
+            window.open(`/api/campaign-events/export?${params}`, '_blank');
         }
         
-        function renderProgrammingStatsModal(stats, sortBy = 'retards') {
-            console.log('🎨 Rendering modal with stats:', stats);
-            console.log('🎨 Sort by:', sortBy);
+        function sortProgrammingStats(sortBy) {
+            if (!programmingStatsData) return;
+            renderProgrammingStatsModal(programmingStatsData, sortBy, programmingStatsGroupBy);
+        }
+        
+        function renderProgrammingStatsModal(stats, sortBy = 'retards', groupBy = 'csm') {
+            const groupLabel = groupBy === 'commercial' ? 'Commercial' : 'CSM';
             
-            // Convertir les strings en nombres et trier les données
             let sortedStats = stats.map(s => ({
                 ...s,
-                csm_name: s.name, // Nouveau système utilise "name"
+                person_name: s.name,
                 total_programmed: parseInt(s.total_transitions) || 0,
                 programmed_after_start: parseInt(s.after_launch) || 0,
                 late_j0: parseInt(s.j0) || 0,
                 late_j1: parseInt(s.j1) || 0,
                 late_j2: parseInt(s.j2) || 0,
                 on_time_j3: parseInt(s.j3) || 0,
-                on_time_j3_plus: parseInt(s.j3_plus) || 0
+                on_time_j3_plus: parseInt(s.j3_plus) || 0,
+                last_transition: s.last_transition
             }));
             
-            console.log('🎨 Converted stats:', sortedStats);
-            
             if (sortBy === 'date') {
-                sortedStats.sort((a, b) => new Date(b.last_programmed_at) - new Date(a.last_programmed_at));
+                sortedStats.sort((a, b) => new Date(b.last_transition) - new Date(a.last_transition));
             } else if (sortBy === 'total') {
                 sortedStats.sort((a, b) => b.total_programmed - a.total_programmed);
             } else {
-                // Par défaut: par retards (J0+J-1+J-2)
                 sortedStats.sort((a, b) => {
                     const retardsA = a.late_j0 + a.late_j1 + a.late_j2;
                     const retardsB = b.late_j0 + b.late_j1 + b.late_j2;
                     return retardsB - retardsA;
                 });
             }
-            
-            console.log('🎨 Sorted stats:', sortedStats);
                 
-                // Créer le contenu HTML
-                const statsHtml = sortedStats.length > 0 ? sortedStats.map(s => `
-                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div class="font-bold text-lg text-gray-900 dark:text-white mb-3">${s.csm_name}</div>
-                        <div class="mb-3 text-sm">
-                            <span class="text-gray-500 dark:text-gray-400">Total programmé:</span>
-                            <span class="font-bold text-gray-900 dark:text-white ml-2 text-lg">${s.total_programmed}</span>
+            const statsHtml = sortedStats.length > 0 ? sortedStats.map(s => `
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="font-bold text-lg text-gray-900 dark:text-white">${s.person_name}</div>
+                        <button onclick="exportProgrammingStats('${s.person_name.replace(/'/g, "\\'")}')" class="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded" title="Exporter le détail CSV">📥 Export</button>
+                    </div>
+                    <div class="mb-3 text-sm">
+                        <span class="text-gray-500 dark:text-gray-400">Total programmable:</span>
+                        <span class="font-bold text-gray-900 dark:text-white ml-2 text-lg">${s.total_programmed}</span>
+                    </div>
+                    <div class="grid grid-cols-6 gap-2 text-sm">
+                        <div class="text-center p-2 bg-purple-100 dark:bg-purple-900/30 rounded">
+                            <div class="text-purple-800 dark:text-purple-300 font-bold text-lg">${s.programmed_after_start || 0}</div>
+                            <div class="text-xs text-purple-600 dark:text-purple-400 mt-1">Après</div>
                         </div>
-                        <div class="grid grid-cols-6 gap-2 text-sm">
-                            <div class="text-center p-2 bg-purple-100 dark:bg-purple-900/30 rounded">
-                                <div class="text-purple-800 dark:text-purple-300 font-bold text-lg">${s.programmed_after_start || 0}</div>
-                                <div class="text-xs text-purple-600 dark:text-purple-400 mt-1">Après</div>
-                            </div>
-                            <div class="text-center p-2 bg-red-100 dark:bg-red-900/30 rounded">
-                                <div class="text-red-800 dark:text-red-300 font-bold text-lg">${s.late_j0}</div>
-                                <div class="text-xs text-red-600 dark:text-red-400 mt-1">J0</div>
-                            </div>
-                            <div class="text-center p-2 bg-orange-100 dark:bg-orange-900/30 rounded">
-                                <div class="text-orange-800 dark:text-orange-300 font-bold text-lg">${s.late_j1}</div>
-                                <div class="text-xs text-orange-600 dark:text-orange-400 mt-1">J-1</div>
-                            </div>
-                            <div class="text-center p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded">
-                                <div class="text-yellow-800 dark:text-yellow-300 font-bold text-lg">${s.late_j2}</div>
-                                <div class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">J-2</div>
-                            </div>
-                            <div class="text-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
-                                <div class="text-blue-800 dark:text-blue-300 font-bold text-lg">${s.on_time_j3}</div>
-                                <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">J-3</div>
-                            </div>
-                            <div class="text-center p-2 bg-green-100 dark:bg-green-900/30 rounded">
-                                <div class="text-green-800 dark:text-green-300 font-bold text-lg">${s.on_time_j3_plus}</div>
-                                <div class="text-xs text-green-600 dark:text-green-400 mt-1">J-3+</div>
-                            </div>
+                        <div class="text-center p-2 bg-red-100 dark:bg-red-900/30 rounded">
+                            <div class="text-red-800 dark:text-red-300 font-bold text-lg">${s.late_j0}</div>
+                            <div class="text-xs text-red-600 dark:text-red-400 mt-1">J0</div>
+                        </div>
+                        <div class="text-center p-2 bg-orange-100 dark:bg-orange-900/30 rounded">
+                            <div class="text-orange-800 dark:text-orange-300 font-bold text-lg">${s.late_j1}</div>
+                            <div class="text-xs text-orange-600 dark:text-orange-400 mt-1">J-1</div>
+                        </div>
+                        <div class="text-center p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded">
+                            <div class="text-yellow-800 dark:text-yellow-300 font-bold text-lg">${s.late_j2}</div>
+                            <div class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">J-2</div>
+                        </div>
+                        <div class="text-center p-2 bg-blue-100 dark:bg-blue-900/30 rounded">
+                            <div class="text-blue-800 dark:text-blue-300 font-bold text-lg">${s.on_time_j3}</div>
+                            <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">J-3</div>
+                        </div>
+                        <div class="text-center p-2 bg-green-100 dark:bg-green-900/30 rounded">
+                            <div class="text-green-800 dark:text-green-300 font-bold text-lg">${s.on_time_j3_plus}</div>
+                            <div class="text-xs text-green-600 dark:text-green-400 mt-1">J-3+</div>
                         </div>
                     </div>
-                `).join('') : `
-                    <div class="col-span-2 text-center py-8">
-                        <p class="text-gray-500 dark:text-gray-400 mb-4">Aucune donnée disponible.</p>
-                        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-sm text-left max-w-md mx-auto">
-                            <p class="font-semibold text-blue-800 dark:text-blue-300 mb-2">📋 Configuration requise :</p>
-                            <ol class="list-decimal list-inside space-y-1 text-blue-700 dark:text-blue-400">
-                                <li>Ajouter une base PostgreSQL sur Railway</li>
-                                <li>Configurer la variable <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">DATABASE_URL</code></li>
-                                <li>Redémarrer l'app (la base sera initialisée automatiquement)</li>
-                                <li>Le tracking se lancera automatiquement 3x/jour (8h, 14h, 20h)</li>
-                            </ol>
-                        </div>
+                </div>
+            `).join('') : `
+                <div class="col-span-2 text-center py-8">
+                    <p class="text-gray-500 dark:text-gray-400 mb-4">Aucune transition « programmable » détectée sur les 30 derniers jours.</p>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-sm text-left max-w-md mx-auto">
+                        <p class="font-semibold text-blue-800 dark:text-blue-300 mb-2">ℹ️ Démarrage du tracking</p>
+                        <p class="text-blue-700 dark:text-blue-400">Les données s'accumulent au fil des changements détectés (3×/jour). Les campagnes déjà programmables au premier scan ne génèrent pas d'événement rétroactif.</p>
                     </div>
-                `;
+                </div>
+            `;
                 
-                // Créer la modal
-                const modal = document.createElement('div');
-                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
-                modal.style.zIndex = '9999';
-                modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-                modal.innerHTML = `
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full mx-4" style="max-width: 1200px; height: 600px; display: flex; flex-direction: column;">
-                        <div class="p-4 border-b border-gray-200 dark:border-gray-700" style="flex-shrink: 0;">
-                            <div class="flex items-center justify-between">
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <span>📊</span>
-                                    <span>Stats de programmation par CSM (30 derniers jours)</span>
-                                </h3>
-                                <div class="flex items-center gap-2">
-                                    <button onclick="sortProgrammingStats('retards')" class="px-3 py-1 text-xs ${sortBy === 'retards' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} hover:bg-blue-600 hover:text-white rounded">🔽 Retards</button>
-                                    <button onclick="sortProgrammingStats('date')" class="px-3 py-1 text-xs ${sortBy === 'date' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} hover:bg-blue-600 hover:text-white rounded">📅 Date</button>
-                                    <button onclick="sortProgrammingStats('total')" class="px-3 py-1 text-xs ${sortBy === 'total' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} hover:bg-blue-600 hover:text-white rounded">📊 Total</button>
-                                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+            modal.style.zIndex = '9999';
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            modal.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full mx-4" style="max-width: 1200px; height: 600px; display: flex; flex-direction: column;">
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700" style="flex-shrink: 0;">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <span>📊</span>
+                                <span>Stats de programmation par ${groupLabel} (30 derniers jours)</span>
+                            </h3>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="showProgrammingStats('csm')" class="px-3 py-1 text-xs ${groupBy === 'csm' ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} rounded">CSM</button>
+                                <button onclick="showProgrammingStats('commercial')" class="px-3 py-1 text-xs ${groupBy === 'commercial' ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} rounded">Commercial</button>
+                                <button onclick="exportProgrammingStats()" class="px-3 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded" title="Exporter tout en CSV">📥 Export tout</button>
+                                <button onclick="sortProgrammingStats('retards')" class="px-3 py-1 text-xs ${sortBy === 'retards' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} rounded">🔽 Retards</button>
+                                <button onclick="sortProgrammingStats('date')" class="px-3 py-1 text-xs ${sortBy === 'date' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} rounded">📅 Date</button>
+                                <button onclick="sortProgrammingStats('total')" class="px-3 py-1 text-xs ${sortBy === 'total' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'} rounded">📊 Total</button>
+                                <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                     </svg>
                                 </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4" style="flex: 1; overflow-y: auto; min-height: 0;">
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
-                                ${statsHtml}
-                            </div>
-                        </div>
-                        <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style="flex-shrink: 0;">
-                            <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 bg-purple-600 rounded"></span>
-                                    <span>Après = Programmé après début</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 bg-red-600 rounded"></span>
-                                    <span>J0 = Très critique</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 bg-orange-600 rounded"></span>
-                                    <span>J-1 = Critique</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 bg-yellow-600 rounded"></span>
-                                    <span>J-2 = Limite</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 bg-blue-600 rounded"></span>
-                                    <span>J-3 = Acceptable</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 bg-green-600 rounded"></span>
-                                    <span>J-3+ = Bon</span>
-                                </div>
                             </div>
                         </div>
                     </div>
-                `;
+                    <div class="p-4" style="flex: 1; overflow-y: auto; min-height: 0;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1rem;">
+                            ${statsHtml}
+                        </div>
+                    </div>
+                    <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" style="flex-shrink: 0;">
+                        <div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                            <div class="flex items-center gap-1">
+                                <span class="w-3 h-3 bg-purple-600 rounded"></span>
+                                <span>Après = Programmable après début</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="w-3 h-3 bg-red-600 rounded"></span>
+                                <span>J0 = Très critique</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="w-3 h-3 bg-orange-600 rounded"></span>
+                                <span>J-1 = Critique</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="w-3 h-3 bg-yellow-600 rounded"></span>
+                                <span>J-2 = Limite</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="w-3 h-3 bg-blue-600 rounded"></span>
+                                <span>J-3 = Acceptable</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="w-3 h-3 bg-green-600 rounded"></span>
+                                <span>J-3+ = Bon</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
                 
-                console.log('🎨 Stats HTML length:', statsHtml.length);
-                console.log('🎨 Creating modal...');
-                console.log('🎨 First 500 chars of statsHtml:', statsHtml.substring(0, 500));
-                
-                // Supprimer l'ancienne modale si elle existe
                 const existingModal = document.querySelector('.fixed.inset-0');
-                if (existingModal) {
-                    console.log('🎨 Removing existing modal');
-                    existingModal.remove();
-                }
-                
-                console.log('🎨 Appending modal to body');
+                if (existingModal) existingModal.remove();
                 document.body.appendChild(modal);
                 console.log('🎨 Modal appended successfully');
                 

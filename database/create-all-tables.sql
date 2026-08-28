@@ -149,6 +149,63 @@ CREATE TABLE IF NOT EXISTS person_emails (
 CREATE INDEX IF NOT EXISTS idx_person_emails_role ON person_emails(role);
 CREATE INDEX IF NOT EXISTS idx_person_emails_active ON person_emails(is_active);
 
+-- ============================================
+-- NOUVEAU SYSTÈME : snapshots + events (fiable)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS campaign_snapshots (
+    tracker_key VARCHAR(50) PRIMARY KEY,
+    tracker_id VARCHAR(50),
+    campaign_id VARCHAR(50),
+    campaign_name TEXT,
+    commercial_name VARCHAR(100),
+    csm_name VARCHAR(100),
+    trader_name VARCHAR(100),
+    is_programmable BOOLEAN DEFAULT false,
+    is_programmed BOOLEAN DEFAULT false,
+    is_live BOOLEAN DEFAULT false,
+    is_checked BOOLEAN DEFAULT false,
+    is_priority BOOLEAN DEFAULT false,
+    has_bilan_missing BOOLEAN DEFAULT false,
+    lane_id VARCHAR(20),
+    campaign_start DATE,
+    campaign_end DATE,
+    snapshot_hash VARCHAR(64),
+    first_seen_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campaign_events (
+    id BIGSERIAL PRIMARY KEY,
+    tracker_key VARCHAR(50) NOT NULL,
+    tracker_id VARCHAR(50),
+    campaign_id VARCHAR(50),
+    campaign_name TEXT,
+    trader_name VARCHAR(100),
+    csm_name VARCHAR(100),
+    commercial_name VARCHAR(100),
+    event_type VARCHAR(30) NOT NULL,
+    old_value VARCHAR(50),
+    new_value VARCHAR(50),
+    detected_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    days_before_launch INT,
+    campaign_start DATE,
+    campaign_end DATE,
+    delay_bucket VARCHAR(20),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_tracker ON campaign_snapshots(tracker_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_last_seen ON campaign_snapshots(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_detected ON campaign_events(detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_tracker_key ON campaign_events(tracker_key);
+CREATE INDEX IF NOT EXISTS idx_events_type_date ON campaign_events(event_type, detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_trader ON campaign_events(trader_name, detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_csm ON campaign_events(csm_name, detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_commercial ON campaign_events(commercial_name, detected_at DESC);
+
 -- Vérifier que tout est créé
 SELECT 
     'Tables créées avec succès' as status,

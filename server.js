@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const ProgrammingTracker = require('./services/programming-tracker');
 const StatusTracker = require('./services/status-tracker');
+const CampaignTracker = require('./services/campaign-tracker');
 const { startScheduler } = require('./services/slack-scheduler');
 const { generateAlerts } = require('./services/alert-generator');
 
@@ -410,6 +411,84 @@ app.get('/api/status-stats', async (req, res) => {
             success: false,
             error: error.message
         });
+    }
+});
+
+// ─── Nouveau système fiable : stats + export ───────────────────
+
+app.get('/api/campaign-events/stats', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({ success: false, error: 'Database not configured' });
+    }
+
+    try {
+        const period = req.query.period || '30d';
+        const groupBy = req.query.groupBy || 'csm';
+        const tracker = new CampaignTracker(process.env.DATABASE_URL);
+        const stats = await tracker.getProgrammingStats(period, groupBy);
+
+        res.json({
+            success: true,
+            data: stats,
+            period,
+            groupBy,
+            source: 'campaign_events',
+            description: `Stats fiables — campagnes devenues programmables, groupées par ${groupBy === 'commercial' ? 'Commercial' : 'CSM'}`,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur campaign-events stats: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/api/campaign-events/persons', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({ success: false, error: 'Database not configured' });
+    }
+
+    try {
+        const period = req.query.period || '30d';
+        const groupBy = req.query.groupBy || 'csm';
+        const tracker = new CampaignTracker(process.env.DATABASE_URL);
+        const persons = await tracker.getDistinctPersons(groupBy, period);
+
+        res.json({ success: true, data: persons, period, groupBy });
+    } catch (error) {
+        log('API', `❌ Erreur campaign-events persons: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/api/campaign-events/export', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({ success: false, error: 'Database not configured' });
+    }
+
+    try {
+        const period = req.query.period || '30d';
+        const groupBy = req.query.groupBy || 'csm';
+        const person = req.query.person || null;
+        const format = req.query.format || 'csv';
+        const tracker = new CampaignTracker(process.env.DATABASE_URL);
+        const rows = await tracker.getExportDetail({ period, groupBy, person });
+
+        if (format === 'json') {
+            return res.json({ success: true, data: rows, count: rows.length, period, groupBy, person });
+        }
+
+        const csv = tracker.buildCsv(rows);
+        const label = groupBy === 'commercial' ? 'commercial' : groupBy === 'trader' ? 'trader' : 'csm';
+        const filename = person
+            ? `programmation_${label}_${person.replace(/[^a-zA-Z0-9]/g, '_')}_${period}.csv`
+            : `programmation_${label}_tous_${period}.csv`;
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(csv);
+    } catch (error) {
+        log('API', `❌ Erreur campaign-events export: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -1544,6 +1623,11 @@ async function runProgrammingTracking() {
         const results = await tracker.trackProgramming(trelloCache);
         
         log('TRACKING', `✅ Tracking programmation: ${results.new} nouvelles programmations détectées (${results.total} total)`);
+
+        // Nouveau système fiable (snapshots + events)
+        const campaignTracker = new CampaignTracker(process.env.DATABASE_URL);
+        const eventResults = await campaignTracker.trackChanges(trelloCache);
+        log('TRACKING', `✅ Campaign events: ${eventResults.total} campagnes, ${eventResults.events} events (${eventResults.discovered} nouvelles, ${eventResults.skipped} inchangées)`);
         
         // Réinitialiser le cache
         trelloCache = null;
