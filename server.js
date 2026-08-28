@@ -456,11 +456,16 @@ app.get('/api/campaign-events/stats', async (req, res) => {
         const period = req.query.period || '30d';
         const groupBy = req.query.groupBy || 'csm';
         const tracker = new CampaignTracker(process.env.DATABASE_URL);
-        const stats = await tracker.getProgrammingStats(period, groupBy);
+        const [stats, currentState] = await Promise.all([
+            tracker.getProgrammingStats(period, groupBy),
+            tracker.getCurrentSnapshotStats(groupBy)
+        ]);
 
         res.json({
             success: true,
             data: stats,
+            currentState,
+            transitionsCount: stats.reduce((sum, r) => sum + parseInt(r.total_transitions || 0, 10), 0),
             period,
             groupBy,
             source: 'campaign_events',
@@ -622,6 +627,40 @@ async function handleForceTracking(req, res) {
 
 app.get('/api/force-tracking', handleForceTracking);
 app.post('/api/force-tracking', handleForceTracking);
+
+// Sync immédiate (sidebar activité) — attend la fin, ignore la fenêtre 7h-21h
+app.post('/api/campaign-events/sync', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({ success: false, error: 'Database not configured' });
+    }
+
+    if (trackingInProgress) {
+        return res.status(409).json({
+            success: false,
+            status: 'already_running',
+            error: 'Un tracking est déjà en cours'
+        });
+    }
+
+    trackingInProgress = true;
+    log('API', '🔄 Sync activité demandée (manuel)...');
+
+    try {
+        await runProgrammingTracking();
+        log('API', '✅ Sync activité terminée');
+        res.json({
+            success: true,
+            status: 'completed',
+            message: 'Synchronisation terminée',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur sync activité: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        trackingInProgress = false;
+    }
+});
 
 // Endpoint pour récupérer les emails Commerce
 app.get('/api/commerce-emails', async (req, res) => {

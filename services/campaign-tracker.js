@@ -512,6 +512,33 @@ class CampaignTracker {
         }
     }
 
+    /** État actuel depuis les snapshots (disponible immédiatement, sans historique) */
+    async getCurrentSnapshotStats(groupBy = 'csm') {
+        const groupField = groupBy === 'commercial' ? 'commercial_name' : 'csm_name';
+
+        try {
+            await this.connect();
+
+            const result = await this.client.query(`
+                SELECT
+                    ${groupField} AS name,
+                    COUNT(*)::int AS total_tracked,
+                    COUNT(*) FILTER (WHERE is_programmable)::int AS programmable_now,
+                    COUNT(*) FILTER (WHERE is_programmed)::int AS programmed_now,
+                    COUNT(*) FILTER (WHERE is_live)::int AS live_now,
+                    MAX(last_seen_at) AS last_seen
+                FROM campaign_snapshots
+                WHERE ${groupField} IS NOT NULL
+                GROUP BY ${groupField}
+                ORDER BY COUNT(*) FILTER (WHERE is_programmable) DESC, COUNT(*) DESC
+            `);
+
+            return result.rows;
+        } finally {
+            await this.disconnect();
+        }
+    }
+
     // ─── Export détail par période ─────────────────────────────
 
     async getExportDetail({ period = '30d', groupBy = 'csm', person = null, eventType = 'became_programmable' }) {
@@ -579,7 +606,7 @@ class CampaignTracker {
 
             const result = await this.client.query(`
                 SELECT
-                    id, tracker_id, tracker_key, campaign_name,
+                    id, tracker_id, tracker_key, campaign_id, campaign_name,
                     trader_name, csm_name, commercial_name,
                     event_type, old_value, new_value,
                     detected_at, days_before_launch, delay_bucket
