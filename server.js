@@ -551,8 +551,10 @@ app.post('/api/migrate-programming-data', async (req, res) => {
     }
 });
 
-// Endpoint pour forcer un tracking manuel
-app.post('/api/force-tracking', async (req, res) => {
+// Endpoint pour forcer un tracking manuel (GET = navigateur, POST = script)
+let trackingInProgress = false;
+
+async function handleForceTracking(req, res) {
     if (!process.env.DATABASE_URL) {
         return res.status(503).json({
             success: false,
@@ -560,25 +562,33 @@ app.post('/api/force-tracking', async (req, res) => {
         });
     }
 
-    try {
-        log('API', '🚀 Tracking manuel déclenché...');
-        
-        // Lancer le tracking
-        await runProgrammingTracking();
-        
-        res.json({
+    if (trackingInProgress) {
+        return res.json({
             success: true,
-            message: 'Tracking exécuté avec succès',
+            status: 'already_running',
+            message: 'Un tracking est déjà en cours. Vérifiez /api/campaign-events/health dans 1-2 min.',
             timestamp: new Date().toISOString()
         });
-    } catch (error) {
-        log('API', `❌ Erreur tracking manuel: ${error.message}`);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
     }
-});
+
+    trackingInProgress = true;
+    log('API', '🚀 Tracking manuel déclenché...');
+
+    runProgrammingTracking()
+        .then(() => log('API', '✅ Tracking manuel terminé'))
+        .catch(err => log('API', `❌ Erreur tracking manuel: ${err.message}`))
+        .finally(() => { trackingInProgress = false; });
+
+    res.json({
+        success: true,
+        status: 'started',
+        message: 'Tracking démarré en arrière-plan (1-2 min). Vérifiez ensuite /api/campaign-events/health',
+        timestamp: new Date().toISOString()
+    });
+}
+
+app.get('/api/force-tracking', handleForceTracking);
+app.post('/api/force-tracking', handleForceTracking);
 
 // Endpoint pour récupérer les emails Commerce
 app.get('/api/commerce-emails', async (req, res) => {
