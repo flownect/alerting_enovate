@@ -25,6 +25,59 @@ const FIELD_EVENT_MAP = {
     lane_id: 'lane_changed'
 };
 
+const ENSURE_SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS campaign_snapshots (
+    tracker_key VARCHAR(50) PRIMARY KEY,
+    tracker_id VARCHAR(50),
+    campaign_id VARCHAR(50),
+    campaign_name TEXT,
+    commercial_name VARCHAR(100),
+    csm_name VARCHAR(100),
+    trader_name VARCHAR(100),
+    is_programmable BOOLEAN DEFAULT false,
+    is_programmed BOOLEAN DEFAULT false,
+    is_live BOOLEAN DEFAULT false,
+    is_checked BOOLEAN DEFAULT false,
+    is_priority BOOLEAN DEFAULT false,
+    has_bilan_missing BOOLEAN DEFAULT false,
+    lane_id VARCHAR(20),
+    campaign_start DATE,
+    campaign_end DATE,
+    snapshot_hash VARCHAR(64),
+    first_seen_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS campaign_events (
+    id BIGSERIAL PRIMARY KEY,
+    tracker_key VARCHAR(50) NOT NULL,
+    tracker_id VARCHAR(50),
+    campaign_id VARCHAR(50),
+    campaign_name TEXT,
+    trader_name VARCHAR(100),
+    csm_name VARCHAR(100),
+    commercial_name VARCHAR(100),
+    event_type VARCHAR(30) NOT NULL,
+    old_value VARCHAR(50),
+    new_value VARCHAR(50),
+    detected_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    days_before_launch INT,
+    campaign_start DATE,
+    campaign_end DATE,
+    delay_bucket VARCHAR(20),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_snapshots_tracker ON campaign_snapshots(tracker_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_last_seen ON campaign_snapshots(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_detected ON campaign_events(detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_tracker_key ON campaign_events(tracker_key);
+CREATE INDEX IF NOT EXISTS idx_events_type_date ON campaign_events(event_type, detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_trader ON campaign_events(trader_name, detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_csm ON campaign_events(csm_name, detected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_commercial ON campaign_events(commercial_name, detected_at DESC);
+`;
+
 class CampaignTracker {
     constructor(databaseUrl) {
         this.databaseUrl = databaseUrl;
@@ -37,6 +90,17 @@ class CampaignTracker {
             ssl: { rejectUnauthorized: false }
         });
         await this.client.connect();
+        await this.ensureSchema();
+    }
+
+    async ensureSchema() {
+        const statements = ENSURE_SCHEMA_SQL
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+        for (const stmt of statements) {
+            await this.client.query(stmt);
+        }
     }
 
     async disconnect() {
@@ -335,6 +399,82 @@ class CampaignTracker {
             daysBefore, this.formatDate(state.campaign_start),
             this.formatDate(state.campaign_end), bucket
         ]);
+    }
+
+    // ─── Health check ──────────────────────────────────────────
+
+    async getHealth() {
+        try {
+            await this.connect();
+
+            const tables = await this.client.query(`
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name IN ('campaign_snapshots', 'campaign_events')
+            `);
+            const tableNames = tables.rows.map(r => r.table_name);
+            const tablesReady = tableNames.includes('campaign_snapshots')
+                && tableNames.includes('campaign_events');
+
+            if (!tablesReady) {
+                return {
+                    status: 'not_ready',
+                    tables: { campaign_snapshots: false, campaign_events: false },
+                    message: 'Tables manquantes — redémarrer l\'app pour lancer initializeDatabase()'
+                };
+            }
+
+            const counts = await this.client.query(`
+                SELECT
+                    (SELECT COUNT(*)::int FROM campaign_snapshots) AS snapshots,
+                    (SELECT COUNT(*)::int FROM campaign_events) AS events,
+                    (SELECT MAX(last_seen_at) FROM campaign_snapshots) AS last_scan,
+                    (SELECT MAX(detected_at) FROM campaign_events) AS last_event,
+                    (SELECT COUNT(*)::int FROM campaign_events
+                     WHERE event_type = 'became_programmable'
+                       AND detected_at >= NOW() - INTERVAL '30 days') AS programmable_30d
+            `);
+
+            const byType = await this.client.query(`
+                SELECT event_type, COUNT(*)::int AS count
+                FROM campaign_events
+                GROUP BY event_type
+                ORDER BY count DESC
+            `);
+
+            const row = counts.rows[0];
+            const trackingRan = row.snapshots > 0;
+            const lastScan = row.last_scan ? new Date(row.last_scan) : null;
+            const minutesSinceScan = lastScan
+                ? Math.round((Date.now() - lastScan.getTime()) / 60000)
+                : null;
+
+            let status = 'healthy';
+            if (!trackingRan) {
+                status = 'waiting';
+            } else if (minutesSinceScan > 24 * 60) {
+                status = 'stale';
+            }
+
+            return {
+                status,
+                tables: { campaign_snapshots: true, campaign_events: true },
+                tracking: {
+                    ran: trackingRan,
+                    snapshots: row.snapshots,
+                    events: row.events,
+                    last_scan: row.last_scan,
+                    last_event: row.last_event,
+                    minutes_since_scan: minutesSinceScan,
+                    programmable_transitions_30d: row.programmable_30d
+                },
+                events_by_type: Object.fromEntries(
+                    byType.rows.map(r => [r.event_type, r.count])
+                )
+            };
+        } finally {
+            await this.disconnect();
+        }
     }
 
     // ─── Stats programmation (agrégation dynamique) ────────────

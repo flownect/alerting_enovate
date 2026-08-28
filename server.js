@@ -416,6 +416,36 @@ app.get('/api/status-stats', async (req, res) => {
 
 // ─── Nouveau système fiable : stats + export ───────────────────
 
+app.get('/api/campaign-events/health', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({
+            success: false,
+            status: 'no_database',
+            error: 'DATABASE_URL non configurée'
+        });
+    }
+
+    try {
+        const tracker = new CampaignTracker(process.env.DATABASE_URL);
+        const health = await tracker.getHealth();
+
+        const httpStatus = health.status === 'not_ready' ? 503 : 200;
+        res.status(httpStatus).json({
+            success: health.status !== 'not_ready',
+            ...health,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur campaign-events health: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            status: 'error',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 app.get('/api/campaign-events/stats', async (req, res) => {
     if (!process.env.DATABASE_URL) {
         return res.status(503).json({ success: false, error: 'Database not configured' });
