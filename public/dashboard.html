@@ -518,6 +518,8 @@
             // Filtrer par date: la campagne doit être en cours (date fin >= aujourd'hui)
             const liveCampaignIds = new Set();
             const checkedCampaignIds = new Set();
+            const priorityTrackerIds = new Set();
+            const priorityCampaigns = [];
             
             for (const c of traderCards) {
                 if (c.areSubdivisionsLive === true && c.trackerId) {
@@ -527,6 +529,10 @@
                         liveCampaignIds.add(c.trackerId);
                         if (c.areSubdivisionsChecked === true) {
                             checkedCampaignIds.add(c.trackerId);
+                        }
+                        if (c.flaggedAsImportant && !priorityTrackerIds.has(c.trackerId)) {
+                            priorityTrackerIds.add(c.trackerId);
+                            priorityCampaigns.push(c);
                         }
                     }
                 }
@@ -550,11 +556,6 @@
                 hasTag(c, 'Terminé') && hasTag(c, 'Bilan non saisi')
             );
             
-            // Campagnes prioritaires (live uniquement)
-            const priorityCampaigns = traderCards.filter(c => 
-                c.flaggedAsImportant && c.areSubdivisionsLive === true
-            );
-
             return {
                 live: liveCampaignIds.size,
                 checked: checkedCampaignIds.size,
@@ -573,6 +574,7 @@
         function getTeamStats(teamName) {
             const members = TEAMS[teamName] || [];
             let stats = { live: 0, checked: 0, programmableLaunches: 0, programmed: 0, programmable: 0, bilans: 0, priority: 0, priorityCampaigns: [] };
+            const teamPriorityTrackerIds = new Set();
             
             for (const member of members) {
                 const memberStats = getTraderStats(member);
@@ -582,9 +584,14 @@
                 stats.programmed += memberStats.programmed;
                 stats.programmable += memberStats.programmable;
                 stats.bilans += memberStats.bilans;
-                stats.priority += memberStats.priority;
-                stats.priorityCampaigns.push(...memberStats.priorityCampaigns);
+                for (const c of memberStats.priorityCampaigns) {
+                    if (c.trackerId && !teamPriorityTrackerIds.has(c.trackerId)) {
+                        teamPriorityTrackerIds.add(c.trackerId);
+                        stats.priorityCampaigns.push(c);
+                    }
+                }
             }
+            stats.priority = stats.priorityCampaigns.length;
             
             return stats;
         }
