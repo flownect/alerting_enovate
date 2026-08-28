@@ -49,6 +49,12 @@
         .expand-content.open {
             max-height: 500px;
         }
+        #activity-sidebar {
+            max-height: calc(100vh - 6rem);
+        }
+        #activity-log-list {
+            max-height: calc(100vh - 14rem);
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
@@ -187,7 +193,8 @@
     </div>
 
     <!-- Main Content (hidden until data loaded) -->
-    <main id="main-content" class="hidden max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div id="dashboard-wrapper" class="hidden max-w-[1800px] mx-auto px-4 py-6 flex gap-6 items-start">
+    <main id="main-content" class="flex-1 min-w-0 space-y-6">
         
         <!-- Vue Pôles (toujours visible) -->
         <section>
@@ -345,6 +352,35 @@
         </section>
 
     </main>
+
+    <!-- Colonne activité (logs traders) -->
+    <aside id="activity-sidebar" class="w-80 flex-shrink-0 hidden lg:block sticky top-20">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 flex flex-col" id="activity-sidebar-panel">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-white">📋 Activité traders</h2>
+                    <button onclick="loadActivityLog()" class="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400" title="Rafraîchir">↻</button>
+                </div>
+                <div class="space-y-2">
+                    <select id="activity-filter-team" onchange="loadActivityLog()" class="w-full text-xs px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <option value="">Toutes les équipes</option>
+                        <option value="Team 1">Team 1</option>
+                        <option value="Team 2">Team 2</option>
+                        <option value="Team 3">Team 3</option>
+                    </select>
+                    <label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer">
+                        <input type="checkbox" id="activity-include-discovered" onchange="loadActivityLog()" class="rounded">
+                        Inclure découvertes
+                    </label>
+                </div>
+                <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-2">Màj BDD : toutes les heures 7h-21h · refresh UI : 5 min</p>
+            </div>
+            <div id="activity-log-list" class="overflow-y-auto p-3 space-y-2 flex-1">
+                <p class="text-xs text-gray-400 text-center py-4">Chargement...</p>
+            </div>
+        </div>
+    </aside>
+    </div>
 
     <script>
         // ==================== CONFIGURATION ====================
@@ -1455,7 +1491,7 @@
                     <p class="text-gray-500 dark:text-gray-400 mb-4">Aucune transition « programmable » détectée sur les 30 derniers jours.</p>
                     <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-sm text-left max-w-md mx-auto">
                         <p class="font-semibold text-blue-800 dark:text-blue-300 mb-2">ℹ️ Démarrage du tracking</p>
-                        <p class="text-blue-700 dark:text-blue-400">Les données s'accumulent au fil des changements détectés (3×/jour). Les campagnes déjà programmables au premier scan ne génèrent pas d'événement rétroactif.</p>
+                        <p class="text-blue-700 dark:text-blue-400">Les données s'accumulent au fil des changements détectés (toutes les heures, 7h-21h). Les campagnes déjà programmables au premier scan ne génèrent pas d'événement rétroactif.</p>
                     </div>
                 </div>
             `;
@@ -3443,6 +3479,110 @@ ADX: ${adxLink}`;
             }
         }
         
+        // ==================== ACTIVITY LOG (sidebar) ====================
+        const EVENT_LABELS = {
+            discovered: { icon: '🆕', label: 'Nouvelle campagne' },
+            became_programmable: { icon: '📋', label: 'Passée en programmable' },
+            became_non_programmable: { icon: '⛔', label: 'Non programmable' },
+            became_programmed: { icon: '✅', label: 'Programmée' },
+            became_unprogrammed: { icon: '↩️', label: 'Déprogrammée' },
+            became_live: { icon: '🟢', label: 'Mise en live' },
+            became_offline: { icon: '⏸️', label: 'Hors live' },
+            checked: { icon: '✓', label: 'Campagne validée' },
+            unchecked: { icon: '○', label: 'Validation retirée' },
+            bilan_ok: { icon: '📊', label: 'Bilan saisi' },
+            bilan_missing: { icon: '⚠️', label: 'Bilan non saisi' },
+            priority_on: { icon: '⭐', label: 'Prioritaire' },
+            priority_off: { icon: '☆', label: 'Priorité retirée' },
+            trader_changed: { icon: '👤', label: 'Trader changé' },
+            csm_changed: { icon: '👤', label: 'CSM changé' },
+            commercial_changed: { icon: '👤', label: 'Commercial changé' },
+            lane_changed: { icon: '↔️', label: 'Colonne changée' }
+        };
+
+        function formatActivityDate(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const now = new Date();
+            const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            if (d.toDateString() === now.toDateString()) return `Aujourd'hui ${time}`;
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (d.toDateString() === yesterday.toDateString()) return `Hier ${time}`;
+            return `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} ${time}`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        async function loadActivityLog() {
+            const container = document.getElementById('activity-log-list');
+            if (!container) return;
+
+            const team = document.getElementById('activity-filter-team')?.value || '';
+            const includeDiscovered = document.getElementById('activity-include-discovered')?.checked;
+
+            const params = new URLSearchParams({ period: '7d', limit: '50' });
+            if (team && TEAMS[team]) {
+                params.set('traders', TEAMS[team].join(','));
+            }
+            if (includeDiscovered) params.set('include_discovered', '1');
+
+            try {
+                const response = await fetch(`/api/campaign-events/activity?${params}`);
+                const result = await response.json();
+                if (!result.success) {
+                    container.innerHTML = `<p class="text-xs text-red-500 text-center py-4">${escapeHtml(result.error)}</p>`;
+                    return;
+                }
+                renderActivityLog(result.data);
+            } catch (error) {
+                container.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Erreur chargement</p>`;
+            }
+        }
+
+        function renderActivityLog(events) {
+            const container = document.getElementById('activity-log-list');
+            if (!container) return;
+
+            if (!events || events.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 px-2">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Aucun changement récent</p>
+                        <p class="text-[10px] text-gray-400">Les events apparaissent après chaque cycle BDD (toutes les heures, 7h-21h) quand une campagne change de statut.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = events.map(ev => {
+                const meta = EVENT_LABELS[ev.event_type] || { icon: '•', label: ev.event_type };
+                const title = ev.campaign_name || 'Sans nom';
+                const tracker = ev.tracker_id || ev.tracker_key || '';
+                const trader = ev.trader_name || '—';
+                const detail = ev.event_type === 'trader_changed'
+                    ? `${ev.old_value} → ${ev.new_value}`
+                    : (ev.days_before_launch !== null && ev.event_type === 'became_programmable'
+                        ? `J${ev.days_before_launch >= 0 ? '-' + ev.days_before_launch : '+' + Math.abs(ev.days_before_launch)}`
+                        : '');
+
+                return `
+                    <div class="p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600">
+                        <div class="flex items-start justify-between gap-1 mb-1">
+                            <span class="text-xs font-semibold text-gray-800 dark:text-gray-200">${meta.icon} ${meta.label}</span>
+                            <span class="text-[10px] text-gray-400 whitespace-nowrap">${formatActivityDate(ev.detected_at)}</span>
+                        </div>
+                        <div class="text-xs text-gray-700 dark:text-gray-300 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+                        <div class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-x-2">
+                            ${tracker ? `<span class="font-mono">#${escapeHtml(tracker)}</span>` : ''}
+                            <span>${escapeHtml(trader)}</span>
+                            ${detail ? `<span>${escapeHtml(detail)}</span>` : ''}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
         // ==================== INIT ====================
         async function init() {
             // Charger la préférence de design
@@ -3479,7 +3619,7 @@ ADX: ${adxLink}`;
             if (perfLoadingEl) perfLoadingEl.classList.add('hidden');
             
             document.getElementById('loading-state').classList.add('hidden');
-            document.getElementById('main-content').classList.remove('hidden');
+            document.getElementById('dashboard-wrapper').classList.remove('hidden');
             
             // Render tout
             renderPoles();
@@ -3488,6 +3628,10 @@ ADX: ${adxLink}`;
             renderLaunches();
             updateGlobalStats();
             renderPerformance();
+            loadActivityLog();
+            
+            // Rafraîchir le fil d'activité toutes les 5 min (lit la BDD, pas l'API Trello)
+            setInterval(loadActivityLog, 5 * 60 * 1000);
             
             // Charger les emails Commerce
             loadCommerceEmails();

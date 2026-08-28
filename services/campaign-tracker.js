@@ -550,6 +550,51 @@ class CampaignTracker {
         }
     }
 
+    // ─── Fil d'activité (sidebar) ──────────────────────────────
+
+    async getActivityLog({ limit = 50, period = '7d', trader = null, traders = null, includeDiscovered = false }) {
+        const intervalDays = period === '30d' ? 30 : period === '1d' ? 1 : 7;
+        const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
+
+        try {
+            await this.connect();
+
+            const params = [];
+            const conditions = [`detected_at >= NOW() - INTERVAL '${intervalDays} days'`];
+
+            if (!includeDiscovered) {
+                conditions.push(`event_type != 'discovered'`);
+            }
+
+            if (trader) {
+                params.push(trader);
+                conditions.push(`trader_name = $${params.length}`);
+            } else if (traders && traders.length > 0) {
+                params.push(traders);
+                conditions.push(`trader_name = ANY($${params.length})`);
+            }
+
+            params.push(safeLimit);
+            const limitParam = `$${params.length}`;
+
+            const result = await this.client.query(`
+                SELECT
+                    id, tracker_id, tracker_key, campaign_name,
+                    trader_name, csm_name, commercial_name,
+                    event_type, old_value, new_value,
+                    detected_at, days_before_launch, delay_bucket
+                FROM campaign_events
+                WHERE ${conditions.join(' AND ')}
+                ORDER BY detected_at DESC
+                LIMIT ${limitParam}
+            `, params);
+
+            return result.rows;
+        } finally {
+            await this.disconnect();
+        }
+    }
+
     buildCsv(rows) {
         const headers = [
             'Tracker ID', 'Campagne', 'Commercial', 'CSM', 'Trader',

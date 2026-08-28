@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const ProgrammingTracker = require('./services/programming-tracker');
 const StatusTracker = require('./services/status-tracker');
 const CampaignTracker = require('./services/campaign-tracker');
+const cron = require('node-cron');
 const { startScheduler } = require('./services/slack-scheduler');
 const { generateAlerts } = require('./services/alert-generator');
 
@@ -468,6 +469,38 @@ app.get('/api/campaign-events/stats', async (req, res) => {
         });
     } catch (error) {
         log('API', `❌ Erreur campaign-events stats: ${error.message}`);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/api/campaign-events/activity', async (req, res) => {
+    if (!process.env.DATABASE_URL) {
+        return res.status(503).json({ success: false, error: 'Database not configured' });
+    }
+
+    try {
+        const tracker = new CampaignTracker(process.env.DATABASE_URL);
+        const traders = req.query.traders
+            ? req.query.traders.split(',').map(t => t.trim()).filter(Boolean)
+            : null;
+
+        const rows = await tracker.getActivityLog({
+            limit: req.query.limit || 50,
+            period: req.query.period || '7d',
+            trader: req.query.trader || null,
+            traders,
+            includeDiscovered: req.query.include_discovered === '1'
+        });
+
+        res.json({
+            success: true,
+            data: rows,
+            count: rows.length,
+            polling_hint: 'Tracking BDD: toutes les heures de 7h à 21h (Paris). Cette liste se met à jour après chaque cycle.',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        log('API', `❌ Erreur campaign-events activity: ${error.message}`);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -1616,8 +1649,21 @@ app.post('/api/adx/campaigns/names', async (req, res) => {
 });
 
 // ==================== PROGRAMMING TRACKER ====================
-// Tracking automatique 3x par jour: 8h, 14h, 20h
+// Tracking automatique : toutes les heures de 7h à 21h (Paris), pause 22h-7h
 let trelloCache = null;
+
+function getParisHour(date = new Date()) {
+    return parseInt(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Europe/Paris',
+        hour: 'numeric',
+        hour12: false
+    }).format(date), 10);
+}
+
+function isTrackingWindowParis() {
+    const hour = getParisHour();
+    return hour >= 7 && hour <= 21;
+}
 
 async function runProgrammingTracking() {
     if (!process.env.DATABASE_URL) {
@@ -1677,29 +1723,14 @@ async function runProgrammingTracking() {
     }
 }
 
-// Planifier les analyses: 8h, 14h, 20h
-function scheduleAnalysis() {
-    const now = new Date();
-    const hours = now.getHours();
-    
-    // Heures cibles: 8, 14, 20
-    const targetHours = [8, 14, 20];
-    let nextHour = targetHours.find(h => h > hours);
-    if (!nextHour) nextHour = targetHours[0]; // Lendemain 8h
-    
-    const nextRun = new Date(now);
-    nextRun.setHours(nextHour, 0, 0, 0);
-    if (nextHour <= hours) {
-        nextRun.setDate(nextRun.getDate() + 1);
-    }
-    
-    const delay = nextRun - now;
-    log('TRACKING', `⏰ Prochain tracking programmé à ${nextRun.toLocaleString('fr-FR')}`);
-    
-    setTimeout(() => {
+// Planifier le tracking : chaque heure à :00 entre 7h et 21h (heure Paris)
+function startTrackingScheduler() {
+    cron.schedule('0 7-21 * * *', () => {
+        log('TRACKING', '🕐 Déclenchement horaire (7h-21h Paris)');
         runProgrammingTracking();
-        scheduleAnalysis(); // Reprogrammer le suivant
-    }, delay);
+    }, { timezone: 'Europe/Paris' });
+
+    log('TRACKING', '✅ Scheduler tracking activé — toutes les heures de 7h à 21h (Paris), pause 22h-7h');
 }
 
 // Fonction pour initialiser la base de données
@@ -1757,17 +1788,23 @@ app.listen(PORT, async () => {
 ║  Environment: ${(process.env.NODE_ENV || 'development').padEnd(39)}║
 ║  API Key: ${(NOVA_API_KEY ? '✅ Configured' : '❌ Missing').padEnd(43)}║
 ║  Preprod URL: ${NOVA_URL_PREPROD.substring(0, 38).padEnd(39)}║
-║  Programming: ${(process.env.DATABASE_URL ? '✅ Tracking (3x/day)' : '❌ Disabled').padEnd(37)}║
+║  Programming: ${(process.env.DATABASE_URL ? '✅ Tracking (7h-21h/h)' : '❌ Disabled').padEnd(37)}║
 ╚═══════════════════════════════════════════════════════╝
     `);
     
     // Initialiser la base de données
     await initializeDatabase();
     
-    // Lancer le tracking immédiatement au démarrage (si DATABASE_URL existe)
+    // Lancer le tracking au démarrage si dans la fenêtre 7h-21h (Paris)
     if (process.env.DATABASE_URL) {
-        setTimeout(() => runProgrammingTracking(), 5000); // 5s après le démarrage
-        scheduleAnalysis(); // Programmer les prochains
+        setTimeout(() => {
+            if (isTrackingWindowParis()) {
+                runProgrammingTracking();
+            } else {
+                log('TRACKING', `⏸️ Hors fenêtre 7h-21h (Paris, actuellement ${getParisHour()}h) — prochain cycle au cron`);
+            }
+        }, 5000);
+        startTrackingScheduler();
     }
     
     // Démarrer le scheduler Slack (si SLACK_WEBHOOK_URL existe)
