@@ -456,10 +456,7 @@ app.get('/api/campaign-events/stats', async (req, res) => {
         const period = req.query.period || '30d';
         const groupBy = req.query.groupBy || 'csm';
         const tracker = new CampaignTracker(process.env.DATABASE_URL);
-        const [stats, currentState] = await Promise.all([
-            tracker.getProgrammingStats(period, groupBy),
-            tracker.getCurrentSnapshotStats(groupBy)
-        ]);
+        const { stats, currentState } = await tracker.getProgrammingDashboard(period, groupBy);
 
         res.json({
             success: true,

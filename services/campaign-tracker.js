@@ -104,7 +104,10 @@ class CampaignTracker {
     }
 
     async disconnect() {
-        if (this.client) await this.client.end();
+        if (this.client) {
+            await this.client.end();
+            this.client = null;
+        }
     }
 
     // ─── Helpers ───────────────────────────────────────────────
@@ -480,13 +483,23 @@ class CampaignTracker {
     // ─── Stats programmation (agrégation dynamique) ────────────
 
     async getProgrammingStats(period = '30d', groupBy = 'csm') {
+        const { stats } = await this.getProgrammingDashboard(period, groupBy);
+        return stats;
+    }
+
+    async getCurrentSnapshotStats(groupBy = 'csm') {
+        const { currentState } = await this.getProgrammingDashboard('30d', groupBy);
+        return currentState;
+    }
+
+    async getProgrammingDashboard(period = '30d', groupBy = 'csm') {
         const intervalDays = period === '90d' ? 90 : 30;
         const groupField = groupBy === 'commercial' ? 'commercial_name' : 'csm_name';
 
         try {
             await this.connect();
 
-            const result = await this.client.query(`
+            const statsResult = await this.client.query(`
                 SELECT
                     ${groupField} AS name,
                     COUNT(*) AS total_transitions,
@@ -506,20 +519,7 @@ class CampaignTracker {
                          COUNT(*) DESC
             `);
 
-            return result.rows;
-        } finally {
-            await this.disconnect();
-        }
-    }
-
-    /** État actuel depuis les snapshots (disponible immédiatement, sans historique) */
-    async getCurrentSnapshotStats(groupBy = 'csm') {
-        const groupField = groupBy === 'commercial' ? 'commercial_name' : 'csm_name';
-
-        try {
-            await this.connect();
-
-            const result = await this.client.query(`
+            const currentResult = await this.client.query(`
                 SELECT
                     ${groupField} AS name,
                     COUNT(*)::int AS total_tracked,
@@ -533,7 +533,10 @@ class CampaignTracker {
                 ORDER BY COUNT(*) FILTER (WHERE is_programmable) DESC, COUNT(*) DESC
             `);
 
-            return result.rows;
+            return {
+                stats: statsResult.rows,
+                currentState: currentResult.rows
+            };
         } finally {
             await this.disconnect();
         }
