@@ -148,7 +148,7 @@ async function sendDailyAlerts() {
                 ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
                 : null,
             adxLink: a.card?.adxCampaignUrl,
-            commentsNova: [],
+            commentsNova: a.commentsNova || [],
             commentsDashboard: a.commentsDashboard || []
         }));
         
@@ -165,7 +165,7 @@ async function sendDailyAlerts() {
                 ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
                 : null,
             adxLink: a.card?.adxCampaignUrl,
-            commentsNova: [],
+            commentsNova: a.commentsNova || [],
             commentsDashboard: a.commentsDashboard || []
         }));
         
@@ -386,11 +386,20 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
         // Récupérer les commentaires Dashboard (une seule requête BDD)
         const commentsMaps = await loadCommentsMaps();
         const alertsWithComments = commerceAlerts.map((a) => {
-            const comments = getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
-            return { ...a, comments };
+            // Dashboard BDD (ID Nova) — complète ce que l'API a déjà pu attacher
+            const comments = a.comments?.length
+                ? a.comments
+                : getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
+            // Nova = card.comments déjà mappé en commentsNova par /api/alerts
+            return {
+                ...a,
+                comments,
+                commentsNova: a.commentsNova || []
+            };
         });
-        const withCommentsCount = alertsWithComments.filter(a => a.comments?.length > 0).length;
-        console.log(`[EMAIL-COMMERCE] ${withCommentsCount}/${alertsWithComments.length} alerte(s) avec commentaire(s) Dashboard`);
+        const withDash = alertsWithComments.filter(a => a.comments?.length > 0).length;
+        const withNova = alertsWithComments.filter(a => a.commentsNova?.length > 0).length;
+        console.log(`[EMAIL-COMMERCE] Commentaires: ${withDash} Dashboard, ${withNova} Nova sur ${alertsWithComments.length} alerte(s)`);
         
         // Construire le HTML de l'email global
         const alertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');
@@ -610,8 +619,10 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
         
         const commentsMaps = await loadCommentsMaps();
         const alertsWithComments = commerceAlerts.map((a) => {
-            const comments = getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
-            return { ...a, comments };
+            const comments = a.comments?.length
+                ? a.comments
+                : getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
+            return { ...a, comments, commentsNova: a.commentsNova || [] };
         });
         
         const personAlertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');

@@ -96,9 +96,24 @@ router.get('/', async (req, res) => {
                 .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
         }
         
-        // Ajouter les commentaires aux alertes Traders/Commerce (ID Nova = card.campaignId)
+        // Ajouter les commentaires aux alertes Traders/Commerce
         for (const alert of allTradersCommerceAlerts) {
+            // Dashboard = BDD locale (clé = ID Nova)
             alert.commentsDashboard = findComments(commentsMaps, alert.card?.campaignId);
+
+            // Nova = commentaires issus de la carte Trello/Nova (card.comments)
+            alert.commentsNova = (alert.card?.comments || [])
+                .filter(c => c.content)
+                .slice(0, 5)
+                .map(c => {
+                    const author = c.author?.name || 'Anonyme';
+                    const date = c.createdAt
+                        ? new Date(c.createdAt).toLocaleDateString('fr-FR')
+                        : null;
+                    return date
+                        ? `[${date}] ${c.content} (${author})`
+                        : `${c.content} (${author})`;
+                });
         }
         
         res.json({
