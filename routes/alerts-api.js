@@ -124,10 +124,13 @@ router.get('/', async (req, res) => {
         
         // Ajouter les commentaires aux alertes Traders/Commerce
         for (const alert of allTradersCommerceAlerts) {
+            const campaignId = alert.card?.campaignId;
             const campaignName = alert.card?.title;
             
-            // Commentaires Dashboard (base locale) - chercher par nom
-            if (campaignName && commentsByNameMap[campaignName]) {
+            // Commentaires Dashboard (base locale) - chercher par ID puis par nom
+            if (campaignId && commentsByIdMap[campaignId]) {
+                alert.commentsDashboard = commentsByIdMap[campaignId];
+            } else if (campaignName && commentsByNameMap[campaignName]) {
                 alert.commentsDashboard = commentsByNameMap[campaignName];
             }
         }

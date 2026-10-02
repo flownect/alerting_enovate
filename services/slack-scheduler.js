@@ -194,37 +194,74 @@ async function sendDailyAlerts() {
     }
 }
 
-// Fonction pour récupérer les commentaires d'une campagne (par ID ou par nom)
-async function getCommentsForCampaign(campaignId, campaignName = null) {
-    if ((!campaignId && !campaignName) || !process.env.DATABASE_URL) return [];
+function createDbPool() {
+    const { Pool } = require('pg');
+    return new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+        max: 1,
+        connectionTimeoutMillis: 10000
+    });
+}
+
+// Charge tous les commentaires Dashboard une seule fois, indexés par id et par nom
+async function loadCommentsMaps() {
+    if (!process.env.DATABASE_URL) {
+        return { byId: {}, byName: {} };
+    }
 
     try {
-        const { Pool } = require('pg');
-        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-        let result;
-
-        // Chercher d'abord par campaign_id
-        if (campaignId) {
-            result = await pool.query(
-                'SELECT comment_text, author, created_at FROM campaign_comments WHERE campaign_id = $1 ORDER BY created_at DESC LIMIT 5',
-                [campaignId]
-            );
-        }
-
-        // Si pas de résultat et qu'on a un nom, chercher par campaign_name
-        if ((!result || result.rows.length === 0) && campaignName) {
-            result = await pool.query(
-                'SELECT comment_text, author, created_at FROM campaign_comments WHERE campaign_name = $1 ORDER BY created_at DESC LIMIT 5',
-                [campaignName]
-            );
-        }
-
+        const pool = createDbPool();
+        const result = await pool.query(`
+            SELECT campaign_id, campaign_name, comment_text, author, created_at
+            FROM campaign_comments
+            ORDER BY created_at DESC
+        `);
         await pool.end();
-        return result?.rows || [];
+
+        const byId = {};
+        const byName = {};
+
+        for (const row of result.rows) {
+            const comment = {
+                comment_text: row.comment_text,
+                author: row.author || 'Anonyme',
+                created_at: row.created_at
+            };
+
+            if (row.campaign_id) {
+                if (!byId[row.campaign_id]) byId[row.campaign_id] = [];
+                if (byId[row.campaign_id].length < 5) byId[row.campaign_id].push(comment);
+            }
+
+            if (row.campaign_name) {
+                if (!byName[row.campaign_name]) byName[row.campaign_name] = [];
+                if (byName[row.campaign_name].length < 5) byName[row.campaign_name].push(comment);
+            }
+        }
+
+        console.log(`[EMAIL-COMMERCE] ${result.rows.length} commentaire(s) chargés (${Object.keys(byId).length} par id, ${Object.keys(byName).length} par nom)`);
+        return { byId, byName };
     } catch (error) {
         console.log(`[EMAIL-COMMERCE] ⚠️ Erreur récupération commentaires: ${error.message}`);
-        return [];
+        return { byId: {}, byName: {} };
     }
+}
+
+function getCommentsForCampaignFromMaps(maps, campaignId, campaignName = null) {
+    if (campaignId && maps.byId[campaignId]?.length) {
+        return maps.byId[campaignId];
+    }
+    if (campaignName && maps.byName[campaignName]?.length) {
+        return maps.byName[campaignName];
+    }
+    return [];
+}
+
+// Fonction pour récupérer les commentaires d'une campagne (par ID ou par nom)
+async function getCommentsForCampaign(campaignId, campaignName = null) {
+    const maps = await loadCommentsMaps();
+    return getCommentsForCampaignFromMaps(maps, campaignId, campaignName);
 }
 
 // Fonction pour récupérer les personnes avec leurs emails
@@ -232,8 +269,7 @@ async function getPersonEmails() {
     if (!process.env.DATABASE_URL) return { commercials: [], csms: [] };
     
     try {
-        const { Pool } = require('pg');
-        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+        const pool = createDbPool();
         const result = await pool.query(
             'SELECT name, email, role FROM person_emails WHERE is_active = true AND email IS NOT NULL'
         );
@@ -249,6 +285,15 @@ async function getPersonEmails() {
     }
 }
 
+function escapeHtmlEmail(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // Fonction pour générer le HTML d'une alerte
 function generateAlertHtml(a, comments = []) {
     const emoji = a.criticality === 'critical' ? '🔴' : '🟠';
@@ -257,21 +302,51 @@ function generateAlertHtml(a, comments = []) {
     const textColor = a.criticality === 'critical' ? '#991b1b' : '#9a3412';
     
     // Étiquettes de timing et type
-    const timingBadge = a.timing ? `<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 5px;">${a.timing}</span>` : '';
-    const typeBadge = a.subtype ? `<span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${a.subtype}</span>` : '';
-    
-    // Générer le HTML des commentaires
+    const timingBadge = a.timing ? `<span style="background-color: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 5px;">${escapeHtmlEmail(a.timing)}</span>` : '';
+    const typeBadge = a.subtype ? `<span style="background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${escapeHtmlEmail(a.subtype)}</span>` : '';
+
+    // Commentaires Dashboard (objets {comment_text, author, created_at} ou strings API)
+    const dashboardComments = (comments && comments.length > 0)
+        ? comments
+        : (a.commentsDashboard || []).map(c =>
+            typeof c === 'string'
+                ? { comment_text: c, author: '', created_at: null }
+                : c
+        );
+
+    const novaComments = a.commentsNova || [];
+    const adxComments = a.commentsPlateforme || [];
+
     let commentsHtml = '';
-    if (comments && comments.length > 0) {
+    if (dashboardComments.length > 0 || novaComments.length > 0 || adxComments.length > 0) {
+        const dashboardBlock = dashboardComments.length > 0 ? `
+            <p style="margin: 0 0 6px 0; font-size: 12px; color: #6b7280; font-weight: 600;">💬 Commentaires Dashboard:</p>
+            ${dashboardComments.map(c => `
+                <p style="margin: 4px 0; font-size: 11px; color: #4b5563;">
+                    ${c.created_at ? `<span style="color: #9ca3af;">[${new Date(c.created_at).toLocaleDateString('fr-FR')}]</span> ` : ''}
+                    ${c.author ? `<strong>${escapeHtmlEmail(c.author)}:</strong> ` : ''}
+                    ${escapeHtmlEmail(c.comment_text || c)}
+                </p>
+            `).join('')}
+        ` : '';
+
+        const novaBlock = novaComments.length > 0 ? `
+            <p style="margin: ${dashboardComments.length ? '10px' : '0'} 0 6px 0; font-size: 12px; color: #6b7280; font-weight: 600;">💬 Commentaires Nova:</p>
+            ${novaComments.map(c => `
+                <p style="margin: 4px 0; font-size: 11px; color: #4b5563;">• ${escapeHtmlEmail(c)}</p>
+            `).join('')}
+        ` : '';
+
+        const adxBlock = adxComments.length > 0 ? `
+            <p style="margin: ${(dashboardComments.length || novaComments.length) ? '10px' : '0'} 0 6px 0; font-size: 12px; color: #6b7280; font-weight: 600;">💬 Commentaires ADX:</p>
+            ${adxComments.map(c => `
+                <p style="margin: 4px 0; font-size: 11px; color: #4b5563;">• ${escapeHtmlEmail(c)}</p>
+            `).join('')}
+        ` : '';
+
         commentsHtml = `
             <div style="margin-top: 12px; padding: 10px; background-color: #f3f4f6; border-radius: 4px;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; color: #6b7280; font-weight: 600;">💬 Commentaires:</p>
-                ${comments.map(c => `
-                    <p style="margin: 4px 0; font-size: 11px; color: #4b5563;">
-                        <span style="color: #9ca3af;">[${new Date(c.created_at).toLocaleDateString('fr-FR')}]</span>
-                        <strong>${c.author}:</strong> ${c.comment_text}
-                    </p>
-                `).join('')}
+                ${dashboardBlock}${novaBlock}${adxBlock}
             </div>
         `;
     }
@@ -333,13 +408,18 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
             return { sent: 0, preview: null };
         }
         
-        // Récupérer les commentaires pour chaque campagne (par ID ou nom)
-        const alertsWithComments = await Promise.all(
-            commerceAlerts.map(async (a) => {
-                const comments = await getCommentsForCampaign(a.card?.campaignId, a.card?.title);
-                return { ...a, comments };
-            })
-        );
+        // Récupérer les commentaires Dashboard (une seule requête BDD)
+        const commentsMaps = await loadCommentsMaps();
+        const alertsWithComments = commerceAlerts.map((a) => {
+            const comments = getCommentsForCampaignFromMaps(
+                commentsMaps,
+                a.card?.campaignId,
+                a.card?.title
+            );
+            return { ...a, comments };
+        });
+        const withCommentsCount = alertsWithComments.filter(a => a.comments?.length > 0).length;
+        console.log(`[EMAIL-COMMERCE] ${withCommentsCount}/${alertsWithComments.length} alerte(s) avec commentaire(s) Dashboard`);
         
         // Construire le HTML de l'email global
         const alertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');
@@ -403,9 +483,8 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
         let globalRecipients = testRecipients;
         if (!globalRecipients) {
             if (process.env.DATABASE_URL) {
-                const { Pool } = require('pg');
-                const pool = new Pool({ connectionString: process.env.DATABASE_URL });
                 try {
+                    const pool = createDbPool();
                     const result = await pool.query(
                         'SELECT email FROM commerce_email_recipients WHERE is_active = true ORDER BY email'
                     );
@@ -413,6 +492,7 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
                     await pool.end();
                     console.log(`[EMAIL-COMMERCE] ${result.rows.length} destinataire(s) global trouvé(s)`);
                 } catch (error) {
+                    console.log(`[EMAIL-COMMERCE] ⚠️ Destinataires BDD: ${error.message}`);
                     globalRecipients = process.env.COMMERCE_EMAIL_RECIPIENTS || '';
                 }
             } else {
@@ -557,12 +637,15 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
             (a.card?.commercial === testPerson || a.card?.accountManager?.includes(testPerson))
         );
         
-        const alertsWithComments = await Promise.all(
-            commerceAlerts.map(async (a) => {
-                const comments = await getCommentsForCampaign(a.card?.campaignId, a.card?.title);
-                return { ...a, comments };
-            })
-        );
+        const commentsMaps = await loadCommentsMaps();
+        const alertsWithComments = commerceAlerts.map((a) => {
+            const comments = getCommentsForCampaignFromMaps(
+                commentsMaps,
+                a.card?.campaignId,
+                a.card?.title
+            );
+            return { ...a, comments };
+        });
         
         const personAlertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');
         
