@@ -204,10 +204,12 @@ function createDbPool() {
     });
 }
 
-// Charge tous les commentaires Dashboard une seule fois, indexés par id et par nom
+const { buildCommentsMaps, findComments } = require('./comment-matcher');
+
+// Charge tous les commentaires Dashboard une seule fois (indexés par ID Nova)
 async function loadCommentsMaps() {
     if (!process.env.DATABASE_URL) {
-        return { byId: {}, byName: {} };
+        return buildCommentsMaps([]);
     }
 
     try {
@@ -219,49 +221,22 @@ async function loadCommentsMaps() {
         `);
         await pool.end();
 
-        const byId = {};
-        const byName = {};
-
-        for (const row of result.rows) {
-            const comment = {
-                comment_text: row.comment_text,
-                author: row.author || 'Anonyme',
-                created_at: row.created_at
-            };
-
-            if (row.campaign_id) {
-                if (!byId[row.campaign_id]) byId[row.campaign_id] = [];
-                if (byId[row.campaign_id].length < 5) byId[row.campaign_id].push(comment);
-            }
-
-            if (row.campaign_name) {
-                if (!byName[row.campaign_name]) byName[row.campaign_name] = [];
-                if (byName[row.campaign_name].length < 5) byName[row.campaign_name].push(comment);
-            }
-        }
-
-        console.log(`[EMAIL-COMMERCE] ${result.rows.length} commentaire(s) chargés (${Object.keys(byId).length} par id, ${Object.keys(byName).length} par nom)`);
-        return { byId, byName };
+        const maps = buildCommentsMaps(result.rows, 'object');
+        console.log(`[EMAIL-COMMERCE] ${result.rows.length} commentaire(s) chargés (${Object.keys(maps.byNovaId).length} ID Nova)`);
+        return maps;
     } catch (error) {
         console.log(`[EMAIL-COMMERCE] ⚠️ Erreur récupération commentaires: ${error.message}`);
-        return { byId: {}, byName: {} };
+        return buildCommentsMaps([]);
     }
 }
 
-function getCommentsForCampaignFromMaps(maps, campaignId, campaignName = null) {
-    if (campaignId && maps.byId[campaignId]?.length) {
-        return maps.byId[campaignId];
-    }
-    if (campaignName && maps.byName[campaignName]?.length) {
-        return maps.byName[campaignName];
-    }
-    return [];
+function getCommentsForCampaignFromMaps(maps, novaId) {
+    return findComments(maps, novaId);
 }
 
-// Fonction pour récupérer les commentaires d'une campagne (par ID ou par nom)
-async function getCommentsForCampaign(campaignId, campaignName = null) {
+async function getCommentsForCampaign(novaId) {
     const maps = await loadCommentsMaps();
-    return getCommentsForCampaignFromMaps(maps, campaignId, campaignName);
+    return getCommentsForCampaignFromMaps(maps, novaId);
 }
 
 // Fonction pour récupérer les personnes avec leurs emails
@@ -411,11 +386,7 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
         // Récupérer les commentaires Dashboard (une seule requête BDD)
         const commentsMaps = await loadCommentsMaps();
         const alertsWithComments = commerceAlerts.map((a) => {
-            const comments = getCommentsForCampaignFromMaps(
-                commentsMaps,
-                a.card?.campaignId,
-                a.card?.title
-            );
+            const comments = getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
             return { ...a, comments };
         });
         const withCommentsCount = alertsWithComments.filter(a => a.comments?.length > 0).length;
@@ -639,11 +610,7 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
         
         const commentsMaps = await loadCommentsMaps();
         const alertsWithComments = commerceAlerts.map((a) => {
-            const comments = getCommentsForCampaignFromMaps(
-                commentsMaps,
-                a.card?.campaignId,
-                a.card?.title
-            );
+            const comments = getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
             return { ...a, comments };
         });
         

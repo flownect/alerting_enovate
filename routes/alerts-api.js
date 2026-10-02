@@ -45,8 +45,8 @@ router.get('/', async (req, res) => {
         const allPerformanceAlerts = [...performanceAlerts, ...benchmarkAlerts];
         
         // Récupérer les commentaires de la base de données
-        let commentsByIdMap = {};
-        let commentsByNameMap = {};
+        const { buildCommentsMaps, findComments } = require('../services/comment-matcher');
+        let commentsMaps = buildCommentsMaps([]);
         if (process.env.DATABASE_URL) {
             try {
                 console.log('[ALERTS-API] Récupération commentaires...');
@@ -65,52 +65,26 @@ router.get('/', async (req, res) => {
                 `);
                 
                 console.log(`[ALERTS-API] ${result.rows.length} commentaires trouvés`);
-                
                 await pool.end();
-                
-                // Grouper par campaignId ET par campaignName
-                for (const row of result.rows) {
-                    const comment = `${row.comment_text} (${row.author || 'Anonyme'})`;
-                    
-                    // Par ID
-                    if (row.campaign_id) {
-                        if (!commentsByIdMap[row.campaign_id]) {
-                            commentsByIdMap[row.campaign_id] = [];
-                        }
-                        commentsByIdMap[row.campaign_id].push(comment);
-                    }
-                    
-                    // Par nom
-                    if (row.campaign_name) {
-                        if (!commentsByNameMap[row.campaign_name]) {
-                            commentsByNameMap[row.campaign_name] = [];
-                        }
-                        commentsByNameMap[row.campaign_name].push(comment);
-                    }
-                }
-                
-                console.log(`[ALERTS-API] Commentaires groupés: ${Object.keys(commentsByNameMap).length} par nom`);
+                commentsMaps = buildCommentsMaps(result.rows, 'string');
             } catch (error) {
                 console.error('[ALERTS-API] Erreur récupération commentaires:', error.message);
             }
         }
         
-        // Ajouter les commentaires aux alertes Performance
+        // Ajouter les commentaires aux alertes Performance (ID Nova uniquement)
         for (const alert of allPerformanceAlerts) {
-            const campaignId = alert.campaign?.campaignId;
-            const campaignName = alert.campaign?.campaignName;
-            
-            // Commentaires Dashboard (base locale) - chercher par ID ou par nom
-            if (campaignId && commentsByIdMap[campaignId]) {
-                alert.commentsDashboard = commentsByIdMap[campaignId];
-            } else if (campaignName && commentsByNameMap[campaignName]) {
-                alert.commentsDashboard = commentsByNameMap[campaignName];
-            }
+            // briefId = ID utilisé lors de l'ajout commentaire côté Performance ; campaignId = autre forme possible
+            const novaIds = [
+                alert.campaign?.briefId?.briefCampaignInfo?.[0],
+                alert.campaign?.campaignId
+            ].filter(Boolean);
+
+            alert.commentsDashboard = findComments(commentsMaps, novaIds);
             
             // Commentaires Nova et ADX (de Campaign Stats API)
             const allComments = alert.campaign?.comments || [];
             
-            // Séparer les commentaires par type
             alert.commentsNova = allComments
                 .filter(c => c.isAdx && c.content)
                 .slice(0, 3)
@@ -122,17 +96,9 @@ router.get('/', async (req, res) => {
                 .map(c => `${c.content} (${c.author?.name || 'Anonyme'})`);
         }
         
-        // Ajouter les commentaires aux alertes Traders/Commerce
+        // Ajouter les commentaires aux alertes Traders/Commerce (ID Nova = card.campaignId)
         for (const alert of allTradersCommerceAlerts) {
-            const campaignId = alert.card?.campaignId;
-            const campaignName = alert.card?.title;
-            
-            // Commentaires Dashboard (base locale) - chercher par ID puis par nom
-            if (campaignId && commentsByIdMap[campaignId]) {
-                alert.commentsDashboard = commentsByIdMap[campaignId];
-            } else if (campaignName && commentsByNameMap[campaignName]) {
-                alert.commentsDashboard = commentsByNameMap[campaignName];
-            }
+            alert.commentsDashboard = findComments(commentsMaps, alert.card?.campaignId);
         }
         
         res.json({
