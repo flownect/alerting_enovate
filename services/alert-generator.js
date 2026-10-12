@@ -69,8 +69,8 @@ function resolveLaunchCriticality(daysToStart, daysToStartForCriticality, now) {
     if (daysToStartForCriticality === 0) criticality = 'critical';
     else if (daysToStartForCriticality === 1) criticality = 'critical';
     else if (daysToStartForCriticality === 2) criticality = 'urgent';
-    // Jeudi + lundi (J-4) : même niveau que vendredi pour ces campagnes (email urgent/critique)
-    if (now.getDay() === 4 && daysToStart === 4) criticality = 'critical';
+    // Jeudi + lundi (J-4) : urgent (pas critique — le critique reste pour J-1/J0)
+    if (now.getDay() === 4 && daysToStart === 4) criticality = 'urgent';
     return criticality;
 }
 
