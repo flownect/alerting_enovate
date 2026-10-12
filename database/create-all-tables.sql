@@ -141,8 +141,7 @@ CREATE TABLE IF NOT EXISTS person_emails (
     email VARCHAR(255),
     role VARCHAR(50) NOT NULL CHECK (role IN ('commercial', 'csm')),
     is_active BOOLEAN DEFAULT true,
-    -- JSON array de noms CSM dont on reçoit aussi les alertes, ou ["*"] pour tous
-    -- Ex: Tony → ["Edwin"], Kevin → ["*"]
+    -- JSON array de noms CSM dont on reçoit aussi les alertes, ou ["*"] pour tous (config manuelle UI)
     receives_for TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()

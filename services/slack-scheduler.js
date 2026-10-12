@@ -239,13 +239,7 @@ async function getCommentsForCampaign(novaId) {
     return getCommentsForCampaignFromMaps(maps, novaId);
 }
 
-// Défauts métier si rien n'est configuré en BDD (Tony → Edwin, Kevin → tous)
-const DEFAULT_CSM_RECEIVES_FOR = {
-    Tony: ['Edwin'],
-    Kevin: ['*']
-};
-
-function parseReceivesFor(raw, personName) {
+function parseReceivesFor(raw) {
     if (raw != null && String(raw).trim() !== '') {
         try {
             const parsed = JSON.parse(raw);
@@ -254,7 +248,7 @@ function parseReceivesFor(raw, personName) {
             // ignore invalid JSON
         }
     }
-    return DEFAULT_CSM_RECEIVES_FOR[personName] || [];
+    return [];
 }
 
 function alertKey(alert) {
@@ -277,7 +271,7 @@ function mergeAlertsUnique(base, extra) {
 /** Alertes propres à une personne + celles des CSM délégués (receives_for) */
 function collectAlertsForPerson(person, alertsByPerson, allAlerts) {
     let personAlerts = [...(alertsByPerson.get(person.name) || [])];
-    const receivesFor = parseReceivesFor(person.receives_for, person.name);
+    const receivesFor = parseReceivesFor(person.receives_for);
 
     if (receivesFor.includes('*')) {
         return mergeAlertsUnique(personAlerts, allAlerts);
@@ -292,16 +286,14 @@ function collectAlertsForPerson(person, alertsByPerson, allAlerts) {
 
 async function ensurePersonEmailsReceivesForColumn(pool) {
     await pool.query('ALTER TABLE person_emails ADD COLUMN IF NOT EXISTS receives_for TEXT');
-    // Seeds uniquement si la colonne est encore NULL (ne pas écraser la config UI)
+    // Annule les seeds auto Tony/Kevin du déploiement précédent (config 100% manuelle)
     await pool.query(
-        `UPDATE person_emails SET receives_for = $1
-         WHERE name = 'Tony' AND role = 'csm' AND receives_for IS NULL`,
-        [JSON.stringify(['Edwin'])]
-    );
-    await pool.query(
-        `UPDATE person_emails SET receives_for = $1
-         WHERE name = 'Kevin' AND role = 'csm' AND receives_for IS NULL`,
-        [JSON.stringify(['*'])]
+        `UPDATE person_emails
+         SET receives_for = NULL
+         WHERE role = 'csm'
+           AND name IN ('Tony', 'Kevin')
+           AND receives_for IN ($1, $2)`,
+        [JSON.stringify(['Edwin']), JSON.stringify(['*'])]
     );
 }
 
@@ -599,7 +591,7 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
         
         for (const person of allPersons) {
             const personAlerts = collectAlertsForPerson(person, alertsByPerson, alertsWithComments);
-            const receivesFor = parseReceivesFor(person.receives_for, person.name);
+            const receivesFor = parseReceivesFor(person.receives_for);
             if (receivesFor.length) {
                 console.log(`[EMAIL-COMMERCE] ${person.name}: délégation receives_for=${JSON.stringify(receivesFor)} → ${personAlerts.length} alerte(s)`);
             }
@@ -745,7 +737,7 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
             subject: `🚨 ${personAlerts.length} Alerte${personAlerts.length > 1 ? 's' : ''} sur vos campagnes - ${new Date().toLocaleDateString('fr-FR')}`,
             html: htmlContent,
             alertCount: personAlerts.length,
-            receivesFor: parseReceivesFor(person.receives_for, person.name),
+            receivesFor: parseReceivesFor(person.receives_for),
             fromDatabase: !!personFromDb
         };
     }

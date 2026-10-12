@@ -97,8 +97,8 @@
                 </p>
             </div>
             <p class="text-sm text-gray-600 mb-4">
-                Chaque commercial et CSM reçoit ses propres alertes. Pour les CSM, vous pouvez aussi déléguer
-                les alertes d'autres CSM (ex. Tony ← Edwin, Kevin ← tous).
+                Chaque commercial et CSM reçoit ses propres alertes. Pour les CSM, cochez manuellement
+                de qui ils doivent aussi recevoir les alertes (personne par personne).
             </p>
             
             <!-- Loading state -->
@@ -199,20 +199,14 @@
         // State
         let personsData = { commercials: [], csms: [], existing: [] };
 
-        // Défauts métier (affichés si rien en BDD) — alignés avec l'envoi email
-        const DEFAULT_CSM_RECEIVES_FOR = {
-            Tony: ['Edwin'],
-            Kevin: ['*']
-        };
-
-        function parseReceivesFor(raw, personName) {
+        function parseReceivesFor(raw) {
             if (raw != null && String(raw).trim() !== '') {
                 try {
                     const parsed = JSON.parse(raw);
                     if (Array.isArray(parsed)) return parsed.map(String);
                 } catch (_) {}
             }
-            return DEFAULT_CSM_RECEIVES_FOR[personName] || [];
+            return [];
         }
         
         // Initialize
@@ -354,7 +348,7 @@
                 const existing = existingMap.get(name);
                 const email = existing?.email || '';
                 const isActive = existing ? existing.is_active !== false : true;
-                const receivesFor = parseReceivesFor(existing?.receives_for, name);
+                const receivesFor = parseReceivesFor(existing?.receives_for);
                 return renderPersonRow(name, 'csm', email, isActive, receivesFor);
             }).join('') || '<p class="text-gray-400 text-sm italic">Aucun CSM détecté</p>';
         }
