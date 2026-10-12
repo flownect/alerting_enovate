@@ -785,7 +785,7 @@ app.get('/api/person-emails', async (req, res) => {
         await client.connect();
 
         const result = await client.query(
-            'SELECT * FROM person_emails ORDER BY role, name'
+            'SELECT id, name, email, role, is_active, receives_for, created_at, updated_at FROM person_emails ORDER BY role, name'
         );
         await client.end();
 
@@ -804,7 +804,7 @@ app.get('/api/person-emails', async (req, res) => {
 
 // Sauvegarder ou mettre à jour un email de personne
 app.post('/api/person-emails', async (req, res) => {
-    const { name, email, role, is_active } = req.body;
+    const { name, email, role, is_active, receives_for } = req.body;
 
     if (!name || !role) {
         return res.status(400).json({
@@ -828,23 +828,40 @@ app.post('/api/person-emails', async (req, res) => {
         });
         await client.connect();
 
+        await client.query('ALTER TABLE person_emails ADD COLUMN IF NOT EXISTS receives_for TEXT');
+
         const activeValue = is_active !== undefined ? is_active : true;
         // Si email n'est pas fourni (undefined) ou est vide, on met null pour l'INSERT
         // mais lors d'un UPDATE on préserve l'email existant
         const emailValue = email !== undefined ? (email || null) : null;
         const updateEmail = email !== undefined && email !== null && email !== '';
 
+        // receives_for: tableau JSON de noms CSM, ou ["*"] pour tous. null = ne pas toucher à l'existant
+        let receivesForValue = null;
+        let updateReceivesFor = false;
+        if (receives_for !== undefined) {
+            updateReceivesFor = true;
+            if (Array.isArray(receives_for)) {
+                receivesForValue = JSON.stringify(receives_for);
+            } else if (receives_for === null) {
+                receivesForValue = null;
+            } else {
+                receivesForValue = String(receives_for);
+            }
+        }
+
         const result = await client.query(`
-            INSERT INTO person_emails (name, email, role, is_active, updated_at)
-            VALUES ($1, $2, $3, $4, NOW())
+            INSERT INTO person_emails (name, email, role, is_active, receives_for, updated_at)
+            VALUES ($1, $2, $3, $4, $6, NOW())
             ON CONFLICT (name)
             DO UPDATE SET 
                 email = CASE WHEN $5 THEN $2 ELSE person_emails.email END,
                 role = $3,
                 is_active = $4,
+                receives_for = CASE WHEN $7 THEN $6 ELSE person_emails.receives_for END,
                 updated_at = NOW()
             RETURNING *
-        `, [name, emailValue, role, activeValue, updateEmail]);
+        `, [name, emailValue, role, activeValue, updateEmail, receivesForValue, updateReceivesFor]);
 
         await client.end();
 
@@ -893,7 +910,8 @@ app.get('/api/persons-detected', async (req, res) => {
                 });
                 await client.connect();
                 // Récupérer TOUTES les personnes (actives ET inactives) avec is_active pour l'UI
-                const result = await client.query('SELECT name, email, role, is_active FROM person_emails ORDER BY role, name');
+                await client.query('ALTER TABLE person_emails ADD COLUMN IF NOT EXISTS receives_for TEXT');
+                const result = await client.query('SELECT name, email, role, is_active, receives_for FROM person_emails ORDER BY role, name');
                 existingPersons = result.rows;
                 await client.end();
                 

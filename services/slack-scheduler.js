@@ -239,14 +239,81 @@ async function getCommentsForCampaign(novaId) {
     return getCommentsForCampaignFromMaps(maps, novaId);
 }
 
+// Défauts métier si rien n'est configuré en BDD (Tony → Edwin, Kevin → tous)
+const DEFAULT_CSM_RECEIVES_FOR = {
+    Tony: ['Edwin'],
+    Kevin: ['*']
+};
+
+function parseReceivesFor(raw, personName) {
+    if (raw != null && String(raw).trim() !== '') {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.map(String);
+        } catch (_) {
+            // ignore invalid JSON
+        }
+    }
+    return DEFAULT_CSM_RECEIVES_FOR[personName] || [];
+}
+
+function alertKey(alert) {
+    return `${alert.card?.campaignId || alert.card?.trackerId || alert.card?.title || ''}::${alert.type || ''}::${alert.subtype || ''}::${alert.message || ''}`;
+}
+
+function mergeAlertsUnique(base, extra) {
+    const seen = new Set(base.map(alertKey));
+    const out = [...base];
+    for (const a of extra) {
+        const k = alertKey(a);
+        if (!seen.has(k)) {
+            seen.add(k);
+            out.push(a);
+        }
+    }
+    return out;
+}
+
+/** Alertes propres à une personne + celles des CSM délégués (receives_for) */
+function collectAlertsForPerson(person, alertsByPerson, allAlerts) {
+    let personAlerts = [...(alertsByPerson.get(person.name) || [])];
+    const receivesFor = parseReceivesFor(person.receives_for, person.name);
+
+    if (receivesFor.includes('*')) {
+        return mergeAlertsUnique(personAlerts, allAlerts);
+    }
+
+    for (const otherName of receivesFor) {
+        if (!otherName || otherName === person.name) continue;
+        personAlerts = mergeAlertsUnique(personAlerts, alertsByPerson.get(otherName) || []);
+    }
+    return personAlerts;
+}
+
+async function ensurePersonEmailsReceivesForColumn(pool) {
+    await pool.query('ALTER TABLE person_emails ADD COLUMN IF NOT EXISTS receives_for TEXT');
+    // Seeds uniquement si la colonne est encore NULL (ne pas écraser la config UI)
+    await pool.query(
+        `UPDATE person_emails SET receives_for = $1
+         WHERE name = 'Tony' AND role = 'csm' AND receives_for IS NULL`,
+        [JSON.stringify(['Edwin'])]
+    );
+    await pool.query(
+        `UPDATE person_emails SET receives_for = $1
+         WHERE name = 'Kevin' AND role = 'csm' AND receives_for IS NULL`,
+        [JSON.stringify(['*'])]
+    );
+}
+
 // Fonction pour récupérer les personnes avec leurs emails
 async function getPersonEmails() {
     if (!process.env.DATABASE_URL) return { commercials: [], csms: [] };
     
     try {
         const pool = createDbPool();
+        await ensurePersonEmailsReceivesForColumn(pool);
         const result = await pool.query(
-            'SELECT name, email, role FROM person_emails WHERE is_active = true AND email IS NOT NULL'
+            'SELECT name, email, role, receives_for FROM person_emails WHERE is_active = true AND email IS NOT NULL'
         );
         await pool.end();
         
@@ -531,7 +598,11 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
         const allPersons = [...commercials, ...csms];
         
         for (const person of allPersons) {
-            const personAlerts = alertsByPerson.get(person.name) || [];
+            const personAlerts = collectAlertsForPerson(person, alertsByPerson, alertsWithComments);
+            const receivesFor = parseReceivesFor(person.receives_for, person.name);
+            if (receivesFor.length) {
+                console.log(`[EMAIL-COMMERCE] ${person.name}: délégation receives_for=${JSON.stringify(receivesFor)} → ${personAlerts.length} alerte(s)`);
+            }
             
             if (personAlerts.length === 0) {
                 console.log(`[EMAIL-COMMERCE] ℹ️ ${person.name}: aucune alerte, email non envoyé`);
@@ -607,14 +678,13 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
             role: 'unknown' 
         };
         
-        // Récupérer les alertes
+        // Récupérer TOUTES les alertes commerce (comme l'envoi réel), puis filtrer via délégation
         const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
         const alertsData = await response.json();
         
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
             !a.card?.isProgrammable &&
-            (a.criticality === 'urgent' || a.criticality === 'critical') &&
-            (a.card?.commercial === testPerson || a.card?.accountManager?.includes(testPerson))
+            (a.criticality === 'urgent' || a.criticality === 'critical')
         );
         
         const commentsMaps = await loadCommentsMaps();
@@ -624,8 +694,28 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
                 : getCommentsForCampaignFromMaps(commentsMaps, a.card?.campaignId);
             return { ...a, comments, commentsNova: a.commentsNova || [] };
         });
-        
-        const personAlertsHtml = alertsWithComments.map(a => generateAlertHtml(a, a.comments)).join('');
+
+        const alertsByPerson = new Map();
+        for (const alert of alertsWithComments) {
+            const commercial = alert.card?.commercial;
+            const csm = alert.card?.accountManager;
+            if (commercial && commercial !== 'N/A' && commercial !== 'Aucun') {
+                if (!alertsByPerson.has(commercial)) alertsByPerson.set(commercial, []);
+                alertsByPerson.get(commercial).push(alert);
+            }
+            if (csm && csm !== 'N/A' && csm !== 'Aucun') {
+                for (const csmName of csm.split(',').map(s => s.trim()).filter(Boolean)) {
+                    if (!alertsByPerson.has(csmName)) alertsByPerson.set(csmName, []);
+                    const existing = alertsByPerson.get(csmName);
+                    if (!existing.find(a => a.card?.campaignId === alert.card?.campaignId && a.type === alert.type)) {
+                        existing.push(alert);
+                    }
+                }
+            }
+        }
+
+        const personAlerts = collectAlertsForPerson(person, alertsByPerson, alertsWithComments);
+        const personAlertsHtml = personAlerts.map(a => generateAlertHtml(a, a.comments)).join('');
         
         const htmlContent = `
             <!DOCTYPE html>
@@ -637,7 +727,7 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
                 </h1>
                 <p style="font-size: 16px; color: #6b7280; margin-bottom: 30px;">
                     Bonjour ${person.name},<br><br>
-                    Vous avez ${commerceAlerts.length} alerte${commerceAlerts.length > 1 ? 's' : ''} concernant vos campagnes.
+                    Vous avez ${personAlerts.length} alerte${personAlerts.length > 1 ? 's' : ''} concernant vos campagnes.
                 </p>
                 ${personAlertsHtml || '<p style="color: #6b7280;">Aucune alerte pour vous aujourd\'hui.</p>'}
                 <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
@@ -652,9 +742,10 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
             mode: 'individual',
             person: person.name,
             email: person.email,
-            subject: `🚨 ${commerceAlerts.length} Alerte${commerceAlerts.length > 1 ? 's' : ''} sur vos campagnes - ${new Date().toLocaleDateString('fr-FR')}`,
+            subject: `🚨 ${personAlerts.length} Alerte${personAlerts.length > 1 ? 's' : ''} sur vos campagnes - ${new Date().toLocaleDateString('fr-FR')}`,
             html: htmlContent,
-            alertCount: commerceAlerts.length,
+            alertCount: personAlerts.length,
+            receivesFor: parseReceivesFor(person.receives_for, person.name),
             fromDatabase: !!personFromDb
         };
     }

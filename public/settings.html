@@ -97,7 +97,8 @@
                 </p>
             </div>
             <p class="text-sm text-gray-600 mb-4">
-                Chaque commercial et CSM recevra uniquement les alertes concernant ses propres projets.
+                Chaque commercial et CSM reçoit ses propres alertes. Pour les CSM, vous pouvez aussi déléguer
+                les alertes d'autres CSM (ex. Tony ← Edwin, Kevin ← tous).
             </p>
             
             <!-- Loading state -->
@@ -197,6 +198,22 @@
     <script>
         // State
         let personsData = { commercials: [], csms: [], existing: [] };
+
+        // Défauts métier (affichés si rien en BDD) — alignés avec l'envoi email
+        const DEFAULT_CSM_RECEIVES_FOR = {
+            Tony: ['Edwin'],
+            Kevin: ['*']
+        };
+
+        function parseReceivesFor(raw, personName) {
+            if (raw != null && String(raw).trim() !== '') {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) return parsed.map(String);
+                } catch (_) {}
+            }
+            return DEFAULT_CSM_RECEIVES_FOR[personName] || [];
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -337,42 +354,135 @@
                 const existing = existingMap.get(name);
                 const email = existing?.email || '';
                 const isActive = existing ? existing.is_active !== false : true;
-                return renderPersonRow(name, 'csm', email, isActive);
+                const receivesFor = parseReceivesFor(existing?.receives_for, name);
+                return renderPersonRow(name, 'csm', email, isActive, receivesFor);
             }).join('') || '<p class="text-gray-400 text-sm italic">Aucun CSM détecté</p>';
         }
 
         // Render a single person row
-        function renderPersonRow(name, role, email, isActive = true) {
+        function renderPersonRow(name, role, email, isActive = true, receivesFor = []) {
             const roleColor = role === 'commercial' ? 'blue' : 'purple';
-            const safeName = name.replace(/\s+/g, '-');
+            const safeName = name.replace(/\s+/g, '-').replace(/'/g, '');
+            const otherCsms = (personsData.csms || []).filter(c => c !== name);
+
+            const delegationHtml = role === 'csm' ? `
+                <div class="mt-2 pt-2 border-t border-gray-200 w-full">
+                    <p class="text-xs text-gray-500 mb-1">Aussi recevoir les alertes de :</p>
+                    <div class="flex flex-wrap gap-3 items-center">
+                        <label class="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+                            <input type="checkbox" class="rounded receives-for-all"
+                                data-name="${name}"
+                                ${receivesFor.includes('*') ? 'checked' : ''}
+                                ${isActive ? '' : 'disabled'}
+                                onchange="saveCsmReceivesFor('${name}')">
+                            <span class="font-medium text-purple-700">Tous les CSM / toutes les alertes</span>
+                        </label>
+                        ${otherCsms.map(csm => `
+                            <label class="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer">
+                                <input type="checkbox" class="rounded receives-for-csm"
+                                    data-name="${name}"
+                                    data-csm="${csm}"
+                                    ${!receivesFor.includes('*') && receivesFor.includes(csm) ? 'checked' : ''}
+                                    ${!isActive || receivesFor.includes('*') ? 'disabled' : ''}
+                                    onchange="saveCsmReceivesFor('${name}')">
+                                <span>${csm}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1" id="receives-status-${safeName}"></p>
+                </div>
+            ` : '';
+
             return `
-                <div class="flex items-center gap-3 p-3 rounded-lg fade-in transition-all ${isActive ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}" id="row-${safeName}">
-                    <div class="flex-1">
-                        <div class="font-medium ${isActive ? 'text-gray-900' : 'text-gray-400 line-through'}">${name}</div>
-                        <div class="text-xs text-gray-500 uppercase tracking-wide">${role}</div>
+                <div class="p-3 rounded-lg fade-in transition-all ${isActive ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}" id="row-${safeName}">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1">
+                            <div class="font-medium ${isActive ? 'text-gray-900' : 'text-gray-400 line-through'}">${name}</div>
+                            <div class="text-xs text-gray-500 uppercase tracking-wide">${role}</div>
+                        </div>
+                        <div class="flex-1">
+                            <input 
+                                type="email" 
+                                value="${email}" 
+                                placeholder="email@e-novate.fr"
+                                data-name="${name}"
+                                data-role="${role}"
+                                onchange="savePersonEmail(this)"
+                                ${isActive ? '' : 'disabled'}
+                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-${roleColor}-500 focus:border-${roleColor}-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                        </div>
+                        <button 
+                            onclick="togglePersonActive('${name}', '${role}', ${isActive})"
+                            title="${isActive ? 'Désactiver' : 'Activer'}"
+                            class="text-xs font-bold w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors hover:opacity-80 ${isActive ? 'border-gray-400 text-gray-600 hover:bg-gray-200' : 'border-gray-300 text-gray-400 hover:bg-gray-100'}"
+                        >${isActive ? 'ON' : 'OFF'}</button>
+                        <div class="text-xs text-gray-400 w-6 text-center" id="status-${safeName}">
+                            ${email ? '✓' : ''}
+                        </div>
                     </div>
-                    <div class="flex-1">
-                        <input 
-                            type="email" 
-                            value="${email}" 
-                            placeholder="email@e-novate.fr"
-                            data-name="${name}"
-                            data-role="${role}"
-                            onchange="savePersonEmail(this)"
-                            ${isActive ? '' : 'disabled'}
-                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-${roleColor}-500 focus:border-${roleColor}-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                    </div>
-                    <button 
-                        onclick="togglePersonActive('${name}', '${role}', ${isActive})"
-                        title="${isActive ? 'Désactiver' : 'Activer'}"
-                        class="text-xs font-bold w-8 h-8 flex items-center justify-center rounded-full border-2 transition-colors hover:opacity-80 ${isActive ? 'border-gray-400 text-gray-600 hover:bg-gray-200' : 'border-gray-300 text-gray-400 hover:bg-gray-100'}"
-                    >${isActive ? 'ON' : 'OFF'}</button>
-                    <div class="text-xs text-gray-400 w-6 text-center" id="status-${safeName}">
-                        ${email ? '✓' : ''}
-                    </div>
+                    ${delegationHtml}
                 </div>
             `;
+        }
+
+        async function saveCsmReceivesFor(name) {
+            const safeName = name.replace(/\s+/g, '-').replace(/'/g, '');
+            const row = document.getElementById(`row-${safeName}`);
+            if (!row) return;
+
+            const allBox = row.querySelector('.receives-for-all');
+            const csmBoxes = [...row.querySelectorAll('.receives-for-csm')];
+            let receivesFor = [];
+
+            if (allBox?.checked) {
+                receivesFor = ['*'];
+                csmBoxes.forEach(cb => { cb.checked = false; cb.disabled = true; });
+            } else {
+                csmBoxes.forEach(cb => { cb.disabled = false; });
+                receivesFor = csmBoxes.filter(cb => cb.checked).map(cb => cb.dataset.csm);
+            }
+
+            const existing = personsData.existing.find(p => p.name === name);
+            const statusEl = document.getElementById(`receives-status-${safeName}`);
+            if (statusEl) statusEl.textContent = 'Sauvegarde...';
+
+            try {
+                const response = await fetch('/api/person-emails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        role: 'csm',
+                        email: existing?.email || null,
+                        is_active: existing ? existing.is_active !== false : true,
+                        receives_for: receivesFor
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    if (statusEl) statusEl.textContent = '✓ Délégation enregistrée';
+                    const idx = personsData.existing.findIndex(p => p.name === name);
+                    if (idx >= 0) {
+                        personsData.existing[idx].receives_for = JSON.stringify(receivesFor);
+                    } else {
+                        personsData.existing.push({
+                            name,
+                            role: 'csm',
+                            email: existing?.email || null,
+                            is_active: true,
+                            receives_for: JSON.stringify(receivesFor)
+                        });
+                    }
+                    showToast(`✅ Délégation mise à jour pour ${name}`);
+                } else {
+                    if (statusEl) statusEl.textContent = '✗ Erreur';
+                    showToast('❌ ' + (result.error || 'Erreur'), 'error');
+                }
+            } catch (error) {
+                if (statusEl) statusEl.textContent = '✗ Erreur réseau';
+                showToast('❌ Erreur réseau', 'error');
+            }
         }
 
         // Toggle actif/inactif d'une personne

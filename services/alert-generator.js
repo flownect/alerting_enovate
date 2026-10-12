@@ -59,6 +59,21 @@ function getAllCards(trelloData) {
 
 // ==================== GÉNÉRATION ALERTES TRADERS/COMMERCE (copié du dashboard) ====================
 
+function getLaunchWindowMaxDays(now) {
+    // Fenêtre standard J-3→J0 ; le jeudi on inclut aussi J-4 (campagnes du lundi)
+    return now.getDay() === 4 ? 4 : 3;
+}
+
+function resolveLaunchCriticality(daysToStart, daysToStartForCriticality, now) {
+    let criticality = 'attention';
+    if (daysToStartForCriticality === 0) criticality = 'critical';
+    else if (daysToStartForCriticality === 1) criticality = 'critical';
+    else if (daysToStartForCriticality === 2) criticality = 'urgent';
+    // Jeudi + lundi (J-4) : même niveau que vendredi pour ces campagnes (email urgent/critique)
+    if (now.getDay() === 4 && daysToStart === 4) criticality = 'critical';
+    return criticality;
+}
+
 function generateAlerts(trelloData) {
     const cards = getAllCards(trelloData);
     const now = today();
@@ -69,6 +84,7 @@ function generateAlerts(trelloData) {
     if (isFriday) {
         nowForCriticality.setDate(nowForCriticality.getDate() + 2);
     }
+    const maxDaysAhead = getLaunchWindowMaxDays(now);
     
     const alerts = [];
     
@@ -99,7 +115,7 @@ function generateAlerts(trelloData) {
         const daysToStartForCriticality = startDate ? getDaysDiff(nowForCriticality, startDate) : null;
         const daysFromEnd = endDate ? getDaysDiff(endDate, now) : null;
 
-        // Alerte Lancement - Non programmable (J-3 à J0 et après lancement)
+        // Alerte Lancement - Non programmable (J-3 à J0, + J-4 le jeudi pour lundi)
         if (!card.isProgrammable && !card.areSubdivisionsLive && daysToStart !== null) {
             const launchDate = card.dates?.startingDateFormatted || 'N/A';
             
@@ -115,15 +131,10 @@ function generateAlerts(trelloData) {
                     message: `Non programmable depuis ${daysLate} jour${daysLate > 1 ? 's' : ''} • Lancée: ${launchDate}`
                 });
             }
-            // Campagne à venir (J-3 à J0)
-            else if (daysToStart >= 0 && daysToStart <= 3) {
-                let criticality = 'attention';
-                let timing = `J-${daysToStart}`;
-                
-                // Criticité basée sur les jours ajustés (weekend)
-                if (daysToStartForCriticality === 0) { criticality = 'critical'; }
-                else if (daysToStartForCriticality === 1) { criticality = 'critical'; }
-                else if (daysToStartForCriticality === 2) { criticality = 'urgent'; }
+            // Campagne à venir (J-3 à J0, J-4 le jeudi)
+            else if (daysToStart >= 0 && daysToStart <= maxDaysAhead) {
+                const criticality = resolveLaunchCriticality(daysToStart, daysToStartForCriticality, now);
+                const timing = `J-${daysToStart}`;
                 
                 alerts.push({
                     type: 'launch',
@@ -136,15 +147,10 @@ function generateAlerts(trelloData) {
             }
         }
 
-        // Alerte Lancement - Sans trader (J-3 à J0)
-        if (trader === 'Aucun' && card.isProgrammable && daysToStart !== null && daysToStart >= 0 && daysToStart <= 3) {
-            let criticality = 'attention';
-            let timing = `J-${daysToStart}`;
-            
-            // Criticité basée sur les jours ajustés (weekend)
-            if (daysToStartForCriticality === 0) { criticality = 'critical'; }
-            else if (daysToStartForCriticality === 1) { criticality = 'critical'; }
-            else if (daysToStartForCriticality === 2) { criticality = 'urgent'; }
+        // Alerte Lancement - Sans trader (J-3 à J0, + J-4 le jeudi)
+        if (trader === 'Aucun' && card.isProgrammable && daysToStart !== null && daysToStart >= 0 && daysToStart <= maxDaysAhead) {
+            const criticality = resolveLaunchCriticality(daysToStart, daysToStartForCriticality, now);
+            const timing = `J-${daysToStart}`;
             
             alerts.push({
                 type: 'launch',

@@ -141,9 +141,15 @@ CREATE TABLE IF NOT EXISTS person_emails (
     email VARCHAR(255),
     role VARCHAR(50) NOT NULL CHECK (role IN ('commercial', 'csm')),
     is_active BOOLEAN DEFAULT true,
+    -- JSON array de noms CSM dont on reçoit aussi les alertes, ou ["*"] pour tous
+    -- Ex: Tony → ["Edwin"], Kevin → ["*"]
+    receives_for TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Compatibilité bases déjà déployées
+ALTER TABLE person_emails ADD COLUMN IF NOT EXISTS receives_for TEXT;
 
 -- Index pour person_emails
 CREATE INDEX IF NOT EXISTS idx_person_emails_role ON person_emails(role);
