@@ -14,7 +14,6 @@ const { generateAlerts } = require('./services/alert-generator');
 
 // Timeout pour les requêtes API (120 secondes)
 const FETCH_TIMEOUT = 120000;
-// redeploy trigger 2026-04-22
 
 // Authentification
 const DASHBOARD_USER = process.env.DASHBOARD_USER || 'enovate';
