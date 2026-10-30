@@ -2685,16 +2685,16 @@ ADX: ${adxLink}`;
             const originalText = btn.innerHTML;
             
             try {
-                btn.innerHTML = '⏳ Envoi...';
+                btn.innerHTML = '⏳ Recalcul Nova + envoi...';
                 btn.disabled = true;
                 
-                // Appeler l'API centralisée
+                // Recalcul complet (Trello sans cache + campaign-stats) puis envoi Slack
                 const response = await fetch('/api/test-slack-alerts', { method: 'POST' });
                 const result = await response.json();
                 
                 if (result.success) {
-                    const total = (result.counts?.performance || 0) + (result.counts?.traders || 0) + (result.counts?.commerce || 0);
-                    btn.innerHTML = `✅ ${total} alerte${total > 1 ? 's' : ''} envoyée${total > 1 ? 's' : ''}`;
+                    const total = (result.counts?.performance || 0) + (result.counts?.traders || 0);
+                    btn.innerHTML = `✅ ${total} alerte${total > 1 ? 's' : ''} (P${result.counts?.performance || 0}/T${result.counts?.traders || 0})`;
                     setTimeout(() => {
                         btn.innerHTML = originalText;
                         btn.disabled = false;

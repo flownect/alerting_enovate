@@ -60,12 +60,18 @@ function log(message) {
     console.log(`[${new Date().toISOString()}] [SLACK-SCHEDULER] ${message}`);
 }
 
+function getLocalAlertsBaseUrl() {
+    const port = process.env.PORT || 3000;
+    return `http://127.0.0.1:${port}`;
+}
+
 // Fonction pour récupérer les alertes critiques
-async function getCriticalAlerts() {
+// fresh=true → recalcul complet (Trello sans cache + campaign-stats live)
+async function getCriticalAlerts({ fresh = false } = {}) {
     try {
-        // Appeler l'API centralisée /api/alerts
-        log('Récupération des alertes depuis /api/alerts...');
-        const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const qs = fresh ? 'env=prod&fresh=1' : 'env=prod';
+        log(`Récupération des alertes depuis /api/alerts (${fresh ? 'fresh/recalcul complet' : 'cache Nova OK'})...`);
+        const response = await fetch(`${getLocalAlertsBaseUrl()}/api/alerts?${qs}`, { timeout: 300000 });
         
         if (!response.ok) {
             throw new Error(`API alerts error: ${response.status}`);
@@ -109,11 +115,12 @@ function formatDateForSlack(dateStr) {
 }
 
 // Fonction pour envoyer les alertes sur Slack
-async function sendDailyAlerts() {
+// options.fresh = true → refetch Nova sans cache + recalcul (bouton manuel)
+async function sendDailyAlerts({ fresh = false } = {}) {
     try {
-        log('Début envoi alertes quotidiennes...');
+        log(`Début envoi alertes quotidiennes${fresh ? ' (recalcul complet)' : ''}...`);
         
-        const alerts = await getCriticalAlerts();
+        const alerts = await getCriticalAlerts({ fresh });
         
         // Utiliser directement les alertes de l'API (déjà formatées)
         const formattedPerformance = alerts.performanceAlerts.map(a => ({
@@ -159,7 +166,7 @@ async function sendDailyAlerts() {
         
         if (totalCritical === 0) {
             log('✅ Aucune alerte critique à envoyer');
-            return;
+            return { performance: 0, traders: 0, commerce: 0, fresh };
         }
         
         // Importer la fonction d'envoi Slack depuis routes/slack.js
@@ -173,9 +180,16 @@ async function sendDailyAlerts() {
         });
         
         log(`✅ Alertes envoyées sur Slack avec succès`);
+        return {
+            performance: formattedPerformance.length,
+            traders: formattedTraders.length,
+            commerce: 0,
+            fresh
+        };
         
     } catch (error) {
         log(`❌ Erreur envoi alertes: ${error.message}`);
+        throw error;
     }
 }
 
@@ -407,7 +421,7 @@ async function sendCommerceAlertsEmail(mode = 'send', testRecipients = null) {
         console.log(`[EMAIL-COMMERCE] Début ${mode === 'preview' ? 'prévisualisation' : 'envoi'} alertes Commerce par email...`);
         
         // Récupérer TOUTES les alertes commerce
-        const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const response = await fetch(`${getLocalAlertsBaseUrl()}/api/alerts?env=prod`, { timeout: 300000 });
         const alertsData = await response.json();
         
         // Filtrer les alertes Commerce uniquement (NON programmables, urgentes + critiques)
@@ -656,7 +670,7 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
         };
         
         // Récupérer TOUTES les alertes commerce (comme l'envoi réel), puis filtrer via délégation
-        const response = await fetch('http://localhost:8080/api/alerts?env=prod', { timeout: 300000 });
+        const response = await fetch(`${getLocalAlertsBaseUrl()}/api/alerts?env=prod`, { timeout: 300000 });
         const alertsData = await response.json();
         
         const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 

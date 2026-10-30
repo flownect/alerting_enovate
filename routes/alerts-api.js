@@ -12,7 +12,10 @@ router.get('/', async (req, res) => {
         const NOVA_API_KEY = process.env.NOVA_API_KEY;
         const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://nova.e-novate.fr';
         
-        const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
+        // fresh=1 → bypass cache Nova (bouton Slack manuel)
+        const cache = req.query.fresh === '1' ? '0' : '1';
+        const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=${cache}`;
+        console.log(`[ALERTS-API] Fetch Trello (cache=${cache}) + campaign-stats...`);
         const trelloResponse = await fetch(trelloUrl, { timeout: 120000 });
         
         if (!trelloResponse.ok) {

@@ -81,9 +81,14 @@ app.use('/api/alerts', alertsRouter);
 // Route pour tester manuellement l'envoi des alertes
 app.post('/api/test-slack-alerts', sessionAuth, async (req, res) => {
     try {
-        log('TEST', 'Envoi manuel des alertes Slack...');
-        await sendDailyAlerts();
-        res.json({ success: true, message: 'Alertes envoyées avec succès' });
+        log('TEST', 'Envoi manuel des alertes Slack (recalcul complet Nova)...');
+        // fresh=true → refetch Trello sans cache + campaign-stats + recalcul
+        const counts = await sendDailyAlerts({ fresh: true });
+        res.json({
+            success: true,
+            message: 'Alertes recalculées et envoyées avec succès',
+            counts: counts || { performance: 0, traders: 0, commerce: 0 }
+        });
     } catch (error) {
         log('TEST', `Erreur: ${error.message}`);
         res.status(500).json({ success: false, error: error.message });
