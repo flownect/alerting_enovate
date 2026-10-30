@@ -12,21 +12,32 @@ router.get('/', async (req, res) => {
         const NOVA_API_KEY = process.env.NOVA_API_KEY;
         const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://nova.e-novate.fr';
         
-        // fresh=1 → bypass cache Nova (bouton Slack manuel)
-        const cache = req.query.fresh === '1' ? '0' : '1';
-        const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=${cache}`;
-        console.log(`[ALERTS-API] Fetch Trello (cache=${cache}) + campaign-stats...`);
-        const trelloResponse = await fetch(trelloUrl, { timeout: 120000 });
-        
-        if (!trelloResponse.ok) {
-            throw new Error(`Trello API error: ${trelloResponse.status}`);
+        // fresh=1 = recalcul complet demandé (bouton Slack).
+        // Nova refuse souvent cache=0 (401) → on tente cache=0 puis fallback cache=1.
+        const wantFresh = req.query.fresh === '1';
+        let trelloRawData = null;
+        let usedCache = wantFresh ? '0' : '1';
+
+        for (const cache of wantFresh ? ['0', '1'] : ['1']) {
+            const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=${cache}`;
+            console.log(`[ALERTS-API] Fetch Trello (cache=${cache})${wantFresh ? ' [fresh]' : ''}...`);
+            const trelloResponse = await fetch(trelloUrl, { timeout: 120000 });
+            if (trelloResponse.ok) {
+                trelloRawData = await trelloResponse.json();
+                usedCache = cache;
+                break;
+            }
+            console.log(`[ALERTS-API] Trello cache=${cache} → HTTP ${trelloResponse.status}`);
+            if (cache === '1') {
+                throw new Error(`Trello API error: ${trelloResponse.status}`);
+            }
         }
-        
-        const trelloRawData = await trelloResponse.json();
+
         const trelloData = { data: trelloRawData };
         
-        // Récupérer les données Campaign Stats
+        // Campaign Stats : toujours live (clé pour impressions du jour)
         const statsUrl = `${NOVA_PROD_URL}/api/campaign-stats/analysis?api_key=${NOVA_API_KEY}`;
+        console.log(`[ALERTS-API] Fetch campaign-stats (Trello cache utilisé=${usedCache})...`);
         const statsResponse = await fetch(statsUrl, { timeout: 300000 });
         
         let statsData = { data: [] };
