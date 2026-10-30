@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
         
         // Récupérer les données Trello
         const NOVA_API_KEY = process.env.NOVA_API_KEY;
-        const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://dashboard.e-novate.fr';
+        const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://nova.e-novate.fr';
         
         const trelloUrl = `${NOVA_PROD_URL}/api/trello?api_key=${NOVA_API_KEY}&cache=1`;
         const trelloResponse = await fetch(trelloUrl, { timeout: 120000 });

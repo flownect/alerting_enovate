@@ -407,7 +407,7 @@ function generatePerformanceAlerts(campaignStatsData) {
             
             // Construire les liens Nova et ADX
             const briefId = campaign.briefId?.briefCampaignInfo?.[0];
-            const novaLink = briefId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
+            const novaLink = briefId ? `https://nova.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
             const adxId = campaign.adxId;
             const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
             
@@ -596,7 +596,7 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
     
     // Construire les liens Nova et ADX
     const briefId = campaign.briefId?.briefCampaignInfo?.[0];
-    const novaLink = briefId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
+    const novaLink = briefId ? `https://nova.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
     const adxId = campaign.adxId;
     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
     

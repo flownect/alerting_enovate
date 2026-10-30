@@ -186,8 +186,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuration API
 const NOVA_API_KEY = process.env.NOVA_API_KEY;
-const NOVA_URL_PREPROD = process.env.NOVA_URL_PREPROD || 'https://dashboard-preprod.e-novate.fr';
-const NOVA_URL_PROD = process.env.NOVA_URL_PROD || 'https://dashboard.e-novate.fr';
+const NOVA_URL_PREPROD = process.env.NOVA_URL_PREPROD || 'https://nova-preprod.e-novate.fr';
+const NOVA_URL_PROD = process.env.NOVA_URL_PROD || 'https://nova.e-novate.fr';
 
 // Helper pour obtenir l'URL de base selon l'environnement
 function getBaseUrl(env = 'preprod') {

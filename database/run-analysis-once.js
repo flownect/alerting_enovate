@@ -15,7 +15,7 @@ async function runOnce() {
     }
 
     const NOVA_API_KEY = process.env.NOVA_API_KEY;
-    const NOVA_URL_PROD = process.env.NOVA_URL_PROD || 'https://dashboard.e-novate.fr/api';
+    const NOVA_URL_PROD = process.env.NOVA_URL_PROD || 'https://nova.e-novate.fr/api';
 
     if (!NOVA_API_KEY) {
         console.error('❌ NOVA_API_KEY non définie');

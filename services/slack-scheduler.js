@@ -27,7 +27,7 @@ async function sendToSlack(blocks, webhookUrl = null) {
 
 // Variables d'environnement
 const NOVA_API_KEY = process.env.NOVA_API_KEY;
-const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://dashboard.e-novate.fr';
+const NOVA_PROD_URL = process.env.NOVA_PROD_URL || 'https://nova.e-novate.fr';
 
 // Fonction helper pour récupérer les données Trello
 async function fetchTrelloData() {
@@ -145,7 +145,7 @@ async function sendDailyAlerts() {
             timing: a.timing,
             message: a.message,
             novaLink: a.card?.campaignId 
-                ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
+                ? `https://nova.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
                 : null,
             adxLink: a.card?.adxCampaignUrl,
             commentsNova: a.commentsNova || [],
@@ -162,7 +162,7 @@ async function sendDailyAlerts() {
             timing: a.timing,
             message: a.message,
             novaLink: a.card?.campaignId 
-                ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
+                ? `https://nova.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
                 : null,
             adxLink: a.card?.adxCampaignUrl,
             commentsNova: a.commentsNova || [],
@@ -406,7 +406,7 @@ function generateAlertHtml(a, comments = []) {
             </p>
             ${a.card?.campaignId || a.card?.adxCampaignUrl ? `
                 <p style="margin: 10px 0 0 0;">
-                    ${a.card?.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}" style="color: #2563eb; text-decoration: none; margin-right: 15px;">📝 Nova</a>` : ''}
+                    ${a.card?.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}" style="color: #2563eb; text-decoration: none; margin-right: 15px;">📝 Nova</a>` : ''}
                     ${a.card?.adxCampaignUrl ? `<a href="${a.card.adxCampaignUrl}" style="color: #2563eb; text-decoration: none;">📊 ADX</a>` : ''}
                 </p>
             ` : ''}

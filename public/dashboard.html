@@ -1816,7 +1816,7 @@
                         </div>
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
-                        ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
+                        ${c.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
                         ${c.adxCampaignUrl ? `<a href="${c.adxCampaignUrl}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
                     </div>
                 </div>
@@ -2206,7 +2206,7 @@
                             <button onclick="copyAlertInfo_${alertId}()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded shadow-sm" title="Copier les informations">
                                 📋 Copier
                             </button>
-                            ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
+                            ${card.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
                     </div>
@@ -2334,7 +2334,7 @@
             window[`copyAlertInfo_${alertId}`] = (function(card, alert, trader, duration, volumeProgress, marginRate) {
                 return function() {
                     const priorityText = card.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
-                    const novaLink = card.campaignId ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}` : 'N/A';
+                    const novaLink = card.campaignId ? `https://nova.e-novate.fr/trader/edition-campagne?id=${card.campaignId}` : 'N/A';
                     const adxLink = card.adxCampaignUrl || 'N/A';
                     
                     const text = `${priorityText}⚠️ ALERTE ${alert.type === 'launch' ? 'LANCEMENT' : alert.type.toUpperCase()}
@@ -2458,7 +2458,7 @@ ADX: ${adxLink}`;
                         <div class="mt-1 flex flex-wrap gap-2 text-xs">
                             <span class="text-gray-500 dark:text-gray-400">👤 ${trader === 'Aucun' ? '<span class="text-red-500">N/A</span>' : trader}</span>
                             <span class="text-gray-500 dark:text-gray-400">💼 ${card.commercial || 'N/A'}</span>
-                            ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">Nova</a>` : ''}
+                            ${card.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">Nova</a>` : ''}
                             ${adxId ? `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" onclick="event.stopPropagation()" class="text-purple-600 hover:text-purple-800 dark:text-purple-400">ADX</a>` : ''}
                         </div>
                     </div>
@@ -2468,7 +2468,7 @@ ADX: ${adxLink}`;
                             <p><span class="text-gray-500">Commercial:</span> ${card.commercial || 'N/A'}</p>
                             <p><span class="text-gray-500">Lancement:</span> ${card.dates?.startingDateFormatted || 'N/A'}</p>
                             <p><span class="text-gray-500">Fin:</span> ${card.dates?.endingDateFormatted || 'N/A'}</p>
-                            ${card.campaignId ? `<p class="mt-2"><a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗 Ouvrir dans Nova</a></p>` : ''}
+                            ${card.campaignId ? `<p class="mt-2"><a href="https://nova.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗 Ouvrir dans Nova</a></p>` : ''}
                             ${adxId ? `<p class="mt-1"><a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="text-purple-600 hover:text-purple-800 dark:text-purple-400">🔗 Ouvrir dans ADX</a></p>` : ''}
                         </div>
                     </div>
@@ -2543,7 +2543,7 @@ ADX: ${adxLink}`;
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="font-mono text-xs px-2 py-1 rounded ${daysToStart <= 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : daysToStart <= 3 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${timing}</span>
                                 ${card.flaggedAsImportant ? '<span class="text-yellow-500" title="Prioritaire">⭐</span>' : ''}
-                                ${card.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
+                                ${card.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${card.campaignId}" target="_blank" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded">Nova</a>` : ''}
                                 ${card.adxCampaignUrl ? `<a href="${card.adxCampaignUrl}" target="_blank" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded">ADX</a>` : ''}
                             </div>
                             <h4 class="font-semibold text-gray-900 dark:text-white">${card.title || 'Sans nom'}</h4>
@@ -2598,7 +2598,7 @@ ADX: ${adxLink}`;
                         </div>
                     </div>
                     <div class="flex gap-2 flex-shrink-0">
-                        ${c.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
+                        ${c.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${c.campaignId}" target="_blank" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded whitespace-nowrap">Nova</a>` : ''}
                         ${c.adxCampaignUrl ? `<a href="${c.adxCampaignUrl}" target="_blank" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-xs rounded whitespace-nowrap">ADX</a>` : ''}
                     </div>
                 </div>
@@ -3075,7 +3075,7 @@ ADX: ${adxLink}`;
                             <button onclick="copyCampaignInfo_${alertId}()" class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded shadow-sm" title="Copier les informations">
                                 📋 Copier
                             </button>
-                            ${campaign.briefId?.briefCampaignInfo?.[0] ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
+                            ${campaign.briefId?.briefCampaignInfo?.[0] ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}" target="_blank" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded shadow-sm">Nova</a>` : ''}
                             ${adxLinks}
                         </div>
                     </div>
@@ -3169,7 +3169,7 @@ ADX: ${adxLink}`;
                 return function() {
                     // Formater les informations de la campagne
                     const priorityText = campaign.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
-                    const novaLink = campaign.briefId?.briefCampaignInfo?.[0] ? `https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}` : 'N/A';
+                    const novaLink = campaign.briefId?.briefCampaignInfo?.[0] ? `https://nova.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}` : 'N/A';
                     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A';
                 
                 // Formater les alertes
@@ -3315,7 +3315,7 @@ ADX: ${adxLink}`;
                             </div>
                             <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                                 <span>ADX: ${campaign.adxDisplayId || 'N/A'}</span>
-                                ${campaign.campaignId ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗</a>` : ''}
+                                ${campaign.campaignId ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${campaign.campaignId}" target="_blank" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">🔗</a>` : ''}
                                 <svg class="w-5 h-5 transform transition-transform" id="chevron-${alertId}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -3727,7 +3727,7 @@ ADX: ${adxLink}`;
                         : '');
 
                 const novaBtn = ev.campaign_id
-                    ? `<a href="https://dashboard.e-novate.fr/trader/edition-campagne?id=${encodeURIComponent(ev.campaign_id)}" target="_blank" rel="noopener" class="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white text-[10px] rounded whitespace-nowrap">Nova</a>`
+                    ? `<a href="https://nova.e-novate.fr/trader/edition-campagne?id=${encodeURIComponent(ev.campaign_id)}" target="_blank" rel="noopener" class="px-2 py-0.5 bg-blue-500 hover:bg-blue-600 text-white text-[10px] rounded whitespace-nowrap">Nova</a>`
                     : '';
 
                 return `

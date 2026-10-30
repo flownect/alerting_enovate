@@ -26,8 +26,8 @@ Dans Railway, ajoutez ces variables :
 | Variable | Description |
 |----------|-------------|
 | `NOVA_API_KEY` | Clé API pour accéder aux endpoints Nova |
-| `NOVA_URL_PREPROD` | URL de la preprod (ex: https://dashboard-preprod.e-novate.fr) |
-| `NOVA_URL_PROD` | URL de la prod (ex: https://dashboard.e-novate.fr) |
+| `NOVA_URL_PREPROD` | URL de la preprod (ex: https://nova-preprod.e-novate.fr) |
+| `NOVA_URL_PROD` | URL de la prod (ex: https://nova.e-novate.fr) |
 
 ### 3. Générer le domaine
 
