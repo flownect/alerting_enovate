@@ -79,21 +79,20 @@ async function getCriticalAlerts() {
         
         log(`✅ Alertes récupérées: ${alertsData.data.tradersCommerceAlerts.length} Traders/Commerce, ${alertsData.data.performanceAlerts.length} Performance`);
         
-        // Filtrer les alertes critiques
-        const tradersAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
-            a.type === 'launch' && a.criticality === 'critical'
-        );
-        const commerceAlerts = alertsData.data.tradersCommerceAlerts.filter(a => 
-            a.type === 'commerce' && a.criticality === 'critical'
+        // Filtrer les alertes critiques pour Slack
+        // Commerce (non programmable) → email uniquement, pas Slack
+        // Traders Slack = campagnes programmables critiques (aligné dashboard)
+        const tradersAlerts = alertsData.data.tradersCommerceAlerts.filter(a =>
+            a.criticality === 'critical' && a.card?.isProgrammable === true
         );
         const performanceAlerts = alertsData.data.performanceAlerts.filter(a => a.level === 'critique');
         
-        log(`Filtrage: ${performanceAlerts.length} Performance critiques, ${tradersAlerts.length} Traders critiques, ${commerceAlerts.length} Commerce critiques`);
+        log(`Filtrage Slack: ${performanceAlerts.length} Performance critiques, ${tradersAlerts.length} Traders critiques (commerce exclu → email)`);
         
         return {
             performanceAlerts,
             tradersAlerts,
-            commerceAlerts
+            commerceAlerts: []
         };
         
     } catch (error) {
@@ -152,25 +151,11 @@ async function sendDailyAlerts() {
             commentsDashboard: a.commentsDashboard || []
         }));
         
-        // Formater les alertes Commerce pour Slack
-        const formattedCommerce = alerts.commerceAlerts.map(a => ({
-            title: a.card?.title || 'Sans nom',
-            trader: a.card?.trader || 'N/A',
-            commercial: a.card?.commercial || 'N/A',
-            startDate: a.card?.dates?.startingDateFormatted,
-            endDate: a.card?.dates?.endingDateFormatted,
-            timing: a.timing,
-            message: a.message,
-            novaLink: a.card?.campaignId 
-                ? `https://nova.e-novate.fr/trader/edition-campagne?id=${a.card.campaignId}` 
-                : null,
-            adxLink: a.card?.adxCampaignUrl,
-            commentsNova: a.commentsNova || [],
-            commentsDashboard: a.commentsDashboard || []
-        }));
+        // Commerce volontairement exclu de Slack (déjà envoyé par email)
+        const formattedCommerce = [];
         
-        const totalCritical = formattedPerformance.length + formattedTraders.length + formattedCommerce.length;
-        log(`Envoi vers Slack: ${totalCritical} alertes (${formattedPerformance.length} Performance, ${formattedTraders.length} Traders, ${formattedCommerce.length} Commerce)`);
+        const totalCritical = formattedPerformance.length + formattedTraders.length;
+        log(`Envoi vers Slack: ${totalCritical} alertes (${formattedPerformance.length} Performance, ${formattedTraders.length} Traders, 0 Commerce)`);
         
         if (totalCritical === 0) {
             log('✅ Aucune alerte critique à envoyer');
