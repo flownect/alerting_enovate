@@ -5,10 +5,17 @@
 
 const { Client } = require('pg');
 
+const truncate = (value, max) => {
+    if (value == null) return null;
+    const str = String(value);
+    return str.length > max ? str.slice(0, max) : str;
+};
+
 class StatusTracker {
     constructor(databaseUrl) {
         this.databaseUrl = databaseUrl;
         this.client = null;
+        this._schemaReady = false;
     }
 
     async connect() {
@@ -17,10 +24,45 @@ class StatusTracker {
             ssl: { rejectUnauthorized: false }
         });
         await this.client.connect();
+        await this.ensureSchema();
     }
 
     async disconnect() {
         if (this.client) await this.client.end();
+    }
+
+    /**
+     * Élargit les colonnes trop courtes (varchar(50) → 255 / TEXT).
+     * CREATE TABLE IF NOT EXISTS ne modifie pas une table déjà créée.
+     */
+    async ensureSchema() {
+        if (this._schemaReady) return;
+        const alters = [
+            `ALTER TABLE campaign_status_tracking ALTER COLUMN campaign_id TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_tracking ALTER COLUMN commercial_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_tracking ALTER COLUMN csm_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_tracking ALTER COLUMN trader_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_tracking ALTER COLUMN current_status TYPE VARCHAR(50)`,
+            `ALTER TABLE campaign_status_history ALTER COLUMN campaign_id TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_history ALTER COLUMN commercial_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_history ALTER COLUMN csm_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_status_history ALTER COLUMN trader_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_programming ALTER COLUMN campaign_id TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_programming ALTER COLUMN csm_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_programming ALTER COLUMN trader_name TYPE VARCHAR(255)`,
+            `ALTER TABLE campaign_comments ALTER COLUMN campaign_id TYPE VARCHAR(255)`
+        ];
+        for (const sql of alters) {
+            try {
+                await this.client.query(sql);
+            } catch (err) {
+                // Table absente ou déjà au bon type → ignorer
+                if (!/does not exist|cannot cast/i.test(err.message)) {
+                    console.warn(`[StatusTracker] ensureSchema: ${err.message}`);
+                }
+            }
+        }
+        this._schemaReady = true;
     }
 
     /**
@@ -41,7 +83,15 @@ class StatusTracker {
             csm = null;
         }
         
-        return { commercial, csm };
+        return {
+            commercial: truncate(commercial, 255),
+            csm: truncate(csm, 255)
+        };
+    }
+
+    getCampaignId(card) {
+        const id = card.id || card.campaignId || card.briefId;
+        return truncate(id, 255);
     }
 
     /**
@@ -92,44 +142,52 @@ class StatusTracker {
                 
                 for (const card of lane.cards) {
                     totalCampaigns++;
-                    const campaignId = card.id;
-                    const currentStatus = this.getCampaignStatus(card);
-                    const startDate = card.dates?.startingDate || card.startDate;
+                    try {
+                        const campaignId = this.getCampaignId(card);
+                        if (!campaignId) {
+                            console.warn(`⚠️  Carte sans id ignorée: ${card.title || '?'}`);
+                            continue;
+                        }
+                        const currentStatus = this.getCampaignStatus(card);
+                        const startDate = card.dates?.startingDate || card.startDate;
 
-                    // Récupérer l'état actuel en BDD
-                    const existing = await this.client.query(
-                        'SELECT * FROM campaign_status_tracking WHERE campaign_id = $1',
-                        [campaignId]
-                    );
+                        // Récupérer l'état actuel en BDD
+                        const existing = await this.client.query(
+                            'SELECT * FROM campaign_status_tracking WHERE campaign_id = $1',
+                            [campaignId]
+                        );
 
-                    if (existing.rows.length === 0) {
-                        // Première fois qu'on voit cette campagne
-                        await this.createCampaignTracking(card, currentStatus, startDate);
-                        console.log(`🆕 Nouvelle campagne: ${card.title} [${currentStatus}]`);
-                    } else {
-                        // Campagne existante - vérifier si changement
-                        const oldRecord = existing.rows[0];
-                        const oldStatus = oldRecord.current_status;
+                        if (existing.rows.length === 0) {
+                            // Première fois qu'on voit cette campagne
+                            await this.createCampaignTracking(card, currentStatus, startDate);
+                            console.log(`🆕 Nouvelle campagne: ${card.title} [${currentStatus}]`);
+                        } else {
+                            // Campagne existante - vérifier si changement
+                            const oldRecord = existing.rows[0];
+                            const oldStatus = oldRecord.current_status;
 
-                        if (oldStatus !== currentStatus) {
-                            console.log(`📝 Changement: ${card.title}`);
-                            console.log(`   ${oldStatus} → ${currentStatus}`);
-                            
-                            // Mettre à jour le tracking
-                            await this.updateCampaignTracking(card, oldRecord, currentStatus, startDate);
-                            
-                            // Enregistrer dans l'historique
-                            await this.logStatusHistory(card, oldStatus, currentStatus, startDate);
-                            
-                            changesCount++;
+                            if (oldStatus !== currentStatus) {
+                                console.log(`📝 Changement: ${card.title}`);
+                                console.log(`   ${oldStatus} → ${currentStatus}`);
+                                
+                                // Mettre à jour le tracking
+                                await this.updateCampaignTracking(card, oldRecord, currentStatus, startDate);
+                                
+                                // Enregistrer dans l'historique
+                                await this.logStatusHistory(card, oldStatus, currentStatus, startDate);
+                                
+                                changesCount++;
 
-                            // Détecter les transitions importantes
-                            if (oldStatus === 'non_programmable' && 
-                                (currentStatus === 'programmable' || currentStatus === 'programmed')) {
-                                transitionsCount++;
-                                console.log(`✅ Transition importante: ${card.title} est maintenant ${currentStatus}`);
+                                // Détecter les transitions importantes
+                                if (oldStatus === 'non_programmable' && 
+                                    (currentStatus === 'programmable' || currentStatus === 'programmed')) {
+                                    transitionsCount++;
+                                    console.log(`✅ Transition importante: ${card.title} est maintenant ${currentStatus}`);
+                                }
                             }
                         }
+                    } catch (cardErr) {
+                        console.error(`❌ Tracking carte "${card.title || card.id}": ${cardErr.message}`);
                     }
                 }
             }
@@ -169,11 +227,11 @@ class StatusTracker {
                 metadata
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         `, [
-            card.id,
-            card.title,
+            this.getCampaignId(card),
+            card.title || null,
             commercial,
             csm,
-            card.trader || card.traderName,
+            truncate(card.trader || card.traderName, 255),
             status,
             now,
             status === 'non_programmable' ? now : null,
@@ -196,10 +254,10 @@ class StatusTracker {
         
         const updates = {
             current_status: newStatus,
-            campaign_name: card.title,
+            campaign_name: card.title || null,
             commercial_name: commercial,
             csm_name: csm,
-            trader_name: card.trader || card.traderName,
+            trader_name: truncate(card.trader || card.traderName, 255),
             campaign_start_date: startDate,
             updated_at: now
         };
@@ -245,7 +303,7 @@ class StatusTracker {
 
         // Construire la requête UPDATE
         const setClause = Object.keys(updates).map((key, i) => `${key} = $${i + 2}`).join(', ');
-        const values = [card.id, ...Object.values(updates)];
+        const values = [this.getCampaignId(card), ...Object.values(updates)];
 
         await this.client.query(
             `UPDATE campaign_status_tracking SET ${setClause} WHERE campaign_id = $1`,
@@ -272,11 +330,11 @@ class StatusTracker {
                 metadata
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         `, [
-            card.id,
-            card.title,
+            this.getCampaignId(card),
+            card.title || null,
             commercial,
             csm,
-            card.trader || card.traderName,
+            truncate(card.trader || card.traderName, 255),
             oldStatus,
             newStatus,
             startDate,

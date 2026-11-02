@@ -4,11 +4,11 @@
 
 -- Table : Tracking de TOUTES les campagnes avec leur statut actuel
 CREATE TABLE IF NOT EXISTS campaign_status_tracking (
-    campaign_id VARCHAR(50) PRIMARY KEY,
+    campaign_id VARCHAR(255) PRIMARY KEY,
     campaign_name TEXT,
-    commercial_name VARCHAR(100),
-    csm_name VARCHAR(200),
-    trader_name VARCHAR(100),
+    commercial_name VARCHAR(255),
+    csm_name VARCHAR(255),
+    trader_name VARCHAR(255),
     
     current_status VARCHAR(50) NOT NULL,
     
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS campaign_status_tracking (
 -- Table : Historique complet des changements de statut
 CREATE TABLE IF NOT EXISTS campaign_status_history (
     id SERIAL PRIMARY KEY,
-    campaign_id VARCHAR(50) NOT NULL,
+    campaign_id VARCHAR(255) NOT NULL,
     campaign_name TEXT,
-    commercial_name VARCHAR(100),
-    csm_name VARCHAR(200),
-    trader_name VARCHAR(100),
+    commercial_name VARCHAR(255),
+    csm_name VARCHAR(255),
+    trader_name VARCHAR(255),
     
     old_status VARCHAR(50),
     new_status VARCHAR(50) NOT NULL,
@@ -50,10 +50,10 @@ CREATE TABLE IF NOT EXISTS campaign_status_history (
 -- Table : Suivi des programmations
 CREATE TABLE IF NOT EXISTS campaign_programming (
     id SERIAL PRIMARY KEY,
-    campaign_id VARCHAR(50) NOT NULL,
+    campaign_id VARCHAR(255) NOT NULL,
     campaign_name TEXT,
-    csm_name VARCHAR(100),
-    trader_name VARCHAR(100),
+    csm_name VARCHAR(255),
+    trader_name VARCHAR(255),
     
     became_programmable_at TIMESTAMP,
     campaign_start_date DATE,
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS campaign_programming (
 -- Table : Commentaires sur les campagnes
 CREATE TABLE IF NOT EXISTS campaign_comments (
     id SERIAL PRIMARY KEY,
-    campaign_id VARCHAR(50) NOT NULL,
+    campaign_id VARCHAR(255) NOT NULL,
     campaign_name TEXT,
     comment_text TEXT NOT NULL,
     author VARCHAR(100),

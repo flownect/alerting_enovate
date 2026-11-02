@@ -6,11 +6,11 @@
 
 -- Table : Tracking de TOUTES les campagnes avec leur statut actuel
 CREATE TABLE IF NOT EXISTS campaign_status_tracking (
-    campaign_id VARCHAR(50) PRIMARY KEY,
+    campaign_id VARCHAR(255) PRIMARY KEY,
     campaign_name TEXT,
-    commercial_name VARCHAR(100), -- Commercial (avant le premier "-")
-    csm_name VARCHAR(200), -- CSM (après le "-", peut contenir plusieurs noms séparés par ",")
-    trader_name VARCHAR(100),
+    commercial_name VARCHAR(255), -- Commercial (avant le premier "-")
+    csm_name VARCHAR(255), -- CSM (après le "-", peut contenir plusieurs noms séparés par ",")
+    trader_name VARCHAR(255),
     
     -- Statut actuel
     current_status VARCHAR(50) NOT NULL, -- 'non_programmable', 'programmable', 'programmed', 'live'
@@ -37,11 +37,11 @@ CREATE TABLE IF NOT EXISTS campaign_status_tracking (
 -- Table : Historique complet des changements de statut
 CREATE TABLE IF NOT EXISTS campaign_status_history (
     id SERIAL PRIMARY KEY,
-    campaign_id VARCHAR(50) NOT NULL,
+    campaign_id VARCHAR(255) NOT NULL,
     campaign_name TEXT,
-    commercial_name VARCHAR(100),
-    csm_name VARCHAR(200),
-    trader_name VARCHAR(100),
+    commercial_name VARCHAR(255),
+    csm_name VARCHAR(255),
+    trader_name VARCHAR(255),
     
     -- Statut
     old_status VARCHAR(50),

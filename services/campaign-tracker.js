@@ -27,20 +27,20 @@ const FIELD_EVENT_MAP = {
 
 const ENSURE_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS campaign_snapshots (
-    tracker_key VARCHAR(50) PRIMARY KEY,
-    tracker_id VARCHAR(50),
-    campaign_id VARCHAR(50),
+    tracker_key VARCHAR(255) PRIMARY KEY,
+    tracker_id VARCHAR(255),
+    campaign_id VARCHAR(255),
     campaign_name TEXT,
-    commercial_name VARCHAR(100),
-    csm_name VARCHAR(100),
-    trader_name VARCHAR(100),
+    commercial_name VARCHAR(255),
+    csm_name VARCHAR(255),
+    trader_name VARCHAR(255),
     is_programmable BOOLEAN DEFAULT false,
     is_programmed BOOLEAN DEFAULT false,
     is_live BOOLEAN DEFAULT false,
     is_checked BOOLEAN DEFAULT false,
     is_priority BOOLEAN DEFAULT false,
     has_bilan_missing BOOLEAN DEFAULT false,
-    lane_id VARCHAR(20),
+    lane_id VARCHAR(50),
     campaign_start DATE,
     campaign_end DATE,
     snapshot_hash VARCHAR(64),
@@ -50,16 +50,16 @@ CREATE TABLE IF NOT EXISTS campaign_snapshots (
 );
 CREATE TABLE IF NOT EXISTS campaign_events (
     id BIGSERIAL PRIMARY KEY,
-    tracker_key VARCHAR(50) NOT NULL,
-    tracker_id VARCHAR(50),
-    campaign_id VARCHAR(50),
+    tracker_key VARCHAR(255) NOT NULL,
+    tracker_id VARCHAR(255),
+    campaign_id VARCHAR(255),
     campaign_name TEXT,
-    trader_name VARCHAR(100),
-    csm_name VARCHAR(100),
-    commercial_name VARCHAR(100),
+    trader_name VARCHAR(255),
+    csm_name VARCHAR(255),
+    commercial_name VARCHAR(255),
     event_type VARCHAR(30) NOT NULL,
-    old_value VARCHAR(50),
-    new_value VARCHAR(50),
+    old_value VARCHAR(255),
+    new_value VARCHAR(255),
     detected_at TIMESTAMP NOT NULL DEFAULT NOW(),
     days_before_launch INT,
     campaign_start DATE,
@@ -76,6 +76,20 @@ CREATE INDEX IF NOT EXISTS idx_events_type_date ON campaign_events(event_type, d
 CREATE INDEX IF NOT EXISTS idx_events_trader ON campaign_events(trader_name, detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_events_csm ON campaign_events(csm_name, detected_at DESC);
 CREATE INDEX IF NOT EXISTS idx_events_commercial ON campaign_events(commercial_name, detected_at DESC);
+ALTER TABLE campaign_snapshots ALTER COLUMN tracker_key TYPE VARCHAR(255);
+ALTER TABLE campaign_snapshots ALTER COLUMN tracker_id TYPE VARCHAR(255);
+ALTER TABLE campaign_snapshots ALTER COLUMN campaign_id TYPE VARCHAR(255);
+ALTER TABLE campaign_snapshots ALTER COLUMN commercial_name TYPE VARCHAR(255);
+ALTER TABLE campaign_snapshots ALTER COLUMN csm_name TYPE VARCHAR(255);
+ALTER TABLE campaign_snapshots ALTER COLUMN trader_name TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN tracker_key TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN tracker_id TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN campaign_id TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN commercial_name TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN csm_name TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN trader_name TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN old_value TYPE VARCHAR(255);
+ALTER TABLE campaign_events ALTER COLUMN new_value TYPE VARCHAR(255);
 `;
 
 class CampaignTracker {
@@ -99,7 +113,14 @@ class CampaignTracker {
             .map(s => s.trim())
             .filter(s => s.length > 0);
         for (const stmt of statements) {
-            await this.client.query(stmt);
+            try {
+                await this.client.query(stmt);
+            } catch (err) {
+                // ALTER sur table absente / type déjà OK → ignorer
+                if (!/does not exist|cannot cast/i.test(err.message)) {
+                    console.warn(`[CampaignTracker] ensureSchema: ${err.message}`);
+                }
+            }
         }
     }
 
