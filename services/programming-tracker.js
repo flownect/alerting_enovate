@@ -109,29 +109,32 @@ class ProgrammingTracker {
                 if (isProgrammed) {
                     programmedCards++;
                     
-                    // Vérifier si c'est une NOUVELLE programmation
-                    if (!existingIds.has(card.campaignId)) {
-                        const startDate = this.parseDate(card.dates?.startingDateFormatted);
-                        if (startDate) {
-                            const daysBeforeStart = this.getDaysDiff(now, startDate);
-                            
-                            campaigns.push({
-                                campaign_id: card.campaignId,
-                                campaign_name: card.title || card.name,
-                                csm_name: card.commercial || null,
-                                trader_name: this.getFirstTrader(card.trader),
-                                programmed_at: now,
-                                campaign_start_date: startDate,
-                                days_before_start: daysBeforeStart,
-                                metadata: {
-                                    trackerId: card.trackerId,
-                                    laneId: lane.id,
-                                    laneName: lane.name,
-                                    hasProgrammedSubdivision
-                                }
-                            });
-                            newlyProgrammed++;
-                        }
+                    // card.id = id Trello (souvent le vrai PK stocké) ; campaignId = id Nova
+                    const campaignId = card.campaignId || card.id;
+                    if (!campaignId || existingIds.has(campaignId)) continue;
+
+                    const startDate = this.parseDate(card.dates?.startingDateFormatted);
+                    if (startDate) {
+                        const daysBeforeStart = this.getDaysDiff(now, startDate);
+                        
+                        // Marquer tout de suite pour éviter doublons multi-lanes
+                        existingIds.add(campaignId);
+                        campaigns.push({
+                            campaign_id: campaignId,
+                            campaign_name: card.title || card.name,
+                            csm_name: card.commercial || null,
+                            trader_name: this.getFirstTrader(card.trader),
+                            programmed_at: now,
+                            campaign_start_date: startDate,
+                            days_before_start: daysBeforeStart,
+                            metadata: {
+                                trackerId: card.trackerId,
+                                laneId: lane.id,
+                                laneName: lane.name,
+                                hasProgrammedSubdivision
+                            }
+                        });
+                        newlyProgrammed++;
                     }
                 }
             }
@@ -146,12 +149,12 @@ class ProgrammingTracker {
      */
     async logProgramming(campaign) {
         try {
-            // Insérer directement (pas de vérification car déjà filtré)
-            await this.client.query(`
+            const result = await this.client.query(`
                 INSERT INTO campaign_programming 
                 (campaign_id, campaign_name, csm_name, trader_name, programmed_at,
                  campaign_start_date, days_before_start, metadata)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (campaign_id) DO NOTHING
             `, [
                 campaign.campaign_id,
                 campaign.campaign_name,
@@ -163,7 +166,7 @@ class ProgrammingTracker {
                 JSON.stringify(campaign.metadata)
             ]);
 
-            return true;
+            return result.rowCount > 0;
         } catch (error) {
             console.error(`Erreur lors du log de ${campaign.campaign_id}:`, error.message);
             return false;

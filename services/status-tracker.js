@@ -32,36 +32,110 @@ class StatusTracker {
     }
 
     /**
-     * Élargit les colonnes trop courtes (varchar(50) → 255 / TEXT).
-     * CREATE TABLE IF NOT EXISTS ne modifie pas une table déjà créée.
+     * Force les colonnes texte en TEXT.
+     * Les vues dépendantes bloquent ALTER → on DROP puis on recrée.
      */
     async ensureSchema() {
         if (this._schemaReady) return;
-        const alters = [
-            `ALTER TABLE campaign_status_tracking ALTER COLUMN campaign_id TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_tracking ALTER COLUMN commercial_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_tracking ALTER COLUMN csm_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_tracking ALTER COLUMN trader_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_tracking ALTER COLUMN current_status TYPE VARCHAR(50)`,
-            `ALTER TABLE campaign_status_history ALTER COLUMN campaign_id TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_history ALTER COLUMN commercial_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_history ALTER COLUMN csm_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_status_history ALTER COLUMN trader_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_programming ALTER COLUMN campaign_id TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_programming ALTER COLUMN csm_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_programming ALTER COLUMN trader_name TYPE VARCHAR(255)`,
-            `ALTER TABLE campaign_comments ALTER COLUMN campaign_id TYPE VARCHAR(255)`
+
+        try {
+            await this.client.query('DROP VIEW IF EXISTS v_programming_stats_30d CASCADE');
+            await this.client.query('DROP VIEW IF EXISTS v_programming_stats_by_csm CASCADE');
+        } catch (err) {
+            console.warn(`[StatusTracker] DROP VIEW: ${err.message}`);
+        }
+
+        const widen = [
+            ['campaign_status_tracking', 'campaign_id'],
+            ['campaign_status_tracking', 'campaign_name'],
+            ['campaign_status_tracking', 'commercial_name'],
+            ['campaign_status_tracking', 'csm_name'],
+            ['campaign_status_tracking', 'trader_name'],
+            ['campaign_status_tracking', 'current_status'],
+            ['campaign_status_history', 'campaign_id'],
+            ['campaign_status_history', 'campaign_name'],
+            ['campaign_status_history', 'commercial_name'],
+            ['campaign_status_history', 'csm_name'],
+            ['campaign_status_history', 'trader_name'],
+            ['campaign_status_history', 'old_status'],
+            ['campaign_status_history', 'new_status'],
+            ['campaign_programming', 'campaign_id'],
+            ['campaign_programming', 'campaign_name'],
+            ['campaign_programming', 'csm_name'],
+            ['campaign_programming', 'trader_name'],
+            ['campaign_comments', 'campaign_id'],
+            ['campaign_comments', 'campaign_name'],
+            ['campaign_comments', 'author']
         ];
-        for (const sql of alters) {
+
+        for (const [table, column] of widen) {
             try {
-                await this.client.query(sql);
+                await this.client.query(
+                    `ALTER TABLE ${table} ALTER COLUMN ${column} TYPE TEXT`
+                );
             } catch (err) {
-                // Table absente ou déjà au bon type → ignorer
-                if (!/does not exist|cannot cast/i.test(err.message)) {
-                    console.warn(`[StatusTracker] ensureSchema: ${err.message}`);
+                if (!/does not exist/i.test(err.message)) {
+                    console.warn(`[StatusTracker] ALTER ${table}.${column}: ${err.message}`);
                 }
             }
         }
+
+        // Recréer les vues (après ALTER campaign_programming)
+        try {
+            await this.client.query(`
+                CREATE OR REPLACE VIEW v_programming_stats_by_csm AS
+                SELECT 
+                    csm_name,
+                    COUNT(*) as total_programmed,
+                    COUNT(*) FILTER (WHERE days_before_start = 0) as programmed_j0,
+                    COUNT(*) FILTER (WHERE days_before_start = 1) as programmed_j1,
+                    COUNT(*) FILTER (WHERE days_before_start = 2) as programmed_j2,
+                    COUNT(*) FILTER (WHERE days_before_start >= 3) as programmed_j3_plus,
+                    COUNT(*) FILTER (WHERE days_before_start < 0) as programmed_late,
+                    MIN(programmed_at) as first_programming,
+                    MAX(programmed_at) as last_programming
+                FROM campaign_programming
+                WHERE csm_name IS NOT NULL
+                GROUP BY csm_name
+                ORDER BY total_programmed DESC
+            `);
+            await this.client.query(`
+                CREATE OR REPLACE VIEW v_programming_stats_30d AS
+                SELECT 
+                    COALESCE(csm_name, trader_name) as csm_name,
+                    COUNT(*) as total_programmed,
+                    COUNT(*) FILTER (WHERE days_before_start < 0) as programmed_after_start,
+                    COUNT(*) FILTER (WHERE days_before_start = 0) as late_j0,
+                    COUNT(*) FILTER (WHERE days_before_start = 1) as late_j1,
+                    COUNT(*) FILTER (WHERE days_before_start = 2) as late_j2,
+                    COUNT(*) FILTER (WHERE days_before_start = 3) as on_time_j3,
+                    COUNT(*) FILTER (WHERE days_before_start > 3) as on_time_j3_plus,
+                    MAX(programmed_at) as last_programmed_at
+                FROM campaign_programming
+                WHERE programmed_at >= NOW() - INTERVAL '30 days'
+                  AND (csm_name IS NOT NULL OR trader_name IS NOT NULL)
+                GROUP BY COALESCE(csm_name, trader_name)
+                ORDER BY COUNT(*) FILTER (WHERE days_before_start <= 2) DESC
+            `);
+        } catch (err) {
+            console.warn(`[StatusTracker] recreate views: ${err.message}`);
+        }
+
+        try {
+            const check = await this.client.query(`
+                SELECT column_name, data_type, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_name = 'campaign_status_tracking'
+                  AND column_name IN ('campaign_id','campaign_name','commercial_name','csm_name','trader_name','current_status')
+                ORDER BY column_name
+            `);
+            console.log('[StatusTracker] colonnes campaign_status_tracking:',
+                check.rows.map(r => `${r.column_name}=${r.data_type}${r.character_maximum_length ? `(${r.character_maximum_length})` : ''}`).join(', ')
+            );
+        } catch (err) {
+            console.warn(`[StatusTracker] check schema: ${err.message}`);
+        }
+
         this._schemaReady = true;
     }
 
