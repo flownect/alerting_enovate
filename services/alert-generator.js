@@ -53,20 +53,26 @@ function parisHour(date = new Date()) {
 /**
  * "Ne diffuse pas" = 0 impressions aujourd'hui (value1), avec garde-fous anti faux positifs :
  * - value1 null/undefined → stats pas encore dispo, pas d'alerte
+ * - volume impressions déjà atteint (≥100%) → pas de souci, pas d'alerte
  * - campagne démarrée depuis < 1 jour → trop tôt
- * - campagne déjà terminée → pas d'alerte
+ * - durée terminée (fin atteinte) → pas d'alerte
  * - hier > 0 et avant 11h Paris → lag matinal probable, pas d'alerte
  * - hier = 0 → arrêt confirmé sur 2 jours, alerte même le matin
  */
-function isCampaignNotDelivering(impressionsData, startDate, endDate, now = new Date()) {
+function isCampaignNotDelivering(impressionsData, startDate, endDate, now = new Date(), deliveryProgressPercent = 0) {
     if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
         return false;
     }
     const todayImp = Number(impressionsData.value1);
     if (!Number.isFinite(todayImp) || todayImp !== 0) return false;
 
+    // Objectif volume déjà atteint → 0 aujourd'hui n'est pas un problème
+    if (deliveryProgressPercent >= 100) return false;
+
     if (!startDate || getDaysDiff(startDate, now) < 1) return false;
-    if (endDate && getDaysDiff(now, endDate) < 0) return false;
+
+    // Durée terminée (jour de fin inclus) → plus d'alerte "ne diffuse pas"
+    if (endDate && getDaysDiff(now, endDate) <= 0) return false;
 
     const yesterdayRaw = impressionsData.yesterday;
     const yesterdayImp = (yesterdayRaw == null || yesterdayRaw === '')
@@ -344,7 +350,8 @@ function generatePerformanceAlerts(campaignStatsData) {
             impressionsData,
             startDate,
             endDate,
-            now
+            now,
+            deliveryProgressPercent
         );
         
         // RÈGLE GLOBALE : Aucune alerte avant 20% de diffusion (sauf campagne ne diffuse pas)

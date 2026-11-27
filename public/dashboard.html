@@ -551,16 +551,22 @@
             return parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
         }
 
-        // "Ne diffuse pas" : value1=0 avec garde-fous (stats manquantes, J0, finie, lag <11h si hier>0)
-        function isCampaignNotDelivering(impressionsData, startDate, endDate, now = new Date()) {
+        // "Ne diffuse pas" : value1=0 avec garde-fous
+        // (stats manquantes, volume ≥100%, J0, durée terminée, lag <11h si hier>0)
+        function isCampaignNotDelivering(impressionsData, startDate, endDate, now = new Date(), deliveryProgressPercent = 0) {
             if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
                 return false;
             }
             const todayImp = Number(impressionsData.value1);
             if (!Number.isFinite(todayImp) || todayImp !== 0) return false;
 
+            // Objectif volume déjà atteint → pas de souci
+            if (deliveryProgressPercent >= 100) return false;
+
             if (!startDate || getDaysDiff(startDate, now) < 1) return false;
-            if (endDate && getDaysDiff(now, endDate) < 0) return false;
+
+            // Durée terminée (jour de fin inclus)
+            if (endDate && getDaysDiff(now, endDate) <= 0) return false;
 
             const yesterdayRaw = impressionsData.yesterday;
             const yesterdayImp = (yesterdayRaw == null || yesterdayRaw === '')
@@ -954,7 +960,8 @@
                     impressionsData,
                     startDate,
                     endDate,
-                    now
+                    now,
+                    deliveryProgressPercent
                 );
                 
                 // RÈGLE GLOBALE : Aucune alerte avant 20% de diffusion
