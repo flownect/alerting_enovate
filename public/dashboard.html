@@ -3090,26 +3090,44 @@ ADX: ${adxLink}`;
                 });
             }
             
-            // Liens ADX (chercher l'URL dans les commentaires ou construire avec adxId)
+            // Liens ADX : même ID que Traders (adxDisplayId Hubscale, pas adxId interne)
             let adxLinks = '';
-            const adxId = campaign.adxDisplayId || campaign.adxId; // Déclarer ici pour la closure
+            const adxId = campaign.adxDisplayId || campaign.adxId;
             
-            // Chercher l'URL ADX dans les commentaires
-            let adxUrl = null;
-            if (campaign.comments && Array.isArray(campaign.comments)) {
-                const adxComment = campaign.comments.find(c => 
-                    c.content && c.content.includes('hubscale.io/manager/campaigns/view/')
-                );
-                if (adxComment) {
-                    adxUrl = adxComment.content.trim();
+            // 1) Lien déjà fourni par l'API alertes
+            let adxUrl = alert.adxLink || null;
+            
+            // 2) URL Trello matchée (comme Alertes Traders)
+            if (!adxUrl && typeof getAllCards === 'function') {
+                try {
+                    const cards = getAllCards();
+                    const matched = cards.find(c =>
+                        c.adxCampaignUrl && (
+                            String(c.trackerId) === String(campaign.adxDisplayId) ||
+                            String(c.trackerId) === String(campaign.adxId) ||
+                            (c.campaignId && campaign.briefId?.briefCampaignInfo?.[0] &&
+                                String(c.campaignId) === String(campaign.briefId.briefCampaignInfo[0]))
+                        )
+                    );
+                    if (matched?.adxCampaignUrl) adxUrl = matched.adxCampaignUrl;
+                } catch (_) { /* ignore */ }
+            }
+            
+            // 3) Extraire une URL propre depuis les commentaires (pas tout le contenu)
+            if (!adxUrl && campaign.comments && Array.isArray(campaign.comments)) {
+                for (const c of campaign.comments) {
+                    const m = c.content && String(c.content).match(/https?:\/\/[^\s"'<>]*hubscale\.io\/manager\/campaigns\/view\/\d+/i);
+                    if (m) { adxUrl = m[0]; break; }
                 }
             }
             
-            // Utiliser l'URL trouvée ou construire avec adxId
+            // 4) Fallback construit avec adxDisplayId
+            if (!adxUrl && adxId) {
+                adxUrl = `https://enovate.hubscale.io/manager/campaigns/view/${adxId}`;
+            }
+            
             if (adxUrl) {
                 adxLinks = `<a href="${adxUrl}" target="_blank" class="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium rounded shadow-sm">ADX</a>`;
-            } else if (adxId) {
-                adxLinks = `<a href="https://enovate.hubscale.io/manager/campaigns/view/${adxId}" target="_blank" class="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white text-xs font-medium rounded shadow-sm">ADX</a>`;
             }
             
             const div = document.createElement('div');
@@ -3217,12 +3235,12 @@ ADX: ${adxLink}`;
             `;
             
             // Créer la fonction de copie pour cette campagne (capturer les variables)
-            window[`copyCampaignInfo_${alertId}`] = (function(campaign, alert, trader, duration, categoryBadges, adxId, perfData) {
+            window[`copyCampaignInfo_${alertId}`] = (function(campaign, alert, trader, duration, categoryBadges, adxId, perfData, adxUrlCaptured) {
                 return function() {
                     // Formater les informations de la campagne
                     const priorityText = campaign.flaggedAsImportant ? '⭐ PRIORITAIRE\n' : '';
                     const novaLink = campaign.briefId?.briefCampaignInfo?.[0] ? `https://nova.e-novate.fr/trader/edition-campagne?id=${campaign.briefId.briefCampaignInfo[0]}` : 'N/A';
-                    const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A';
+                    const adxLink = adxUrlCaptured || (adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : 'N/A');
                 
                 // Formater les alertes
                 let alertsText = '';
@@ -3274,7 +3292,7 @@ ADX: ${adxLink}`;
                     alert('Erreur lors de la copie');
                 });
                 };
-            })(campaign, alert, trader, duration, categoryBadges, adxId, perfData);
+            })(campaign, alert, trader, duration, categoryBadges, adxId, perfData, adxUrl);
             
             container.appendChild(div);
         }

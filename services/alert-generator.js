@@ -465,9 +465,10 @@ function generatePerformanceAlerts(campaignStatsData) {
             console.log(`[PERF ALERT] ${campaign.campaignName} - Level: ${level} - Reasons: ${reasons.join(', ')}`);
             
             // Construire les liens Nova et ADX
+            // Hubscale attend adxDisplayId (pas adxId interne) — comme les liens Traders
             const briefId = campaign.briefId?.briefCampaignInfo?.[0];
             const novaLink = briefId ? `https://nova.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
-            const adxId = campaign.adxId;
+            const adxId = campaign.adxDisplayId || campaign.adxId;
             const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
             
             // Calculer daysLeft et formater les dates
@@ -653,10 +654,10 @@ function checkKpiBenchmark(kpi, card, campaign, deliveryPercent, timePercent) {
         return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     };
     
-    // Construire les liens Nova et ADX
+    // Construire les liens Nova et ADX (adxDisplayId = ID Hubscale)
     const briefId = campaign.briefId?.briefCampaignInfo?.[0];
     const novaLink = briefId ? `https://nova.e-novate.fr/trader/edition-campagne?id=${briefId}` : null;
-    const adxId = campaign.adxId;
+    const adxId = campaign.adxDisplayId || campaign.adxId;
     const adxLink = adxId ? `https://enovate.hubscale.io/manager/campaigns/view/${adxId}` : null;
     
     return {
