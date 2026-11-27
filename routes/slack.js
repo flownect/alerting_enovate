@@ -167,15 +167,15 @@ function formatAlertForSlack(alert) {
 }
 
 // Fonction pour envoyer les alertes sur Slack (utilisable en interne)
+// Slack = Performance + Traders uniquement. Commerce/CSM → email seulement.
 async function sendAlertsToSlackWebhook(data) {
-    const { performanceAlerts, tradersAlerts, commerceAlerts } = data;
+    const { performanceAlerts, tradersAlerts } = data;
     
-    // Les données sont déjà filtrées et nettoyées côté client
     const criticalPerf = performanceAlerts || [];
     const criticalTraders = tradersAlerts || [];
-    const criticalCommerce = commerceAlerts || [];
+    // commerceAlerts volontairement ignoré (CSM/Commerce = email)
     
-    const totalCritical = criticalPerf.length + criticalTraders.length + criticalCommerce.length;
+    const totalCritical = criticalPerf.length + criticalTraders.length;
     
     if (totalCritical === 0) {
         return { success: true, message: 'Aucune alerte critique à envoyer' };
@@ -247,24 +247,6 @@ async function sendAlertsToSlackWebhook(data) {
         blocks.push({ type: 'divider' });
         
         criticalTraders.forEach(alert => {
-            blocks.push(formatAlertForSlack(alert));
-            blocks.push({ type: 'divider' });
-        });
-    }
-    
-    // Section Commerce (CSM)
-    if (criticalCommerce.length > 0) {
-        blocks.push({ type: 'divider' });
-        blocks.push({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: `*💼 ALERTES CSM (${criticalCommerce.length})*`
-            }
-        });
-        blocks.push({ type: 'divider' });
-        
-        criticalCommerce.forEach(alert => {
             blocks.push(formatAlertForSlack(alert));
             blocks.push({ type: 'divider' });
         });
