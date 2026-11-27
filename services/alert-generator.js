@@ -53,12 +53,51 @@ function parisHour(date = new Date()) {
     return parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
 }
 
+function parisDateStr(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Paris',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date); // YYYY-MM-DD
+}
+
 /**
- * "Ne diffuse pas" = < 10 impressions aujourd'hui (value1).
+ * Impressions du jour : max(value1, history[aujourd'hui]).
+ * value1 est parfois à 0 alors que l'historique du jour a déjà des impressions.
+ * Retourne null si aucune donnée exploitable.
+ */
+function getTodayImpressions(impressionsData, now = new Date()) {
+    if (!impressionsData) return null;
+    const candidates = [];
+
+    if (impressionsData.value1 != null && impressionsData.value1 !== '') {
+        const v = Number(impressionsData.value1);
+        if (Number.isFinite(v)) candidates.push(v);
+    }
+
+    const todayKey = parisDateStr(now); // 2026-11-27
+    const todayFr = todayKey.split('-').reverse().join('/'); // 27/11/2026
+    if (Array.isArray(impressionsData.history)) {
+        for (const h of impressionsData.history) {
+            const d = String(h.date || '');
+            if (d === todayKey || d.startsWith(todayKey) || d === todayFr || d.includes(todayKey)) {
+                const v = Number(h.value);
+                if (Number.isFinite(v)) candidates.push(v);
+            }
+        }
+    }
+
+    if (candidates.length === 0) return null;
+    return Math.max(...candidates);
+}
+
+/**
+ * "Ne diffuse pas" = < 10 impressions aujourd'hui.
  * Exceptions :
  * - volume ≥100% (objectif atteint)
  * - volume on-track vs durée (écart ≤10 pts) → ex: 90% vol / 90% durée
- * - campagne terminée, démarrage < 1 jour, value1 absent
+ * - campagne terminée, démarrage < 1 jour, stats absentes
  * - avant 11h Paris (stats du jour souvent incomplètes)
  */
 function isCampaignNotDelivering(
@@ -69,11 +108,8 @@ function isCampaignNotDelivering(
     deliveryProgressPercent = 0,
     durationProgress = 0
 ) {
-    if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
-        return false;
-    }
-    const todayImp = Number(impressionsData.value1);
-    if (!Number.isFinite(todayImp) || todayImp >= MIN_DAILY_IMPRESSIONS) return false;
+    const todayImp = getTodayImpressions(impressionsData, now);
+    if (todayImp == null || todayImp >= MIN_DAILY_IMPRESSIONS) return false;
 
     // Objectif volume déjà atteint → pas de souci
     if (deliveryProgressPercent >= 100) return false;
@@ -416,8 +452,8 @@ function generatePerformanceAlerts(campaignStatsData) {
         // CRITIQUE - Campagne ne diffuse pas (< 10 impressions aujourd'hui)
         if (isNotDelivering) {
             level = 'critique';
-            const todayCount = Number(impressionsData?.value1);
-            reasons.push(`Campagne ne diffuse pas (${Number.isFinite(todayCount) ? todayCount : 0} impression${todayCount > 1 ? 's' : ''} aujourd'hui, seuil <${MIN_DAILY_IMPRESSIONS})`);
+            const todayCount = getTodayImpressions(impressionsData, now);
+            reasons.push(`Campagne ne diffuse pas (${todayCount ?? 0} impression${todayCount > 1 ? 's' : ''} aujourd'hui, seuil <${MIN_DAILY_IMPRESSIONS})`);
         }
         
         // Alertes objectifs à partir de 50% durée
@@ -826,6 +862,7 @@ module.exports = {
     hasTag, 
     getEffectiveTrader,
     isCampaignNotDelivering,
+    getTodayImpressions,
     parisHour,
     MIN_DAILY_IMPRESSIONS
 };
