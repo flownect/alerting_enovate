@@ -55,8 +55,11 @@ function parisHour(date = new Date()) {
 
 /**
  * "Ne diffuse pas" = < 10 impressions aujourd'hui (value1).
- * Exceptions : volume ≥100%, campagne terminée, démarrage < 1 jour, value1 absent.
- * Garde-fou 11h Paris : avant 11h les stats du jour sont souvent incomplètes.
+ * Exceptions :
+ * - volume ≥100% (objectif atteint)
+ * - volume on-track vs durée (écart ≤10 pts) → ex: 90% vol / 90% durée
+ * - campagne terminée, démarrage < 1 jour, value1 absent
+ * - avant 11h Paris (stats du jour souvent incomplètes)
  */
 function isCampaignNotDelivering(
     impressionsData,
@@ -64,7 +67,7 @@ function isCampaignNotDelivering(
     endDate,
     now = new Date(),
     deliveryProgressPercent = 0,
-    _durationProgress = 0
+    durationProgress = 0
 ) {
     if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
         return false;
@@ -74,6 +77,11 @@ function isCampaignNotDelivering(
 
     // Objectif volume déjà atteint → pas de souci
     if (deliveryProgressPercent >= 100) return false;
+
+    // Volume en ligne avec la durée (ex: CoSpirit 90%/90%) → pas un vrai arrêt
+    if (durationProgress > 0 && deliveryProgressPercent >= durationProgress - 10) {
+        return false;
+    }
 
     // Durée terminée (jour de fin inclus)
     if (endDate && getDaysDiff(now, endDate) <= 0) return false;
@@ -816,5 +824,8 @@ module.exports = {
     getDaysDiff, 
     today, 
     hasTag, 
-    getEffectiveTrader 
+    getEffectiveTrader,
+    isCampaignNotDelivering,
+    parisHour,
+    MIN_DAILY_IMPRESSIONS
 };
