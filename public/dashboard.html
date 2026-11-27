@@ -585,7 +585,7 @@
             return Math.max(...candidates);
         }
 
-        // "Ne diffuse pas" : < 10 imp jour, garde-fou 11h + volume on-track
+        // "Ne diffuse pas" : < 10 imp jour, garde-fou 7h + volume on-track
         function isCampaignNotDelivering(
             impressionsData,
             startDate,
@@ -610,8 +610,8 @@
 
             if (!startDate || getDaysDiff(startDate, now) < 1) return false;
 
-            // Avant 11h Paris → stats du jour souvent incomplètes
-            if (parisHour(now) < 11) return false;
+            // Avant 7h Paris → trop tôt pour des stats du jour
+            if (parisHour(now) < 7) return false;
 
             return true;
         }

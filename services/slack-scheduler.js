@@ -748,9 +748,9 @@ async function previewCommerceEmails(testRecipients = null, testPerson = null) {
 
 // Démarrer le scheduler
 function startScheduler() {
-    // Tous les jours à 11h30 - Slack (après garde-fou stats 11h)
-    cron.schedule('30 11 * * *', () => {
-        log('🕐 Déclenchement automatique 11h30 - Traders Slack');
+    // Tous les jours à 8h30 - Slack Traders
+    cron.schedule('30 8 * * *', () => {
+        log('🕐 Déclenchement automatique 8h30 - Traders Slack');
         sendDailyAlerts();
     }, {
         timezone: 'Europe/Paris'
@@ -764,7 +764,7 @@ function startScheduler() {
         timezone: 'Europe/Paris'
     });
     
-    log('✅ Scheduler démarré - Slack 11h30 / Commerce email 8h30');
+    log('✅ Scheduler démarré - Slack 8h30 / Commerce email 8h30');
 }
 
 module.exports = { startScheduler, sendDailyAlerts, sendCommerceAlertsEmail, previewCommerceEmails };

@@ -98,7 +98,7 @@ function getTodayImpressions(impressionsData, now = new Date()) {
  * - volume ≥100% (objectif atteint)
  * - volume on-track vs durée (écart ≤10 pts) → ex: 90% vol / 90% durée
  * - campagne terminée, démarrage < 1 jour, stats absentes
- * - avant 11h Paris (stats du jour souvent incomplètes)
+ * - avant 7h Paris (trop tôt pour des stats du jour)
  */
 function isCampaignNotDelivering(
     impressionsData,
@@ -124,8 +124,8 @@ function isCampaignNotDelivering(
 
     if (!startDate || getDaysDiff(startDate, now) < 1) return false;
 
-    // Avant 11h Paris → stats du jour souvent incomplètes
-    if (parisHour(now) < 11) return false;
+    // Avant 7h Paris → trop tôt pour des stats du jour
+    if (parisHour(now) < 7) return false;
 
     return true;
 }

@@ -1874,7 +1874,7 @@ app.listen(PORT, async () => {
     // Démarrer le scheduler Slack (si SLACK_WEBHOOK_URL existe)
     if (process.env.SLACK_WEBHOOK_URL) {
         startScheduler();
-        log('SLACK', '✅ Scheduler Slack activé - Envoi quotidien à 11h30');
+        log('SLACK', '✅ Scheduler Slack activé - Envoi quotidien à 8h30');
     } else {
         log('SLACK', '⚠️ SLACK_WEBHOOK_URL non configurée - Scheduler désactivé');
     }
