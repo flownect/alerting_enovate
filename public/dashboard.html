@@ -551,7 +551,9 @@
             return parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
         }
 
-        // "Ne diffuse pas" : value1=0 avec garde-fous
+        const MIN_DAILY_IMPRESSIONS = 10;
+
+        // "Ne diffuse pas" : value1 < 10 avec garde-fous
         // (stats manquantes, volume ≥100% ou on-track vs durée, J0, terminée, lag <11h)
         function isCampaignNotDelivering(
             impressionsData,
@@ -565,7 +567,7 @@
                 return false;
             }
             const todayImp = Number(impressionsData.value1);
-            if (!Number.isFinite(todayImp) || todayImp !== 0) return false;
+            if (!Number.isFinite(todayImp) || todayImp >= MIN_DAILY_IMPRESSIONS) return false;
 
             // Objectif volume déjà atteint → pas de souci
             if (deliveryProgressPercent >= 100) return false;
@@ -585,7 +587,7 @@
                 ? null
                 : Number(yesterdayRaw);
 
-            if (yesterdayImp === 0) return true;
+            if (Number.isFinite(yesterdayImp) && yesterdayImp < MIN_DAILY_IMPRESSIONS) return true;
             if (parisHour(now) < 11) return false;
             return true;
         }
@@ -1032,13 +1034,11 @@
                 let level = null;
                 let reasons = [];
                 
-                // CRITIQUE - Campagne ne diffuse pas actuellement
-                // (variables déjà déclarées plus haut)
-                // Si 0 impressions aujourd'hui ET campagne déjà démarrée = campagne ne diffuse pas
-                // L'alerte disparaît automatiquement dès que ça relivre (today > 0)
+                // CRITIQUE - Campagne ne diffuse pas (< 10 impressions aujourd'hui)
                 if (isNotDelivering) {
                     level = 'critique';
-                    reasons.push(`Campagne ne diffuse pas (0 impressions aujourd'hui)`);
+                    const todayCount = Number(impressionsData?.value1);
+                    reasons.push(`Campagne ne diffuse pas (${Number.isFinite(todayCount) ? todayCount : 0} impression${todayCount > 1 ? 's' : ''} aujourd'hui, seuil <${MIN_DAILY_IMPRESSIONS})`);
                 }
                 
                 // Alertes objectifs (principal + secondaire) à partir de 50% durée (utiliser durée ajustée)
