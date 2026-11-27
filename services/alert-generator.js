@@ -44,10 +44,19 @@ function today() {
 /** Sous ce seuil d'impressions du jour → considéré comme "ne diffuse pas" */
 const MIN_DAILY_IMPRESSIONS = 10;
 
+function parisHour(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('fr-FR', {
+        timeZone: 'Europe/Paris',
+        hour: 'numeric',
+        hour12: false
+    }).formatToParts(date);
+    return parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+}
+
 /**
  * "Ne diffuse pas" = < 10 impressions aujourd'hui (value1).
- * Stats Nova en direct → plus de garde-fou 11h / lag matinal.
  * Exceptions : volume ≥100%, campagne terminée, démarrage < 1 jour, value1 absent.
+ * Garde-fou 11h Paris : avant 11h les stats du jour sont souvent incomplètes.
  */
 function isCampaignNotDelivering(
     impressionsData,
@@ -70,6 +79,9 @@ function isCampaignNotDelivering(
     if (endDate && getDaysDiff(now, endDate) <= 0) return false;
 
     if (!startDate || getDaysDiff(startDate, now) < 1) return false;
+
+    // Avant 11h Paris → stats du jour souvent incomplètes
+    if (parisHour(now) < 11) return false;
 
     return true;
 }
