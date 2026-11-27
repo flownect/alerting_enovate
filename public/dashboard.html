@@ -542,6 +542,36 @@
             return new Date();
         }
 
+        function parisHour(date = new Date()) {
+            const parts = new Intl.DateTimeFormat('fr-FR', {
+                timeZone: 'Europe/Paris',
+                hour: 'numeric',
+                hour12: false
+            }).formatToParts(date);
+            return parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+        }
+
+        // "Ne diffuse pas" : value1=0 avec garde-fous (stats manquantes, J0, finie, lag <11h si hier>0)
+        function isCampaignNotDelivering(impressionsData, startDate, endDate, now = new Date()) {
+            if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
+                return false;
+            }
+            const todayImp = Number(impressionsData.value1);
+            if (!Number.isFinite(todayImp) || todayImp !== 0) return false;
+
+            if (!startDate || getDaysDiff(startDate, now) < 1) return false;
+            if (endDate && getDaysDiff(now, endDate) < 0) return false;
+
+            const yesterdayRaw = impressionsData.yesterday;
+            const yesterdayImp = (yesterdayRaw == null || yesterdayRaw === '')
+                ? null
+                : Number(yesterdayRaw);
+
+            if (yesterdayImp === 0) return true;
+            if (parisHour(now) < 11) return false;
+            return true;
+        }
+
         function hasTag(card, tagTitle) {
             return card.tags?.some(t => t.title?.toLowerCase().includes(tagTitle.toLowerCase()));
         }
@@ -918,12 +948,14 @@
                     deliveryProgressPercent = (impressionsActual / impressionsObjective) * 100;
                 }
                 
-                // Vérifier si la campagne ne diffuse pas (exception au seuil de 20%)
+                // Vérifier si la campagne ne diffuse pas (value1=aujourd'hui, anti-lag)
                 const impressionsData = campaign.data?.impressions;
-                const today = impressionsData?.value1 || 0;
-                const campaignStartDate = parseDate(campaign.vStartDate);
-                const hasStarted = campaignStartDate && campaignStartDate < now;
-                const isNotDelivering = (today === 0 && hasStarted);
+                const isNotDelivering = isCampaignNotDelivering(
+                    impressionsData,
+                    startDate,
+                    endDate,
+                    now
+                );
                 
                 // RÈGLE GLOBALE : Aucune alerte avant 20% de diffusion
                 // SAUF pour "campagne ne diffuse pas" qui est toujours affichée
