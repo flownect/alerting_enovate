@@ -41,26 +41,13 @@ function today() {
     return new Date();
 }
 
-function parisHour(date = new Date()) {
-    const parts = new Intl.DateTimeFormat('fr-FR', {
-        timeZone: 'Europe/Paris',
-        hour: 'numeric',
-        hour12: false
-    }).formatToParts(date);
-    return parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-}
-
 /** Sous ce seuil d'impressions du jour → considéré comme "ne diffuse pas" */
 const MIN_DAILY_IMPRESSIONS = 10;
 
 /**
- * "Ne diffuse pas" = < 10 impressions aujourd'hui (value1), avec garde-fous anti faux positifs :
- * - value1 null/undefined → stats pas encore dispo, pas d'alerte
- * - volume ≥100% ou volume qui suit la durée (écart ≤10 pts) → pas de souci
- * - campagne démarrée depuis < 1 jour → trop tôt
- * - durée terminée (fin atteinte) → pas d'alerte
- * - hier ≥ 10 et avant 11h Paris → lag matinal probable, pas d'alerte
- * - hier < 10 → diffusion faible confirmée sur 2 jours, alerte même le matin
+ * "Ne diffuse pas" = < 10 impressions aujourd'hui (value1).
+ * Stats Nova en direct → plus de garde-fou 11h / lag matinal.
+ * Exceptions : volume ≥100%, campagne terminée, démarrage < 1 jour, value1 absent.
  */
 function isCampaignNotDelivering(
     impressionsData,
@@ -68,7 +55,7 @@ function isCampaignNotDelivering(
     endDate,
     now = new Date(),
     deliveryProgressPercent = 0,
-    durationProgress = 0
+    _durationProgress = 0
 ) {
     if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
         return false;
@@ -76,26 +63,14 @@ function isCampaignNotDelivering(
     const todayImp = Number(impressionsData.value1);
     if (!Number.isFinite(todayImp) || todayImp >= MIN_DAILY_IMPRESSIONS) return false;
 
-    // Objectif volume déjà atteint → peu d'impressions aujourd'hui n'est pas un problème
+    // Objectif volume déjà atteint → pas de souci
     if (deliveryProgressPercent >= 100) return false;
 
-    // Volume en ligne avec la durée (ex: 95% vol / 96% durée) → pas un vrai arrêt
-    if (durationProgress > 0 && deliveryProgressPercent >= durationProgress - 10) {
-        return false;
-    }
+    // Durée terminée (jour de fin inclus)
+    if (endDate && getDaysDiff(now, endDate) <= 0) return false;
 
     if (!startDate || getDaysDiff(startDate, now) < 1) return false;
 
-    // Durée terminée (jour de fin inclus) → plus d'alerte "ne diffuse pas"
-    if (endDate && getDaysDiff(now, endDate) <= 0) return false;
-
-    const yesterdayRaw = impressionsData.yesterday;
-    const yesterdayImp = (yesterdayRaw == null || yesterdayRaw === '')
-        ? null
-        : Number(yesterdayRaw);
-
-    if (Number.isFinite(yesterdayImp) && yesterdayImp < MIN_DAILY_IMPRESSIONS) return true;
-    if (parisHour(now) < 11) return false;
     return true;
 }
 
