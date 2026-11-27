@@ -552,8 +552,15 @@
         }
 
         // "Ne diffuse pas" : value1=0 avec garde-fous
-        // (stats manquantes, volume ≥100%, J0, durée terminée, lag <11h si hier>0)
-        function isCampaignNotDelivering(impressionsData, startDate, endDate, now = new Date(), deliveryProgressPercent = 0) {
+        // (stats manquantes, volume ≥100% ou on-track vs durée, J0, terminée, lag <11h)
+        function isCampaignNotDelivering(
+            impressionsData,
+            startDate,
+            endDate,
+            now = new Date(),
+            deliveryProgressPercent = 0,
+            durationProgress = 0
+        ) {
             if (impressionsData == null || impressionsData.value1 == null || impressionsData.value1 === '') {
                 return false;
             }
@@ -562,6 +569,11 @@
 
             // Objectif volume déjà atteint → pas de souci
             if (deliveryProgressPercent >= 100) return false;
+
+            // Volume en ligne avec la durée (ex: 95% / 96%) → pas un vrai arrêt
+            if (durationProgress > 0 && deliveryProgressPercent >= durationProgress - 10) {
+                return false;
+            }
 
             if (!startDate || getDaysDiff(startDate, now) < 1) return false;
 
@@ -961,7 +973,8 @@
                     startDate,
                     endDate,
                     now,
-                    deliveryProgressPercent
+                    deliveryProgressPercent,
+                    durationProgress
                 );
                 
                 // RÈGLE GLOBALE : Aucune alerte avant 20% de diffusion
